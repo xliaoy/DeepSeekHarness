@@ -1,6 +1,0 @@
-# dsh-client-ui-aqua bundle patch: one client-only plugin row.
-# The browser half is discovered through the package.json dsh.client declaration;
-# the host half is an empty apply so the row exists in the host Loader.
-- insert:
-    - id: dsh-client-ui-aqua
-      name: 'dsh-client-ui-aqua'
