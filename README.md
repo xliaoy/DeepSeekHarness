@@ -7,10 +7,14 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT"></a>
+  <a href="https://github.com/xliaoy/DeepSeekHarness"><img src="https://img.shields.io/badge/repo-xliaoy%2FDeepSeekHarness-2ea44f" alt="repo"></a>
+  <a href="https://github.com/xliaoy/DeepSeekHarness/releases/latest"><img src="https://img.shields.io/github/v/release/xliaoy/DeepSeekHarness?color=blue" alt="release"></a>
   <a href="https://github.com/DSH-APP/DSHA"><img src="https://img.shields.io/badge/base-DSHA-blue" alt="base"></a>
   <img src="https://img.shields.io/badge/Android-11%2B-3DDC84?logo=android&logoColor=white" alt="android">
   <img src="https://img.shields.io/badge/arch-arm64--v8a-lightgrey" alt="arch">
 </p>
+
+> 📥 **下载与使用**：请到 [Releases 页面](https://github.com/xliaoy/DeepSeekHarness/releases/latest) 下载安装包（标准版 / 兼容版），安装后首次启动按引导解压环境即可使用。
 
 > 本项目是 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（DeepSeek Harness 安卓启动器）的二次开发版本。
 > 在保留官方全部底层能力（proot/proroot 运行时、插件、备份、ADB 直连等）的基础上，对 UI 进行全面美化，并新增一批实用功能。
