@@ -24,3 +24,7 @@ keystore.properties
 # 大体积运行时资源（bin / 压缩包，走 Release 分发；小文件与插件源码正常入库）
 app/src/main/assets/*.bin
 app/src/main/assets/*.tar.gz
+
+# Python 缓存
+__pycache__/
+*.pyc
