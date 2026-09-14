@@ -288,34 +288,6 @@
                     android:layout_marginBottom="@dimen/gap_tight"
                     android:text="调整悬浮条底色、透明度、行数、字号和停留时间；也可选择是否显示思考过程和命令原文。" />
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/hairline"
-                    android:layout_marginBottom="@dimen/gap_tight"
-                    android:background="@color/line" />
-
-                <TextView android:id="@+id/config_translate" style="@style/DeepSeekHarnessText.Body"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="@dimen/touch_min"
-                    android:background="@drawable/bg_chip_clickable"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:paddingStart="@dimen/gap_control"
-                    android:paddingEnd="@dimen/gap_control"
-                    android:text="插件翻译（尚未提供）"
-                    android:enabled="false"
-                    android:elevation="1dp"/>
-
-                <TextView style="@style/DeepSeekHarnessText.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/gap_tight"
-                    android:layout_marginTop="@dimen/gap_hair"
-                    android:layout_marginBottom="@dimen/gap_tight"
-                    android:text="当前版本没有插件翻译设置；不影响插件安装及使用。" />
-
                 <CheckBox android:id="@+id/config_rc6" style="@style/DeepSeekHarnessText.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
