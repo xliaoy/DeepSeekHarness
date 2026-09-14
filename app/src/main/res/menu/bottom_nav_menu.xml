@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顺序按**使用频率**排，不按功能分类：
+     启动（每次都点）→ 插件（常逛）→ 终端（排查时才用）。
+     设置入口已全部移入顶栏汉堡侧边栏，底栏不再占位。 -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_launch"
+        android:icon="@drawable/ic_launch"
+        android:title="启动" />
+    <item
+        android:id="@+id/nav_plugins"
+        android:icon="@drawable/ic_plugins"
+        android:title="插件" />
+    <item
+        android:id="@+id/nav_terminal"
+        android:icon="@drawable/ic_terminal"
+        android:title="终端" />
+</menu>

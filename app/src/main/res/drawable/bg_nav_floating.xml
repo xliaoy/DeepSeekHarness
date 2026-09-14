@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Telegram 风格悬浮底栏：居中胶囊形圆角卡片。
+     不铺满屏幕宽度（左右留白由 activity_main 的外层 padding 提供），
+     不透明垂直渐变 + hairline 描边；柔和阴影由 android:elevation 提供（与 bg_card 同方案）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:type="linear" android:angle="270"
+        android:startColor="@color/card" android:endColor="@color/raised" />
+    <corners android:radius="@dimen/radius_pill" />
+    <stroke android:width="@dimen/stroke" android:color="@color/line" />
+</shape>

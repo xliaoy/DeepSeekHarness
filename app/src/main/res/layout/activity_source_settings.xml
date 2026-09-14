@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 源设置页：npm / Ubuntu 软件包(APT) / pip 镜像切换。
+     各组为一张白卡：当前源 + 下拉单选预设 + 自定义输入 + 应用，排版统一。 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/page_pad">
+
+        <!-- 顶栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/source_back"
+                style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                android:layout_width="44dp"
+                android:layout_height="wrap_content"
+                android:text="‹"
+                android:textSize="24sp"
+                android:contentDescription="返回" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.NavTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="源设置" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:text="切换 npm / Ubuntu 软件包(APT) / pip 镜像源。选择或输入后点「应用」生效。" />
+
+        <!-- ============ npm 源 ============ -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="npm 源"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:elevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/gap_control">
+
+                <TextView
+                    style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="当前"/>
+
+                <TextView
+                    android:id="@+id/npm_current"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_control"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:text="官方默认"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="@dimen/hairline" android:background="@color/line" />
+
+            <Spinner
+                android:id="@+id/npm_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/input_height"
+                android:layout_margin="@dimen/gap_control"
+                android:background="@drawable/bg_input"
+                android:popupBackground="@drawable/bg_spinner_popup"
+                android:paddingStart="@dimen/gap_control"
+                android:paddingEnd="@dimen/gap_control" />
+
+            <View android:layout_width="match_parent" android:layout_height="@dimen/hairline" android:background="@color/line" />
+
+            <EditText
+                android:id="@+id/npm_custom"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/gap_control"
+                android:background="@drawable/bg_input"
+                android:hint="或自定义源地址（https://…）"
+                android:gravity="center_vertical"
+                android:inputType="textUri"
+                android:maxLines="1"
+                android:minHeight="@dimen/input_height"
+                android:padding="@dimen/gap_control"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_muted"
+                android:textSize="@dimen/text_body" />
+
+            <Button
+                android:id="@+id/npm_apply"
+                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_control"
+                android:layout_marginEnd="@dimen/gap_control"
+                android:layout_marginBottom="@dimen/gap_control"
+                android:text="应用 npm 源" />
+        </LinearLayout>
+
+        <!-- ============ Ubuntu 软件包(APT)源 ============ -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="Ubuntu 软件包源（APT）"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:elevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/gap_control">
+
+                <TextView
+                    style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="当前"/>
+
+                <TextView
+                    android:id="@+id/apt_current"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_control"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:text="官方默认"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="@dimen/hairline" android:background="@color/line" />
+
+            <Spinner
+                android:id="@+id/apt_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/input_height"
+                android:layout_margin="@dimen/gap_control"
+                android:background="@drawable/bg_input"
+                android:popupBackground="@drawable/bg_spinner_popup"
+                android:paddingStart="@dimen/gap_control"
+                android:paddingEnd="@dimen/gap_control" />
+
+            <View android:layout_width="match_parent" android:layout_height="@dimen/hairline" android:background="@color/line" />
+
+            <EditText
+                android:id="@+id/apt_custom"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/gap_control"
+                android:background="@drawable/bg_input"
+                android:hint="或自定义镜像根地址（https://…/ubuntu-ports/）"
+                android:gravity="center_vertical"
+                android:inputType="textUri"
+                android:maxLines="1"
+                android:minHeight="@dimen/input_height"
+                android:padding="@dimen/gap_control"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_muted"
+                android:textSize="@dimen/text_body" />
+
+            <Button
+                android:id="@+id/apt_apply"
+                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_control"
+                android:layout_marginEnd="@dimen/gap_control"
+                android:layout_marginBottom="@dimen/gap_control"
+                android:text="应用 Ubuntu 软件包源" />
+        </LinearLayout>
+
+        <!-- ============ pip 源 ============ -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="pip 源（Python）"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:elevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/gap_control">
+
+                <TextView
+                    style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="当前"/>
+
+                <TextView
+                    android:id="@+id/pip_current"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_control"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:text="官方默认"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="@dimen/hairline" android:background="@color/line" />
+
+            <Spinner
+                android:id="@+id/pip_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/input_height"
+                android:layout_margin="@dimen/gap_control"
+                android:background="@drawable/bg_input"
+                android:popupBackground="@drawable/bg_spinner_popup"
+                android:paddingStart="@dimen/gap_control"
+                android:paddingEnd="@dimen/gap_control" />
+
+            <View android:layout_width="match_parent" android:layout_height="@dimen/hairline" android:background="@color/line" />
+
+            <EditText
+                android:id="@+id/pip_custom"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/gap_control"
+                android:background="@drawable/bg_input"
+                android:hint="或自定义 pip 源地址（https://…/simple）"
+                android:gravity="center_vertical"
+                android:inputType="textUri"
+                android:maxLines="1"
+                android:minHeight="@dimen/input_height"
+                android:padding="@dimen/gap_control"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_muted"
+                android:textSize="@dimen/text_body" />
+
+            <Button
+                android:id="@+id/pip_apply"
+                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_control"
+                android:layout_marginEnd="@dimen/gap_control"
+                android:layout_marginBottom="@dimen/gap_control"
+                android:text="应用 pip 源" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_block"
+            android:text="APT 源应用会自动刷新索引；npm / pip 源即时生效。"
+            android:textColor="@color/text_muted" />
+    </LinearLayout>
+</ScrollView>

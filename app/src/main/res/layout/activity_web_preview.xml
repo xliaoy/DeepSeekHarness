@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 网页预览：WebView 全屏；错误页为浅灰底 + 白色大圆角卡片；
+     加载进度条贴顶（细），百分比 chip 悬浮在网页右上角。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <FrameLayout
+            android:id="@+id/web_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <ScrollView
+            android:id="@+id/web_error_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/surface"
+            android:fillViewport="true"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/page_pad"
+                android:paddingEnd="@dimen/page_pad"
+                android:paddingTop="@dimen/gap_section"
+                android:paddingBottom="@dimen/gap_section">
+
+                <LinearLayout
+                    style="@style/DeepSeekHarnessCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/web_error_title"
+                        style="@style/DeepSeekHarnessText.Title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="@dimen/text_page_title" />
+
+                    <TextView
+                        android:id="@+id/web_error_detail"
+                        style="@style/DeepSeekHarnessText.Label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/gap_block"
+                        android:lineSpacingExtra="2dp"
+                        android:textIsSelectable="true" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/hairline"
+                        android:layout_marginTop="@dimen/gap_block"
+                        android:background="@color/line" />
+
+                    <Button
+                        android:id="@+id/web_retry"
+                        style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/gap_block"
+                        android:minHeight="@dimen/btn_height"
+                        android:text="重试" />
+                </LinearLayout>
+
+                <LinearLayout
+                    style="@style/DeepSeekHarnessCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_section">
+
+                    <Button
+                        android:id="@+id/web_error_recovery"
+                        style="@style/Widget.DeepSeekHarness.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="返回启动页处理插件 / 安全启动" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/hairline"
+                        android:layout_marginTop="@dimen/gap_tight"
+                        android:layout_marginBottom="@dimen/gap_tight"
+                        android:background="@color/line" />
+
+                    <Button
+                        android:id="@+id/web_error_logs"
+                        style="@style/Widget.DeepSeekHarness.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="下载错误日志" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/hairline"
+                        android:layout_marginTop="@dimen/gap_tight"
+                        android:layout_marginBottom="@dimen/gap_tight"
+                        android:background="@color/line" />
+
+                    <Button
+                        android:id="@+id/web_error_browser"
+                        style="?attr/borderlessButtonStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/touch_min"
+                        android:text="在系统浏览器中打开" />
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+    </FrameLayout>
+
+    <!-- 加载提示覆盖在网页上，不占高度、不让页面在加载完成时跳动。 -->
+    <TextView
+        android:id="@+id/web_progress_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:background="@drawable/bg_chip"
+        android:layout_marginTop="@dimen/gap_tight"
+        android:layout_marginEnd="@dimen/gap_tight"
+        android:elevation="2dp"
+        android:paddingStart="@dimen/gap_control"
+        android:paddingEnd="@dimen/gap_control"
+        android:paddingTop="@dimen/gap_hair"
+        android:paddingBottom="@dimen/gap_hair"
+        android:textSize="@dimen/text_caption"
+        android:textStyle="bold"
+        android:textColor="@color/text_secondary"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/web_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/progress_thin"
+        android:layout_gravity="top"
+        android:max="100" />
+</FrameLayout>

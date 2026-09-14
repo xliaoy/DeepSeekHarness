@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- iOS 原生风格色板（不透明）：systemGroupedBackground 浅灰底 + 纯白卡片 + hairline 分隔。
+     毛玻璃质感由「不透明渐变 + 描边 + 柔和层叠阴影」实现，不使用半透明/模糊。 -->
+<resources>
+    <color name="primary">#000000</color>
+    <color name="primary_dark">#1C1C1E</color>
+    <color name="accent_on">#FFFFFF</color>
+    <!-- 分组背景（iOS systemGroupedBackground）与卡片 -->
+    <color name="surface">#F2F2F7</color>
+    <color name="card">#FFFFFF</color>
+    <color name="raised">#F7F7FA</color>
+    <color name="line">#E5E5EA</color>
+    <!-- 文字阶梯（iOS label / secondary / tertiary） -->
+    <color name="text">#000000</color>
+    <color name="text_secondary">#3C3C43</color>
+    <color name="text_muted">#8E8E93</color>
+    <!-- 状态：灰阶 -->
+    <color name="ok">#1C1C1E</color>
+    <color name="warn">#6C6C70</color>
+    <color name="err">#48484A</color>
+    <color name="preview">#F2F2F7</color>
+    <!-- 终端背景保持深色（白色前景可读） -->
+    <color name="terminal_surface">#0A0D12</color>
+    <color name="terminal_outline">#2A2F36</color>
+    <color name="logo_top">#F7F7FA</color>
+    <color name="logo_bot">#E5E5EA</color>
+    <color name="ripple">#0F000000</color>
+    <color name="primary_ripple">#1A000000</color>
+    <color name="error_on">#FFFFFF</color>
+    <color name="disabled">#E9E9EE</color>
+    <color name="err_bg">#0FF2F2F7</color>
+</resources>

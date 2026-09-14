@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeepseekHarness" parent="Theme.DeepSeekHarness.Base">
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.DeepSeekHarness.Base" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/accent_on</item>
+        <item name="colorPrimaryContainer">@color/raised</item>
+        <item name="colorOnPrimaryContainer">@color/primary</item>
+        <item name="colorSecondary">@color/primary_dark</item>
+        <!-- 底栏选中指示 / 芯片选中底色走这两个（不给的话 Material 会自己算一个
+             紫色系默认值，跟本 App 的蓝灰配色打架） -->
+        <item name="colorSecondaryContainer">@color/ripple</item>
+        <item name="colorOnSecondaryContainer">@color/primary</item>
+        <!-- 表面层级：卡片=card，次级容器=raised，描边=line。
+             Switch / CheckBox / Slider / AlertDialog 都吃这几个语义色，
+             补齐后系统控件才会和自绘的卡片按钮同色系。 -->
+        <item name="colorSurface">@color/card</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="colorSurfaceVariant">@color/raised</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="colorOutline">@color/line</item>
+        <item name="colorOutlineVariant">@color/line</item>
+        <item name="colorError">@color/err</item>
+        <item name="colorOnError">@color/error_on</item>
+        <item name="colorControlHighlight">@color/ripple</item>
+
+        <!-- 柔和低透明度软阴影：黑色低透明度，避免生硬黑边（API 29+，minSdk 30 可用） -->
+        <item name="android:outlineAmbientShadowColor">#14000000</item>
+        <item name="android:outlineSpotShadowColor">#10000000</item>
+
+        <item name="android:colorBackground">@color/surface</item>
+        <!-- 窗口背景取顶栏渐变顶部色(card)：状态栏透明时显示其背景不让主体灰(surface)染进来，
+             页面主体都自带 surface 背景不受影响；暗色模式自动用 night 的 card。 -->
+        <item name="android:windowBackground">@color/card</item>
+        <!-- 状态栏沉浸式透明，由顶栏背景延伸覆盖（配合 setDecorFitsSystemWindows(false)） -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+
+        <!-- 弹窗圆角/配色跟随 App（系统默认弹窗是直角 + 紫色按钮）。
+             两条各管一路：alertDialogTheme 管 appcompat/framework 的 AlertDialog，
+             materialAlertDialogTheme 管 MaterialAlertDialogBuilder。 -->
+        <item name="alertDialogTheme">@style/Dialog.DeepSeekHarness.Alert</item>
+        <item name="materialAlertDialogTheme">@style/Dialog.DeepSeekHarness.Material</item>
+
+        <!-- 关闭自动着色时必须同时指定默认背景和文字状态，否则未指定背景的按钮会变黑。 -->
+        <item name="materialButtonStyle">@style/Widget.DeepSeekHarness.Button</item>
+        <item name="buttonStyle">@style/Widget.DeepSeekHarness.Button</item>
+        <item name="android:buttonStyle">@style/Widget.DeepSeekHarness.PlatformButton</item>
+        <item name="android:colorAccent">@color/primary</item>
+        <item name="colorControlNormal">@color/text_secondary</item>
+        <item name="colorControlActivated">@color/primary</item>
+        <item name="radioButtonStyle">@style/Widget.DeepSeekHarness.RadioButton</item>
+        <item name="checkboxStyle">@style/Widget.DeepSeekHarness.CheckBox</item>
+        <item name="materialSwitchStyle">@style/Widget.DeepSeekHarness.Switch</item>
+    </style>
+
+    <!-- appcompat / framework AlertDialog：必须是完整 Dialog 主题（不能给 Overlay） -->
+    <style name="Dialog.DeepSeekHarness.Alert" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSurface">@color/card</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:colorAccent">@color/primary</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="android:windowElevation">12dp</item>
+        <item name="android:windowMinWidthMajor">86%</item>
+        <item name="android:windowMinWidthMinor">86%</item>
+        <item name="android:windowNoTitle">false</item>
+        <item name="android:buttonBarStyle">@style/Widget.DeepSeekHarness.DialogButtonBar</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.DeepSeekHarness.DialogPositive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.DeepSeekHarness.Dialog</item>
+    </style>
+
+    <!-- MaterialAlertDialogBuilder 专用（必须是 ThemeOverlay） -->
+    <style name="Dialog.DeepSeekHarness.Material" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSurface">@color/card</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="android:colorAccent">@color/primary</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.DeepSeekHarness.DialogPositive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.DeepSeekHarness.Dialog</item>
+    </style>
+
+    <style name="Shape.DeepSeekHarness.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">32dp</item>
+    </style>
+</resources>

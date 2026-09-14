@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols outlined「description」—— 侧边栏：诊断与日志（文档） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M7.729,5.865h8.628v1.608H7.729v-1.608Zm0,4.555h8.628v1.608H7.729v-1.608ZM5.076,1.31q-0.643,0 -1.125,0.482t-0.482,1.125v18.221q0,0.643 0.482,1.125t1.125,0.482h9.673l5.868,-5.868v-13.961q0,-0.643 -0.482,-1.125t-1.125,-0.482H5.076Zm8.87,14.845v4.984H5.076v-18.221h13.934v13.237H13.946ZM5.076,21.139v-4.984,4.984,-18.221,18.221Z" />
+</vector>

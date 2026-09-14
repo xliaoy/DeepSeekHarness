@@ -1,0 +1,22 @@
+# 构建产物
+build/
+.gradle/
+*.apk
+*.aab
+
+# 本地环境（含路径/密钥）
+local.properties
+workspace.json
+
+# 签名与密钥（绝不提交到仓库）
+release/
+*.keystore
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 系统
+.DS_Store

@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  启动页：iOS 拟态分组排版。
+  浅灰页底 + 白色大圆角卡片分组；组标题用 Caption，卡片内小节名用 Title。
+  运行状态、主/次操作与局域网地址同属一张卡片；运行日志独立成卡片（终端预览风）。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/launch_home"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/page_pad"
+            android:paddingTop="@dimen/gap_control"
+            android:paddingEnd="@dimen/page_pad"
+            android:paddingBottom="@dimen/gap_section">
+
+            <!-- 组标题：运行状态 -->
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:layout_marginBottom="@dimen/gap_tight"
+                android:text="运行状态"
+                android:textStyle="bold" />
+
+            <!-- 卡片一：运行状态与操作 -->
+            <LinearLayout
+                style="@style/DeepSeekHarnessCard"
+                android:background="@drawable/bg_card"
+                android:elevation="2dp"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/launch_run_dot"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="●"
+                        android:textColor="@color/text_muted"
+                        android:textSize="@dimen/text_caption" />
+
+                    <TextView
+                        android:id="@+id/launch_run_state"
+                        style="@style/DeepSeekHarnessText.Title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/gap_tight"
+                        android:layout_weight="1"
+                        android:text="DSH 未运行" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/launch_status"
+                    style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:textColor="@color/text_muted" />
+
+                <ProgressBar
+                    android:id="@+id/launch_busy"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/progress_thin"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/primary"
+                    android:visibility="gone" />
+
+                <!-- 局域网地址 -->
+                <TextView
+                    android:id="@+id/lan_addr"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:background="@drawable/bg_addr_plain"
+                    android:clickable="true"
+                    android:elevation="1dp"
+                    android:focusable="true"
+                    android:fontFamily="monospace"
+                    android:paddingStart="@dimen/gap_control"
+                    android:paddingTop="10dp"
+                    android:paddingEnd="@dimen/gap_control"
+                    android:paddingBottom="10dp"
+                    android:textColor="@color/primary"
+                    android:visibility="gone" />
+
+                <!-- 本机访问地址：与局域网地址同款展示（无圆角） -->
+                <TextView
+                    android:id="@+id/local_addr"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:background="@drawable/bg_addr_plain"
+                    android:clickable="true"
+                    android:elevation="1dp"
+                    android:focusable="true"
+                    android:fontFamily="monospace"
+                    android:paddingStart="@dimen/gap_control"
+                    android:paddingTop="10dp"
+                    android:paddingEnd="@dimen/gap_control"
+                    android:paddingBottom="10dp"
+                    android:textColor="@color/primary"
+                    android:visibility="gone" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/stroke"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:background="@color/line" />
+
+                <!-- 主操作：整行实心按钮，最显眼 -->
+                <Button
+                    android:id="@+id/launch_start"
+                    style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="启动" />
+
+                <!-- 次要操作：权重分栏 -->
+                <LinearLayout
+                    android:id="@+id/launch_controls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/launch_open"
+                        style="@style/Widget.DeepSeekHarness.Button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="@dimen/btn_height"
+                        android:text="重启" />
+
+                    <Button
+                        android:id="@+id/launch_stop"
+                        style="@style/Widget.DeepSeekHarness.Button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/gap_tight"
+                        android:layout_weight="1"
+                        android:minHeight="@dimen/btn_height"
+                        android:text="停止"
+                        android:textColor="@color/err" />
+                </LinearLayout>
+
+                <!-- 文字按钮：安全启动 -->
+                <Button
+                    android:id="@+id/launch_safe"
+                    style="@style/Widget.DeepSeekHarness.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="安全启动" />
+
+                <Button
+                    android:id="@+id/launch_recovery"
+                    style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="查看恢复选项"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 组标题：运行日志 -->
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:layout_marginTop="@dimen/gap_section"
+                android:layout_marginBottom="@dimen/gap_tight"
+                android:text="运行日志"
+                android:textStyle="bold" />
+
+            <!-- 卡片二：日志预览 -->
+            <LinearLayout
+                style="@style/DeepSeekHarnessCard"
+                android:background="@drawable/bg_card"
+                android:elevation="2dp"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingEnd="@dimen/gap_control">
+
+                        <View
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/dot_red" />
+
+                        <View
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/dot_amber" />
+
+                        <View
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:background="@drawable/dot_green" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="实时输出"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/launch_download_logs"
+                        style="@style/Widget.DeepSeekHarness.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="下载日志" />
+                </LinearLayout>
+
+                <androidx.core.widget.NestedScrollView
+                    android:id="@+id/launch_log_scroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:background="@drawable/bg_preview"
+                    android:fillViewport="false"
+                    android:overScrollMode="always">
+
+                    <TextView
+                        android:id="@+id/launch_log"
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:paddingStart="@dimen/card_pad"
+                        android:paddingTop="@dimen/gap_control"
+                        android:paddingEnd="@dimen/card_pad"
+                        android:paddingBottom="@dimen/card_pad"
+                        android:text="还没有日志。"
+                        android:textColor="@color/text_secondary"
+                        android:textIsSelectable="true" />
+                </androidx.core.widget.NestedScrollView>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <FrameLayout
+        android:id="@+id/launch_web"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/surface"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:id="@+id/launch_web_box"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+</FrameLayout>

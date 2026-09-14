@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  安装/环境检查页：iOS 拟态分组排版。
+  浅灰页底，四张白色大圆角卡片分组：环境检查、安装步骤、日志与诊断、环境维护。
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/page_pad"
+        android:paddingTop="@dimen/gap_control"
+        android:paddingEnd="@dimen/page_pad"
+        android:paddingBottom="@dimen/gap_section">
+
+        <!-- ================= 环境检查 ================= -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="环境检查"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/install_status"
+                style="@style/DeepSeekHarnessText.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <ProgressBar
+                android:id="@+id/install_progressbar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/progress_bold"
+                android:layout_marginTop="@dimen/gap_control"
+                android:indeterminateTint="@color/primary"
+                android:visibility="gone" />
+
+            <!-- 进度百分比文本：必须保留 -->
+            <TextView
+                android:id="@+id/install_progress"
+                style="@style/DeepSeekHarnessText.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:visibility="gone" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/stroke"
+                android:layout_marginTop="@dimen/gap_control"
+                android:background="@color/line" />
+
+            <!-- 主操作：整行 -->
+            <Button
+                android:id="@+id/install_btn"
+                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="仅检查环境" />
+
+            <Button
+                android:id="@+id/install_repair"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="检查并按需修复" />
+
+            <Button
+                android:id="@+id/install_cancel"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="取消检查"
+                android:visibility="gone" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:text="仅检查不会安装组件。按需修复只处理失败项，curl / git 缺失时会联网下载。切页或旋转后任务继续，返回可查看进度和结果；修复期间的停止请求会等待安全点。" />
+        </LinearLayout>
+
+        <!-- ================= 安装步骤 ================= -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="安装步骤"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/install_step1"
+                style="@style/InstallStep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1 · Linux 环境（rootfs）" />
+
+            <Button
+                android:id="@+id/install_step2"
+                style="@style/InstallStep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="2 · 基础工具\n补齐 curl / git / Python" />
+
+            <Button
+                android:id="@+id/install_step3"
+                style="@style/InstallStep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="3 · Node.js" />
+
+            <Button
+                android:id="@+id/install_step4"
+                style="@style/InstallStep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="4 · pnpm 包管理器" />
+
+            <Button
+                android:id="@+id/install_step5"
+                style="@style/InstallStep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="5 · deepseek-harness" />
+
+            <Button
+                android:id="@+id/install_step6"
+                style="@style/InstallStep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="6 · 运行补丁" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/stroke"
+                android:layout_marginTop="@dimen/gap_control"
+                android:background="@color/line" />
+
+            <TextView
+                android:id="@+id/install_steps"
+                style="@style/DeepSeekHarnessText.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:textIsSelectable="true" />
+        </LinearLayout>
+
+        <!-- ================= 日志与诊断 ================= -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="日志与诊断"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="详细输出"
+                android:textStyle="bold" />
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/install_log_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:background="@drawable/bg_preview"
+                android:fillViewport="true">
+
+                <TextView
+                    android:id="@+id/install_log"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:padding="@dimen/card_pad"
+                    android:textColor="@color/text_secondary"
+                    android:textIsSelectable="true" />
+            </androidx.core.widget.NestedScrollView>
+
+            <TextView
+                android:id="@+id/install_error"
+                style="@style/DeepSeekHarnessText.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:background="@drawable/bg_error_box"
+                android:padding="@dimen/card_pad"
+                android:textColor="@color/err"
+                android:textIsSelectable="true"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/install_copy"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:text="复制脱敏日志"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/install_crash"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="查看崩溃日志"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- ================= 环境维护 ================= -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="环境维护"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/install_uninstall"
+                style="@style/Widget.DeepSeekHarness.DangerButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/btn_height"
+                android:text="备份并重建环境" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- iPhone 风格弹窗：大圆角卡片 + 居中加粗标题 + 灰色正文 + 充足留白的进度区 + 主次分明的底部按钮 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_card"
+    android:elevation="2dp"
+    android:padding="@dimen/card_pad">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/app_dialog_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_chip"
+            android:padding="@dimen/gap_tight"
+            android:contentDescription="@null"
+            android:elevation="1dp" />
+
+        <TextView
+            android:id="@+id/app_dialog_title"
+            style="@style/DeepSeekHarnessText.Title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/gap_control"
+            android:textColor="@color/text" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/app_dialog_message"
+        style="@style/DeepSeekHarnessText.Label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_block"
+        android:lineSpacingExtra="3dp"
+        android:textColor="@color/text_secondary" />
+
+    <LinearLayout
+        android:id="@+id/app_dialog_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_control"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/app_dialog_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/progress_bold"
+        android:layout_marginTop="@dimen/gap_section"
+        android:max="100"
+        android:progressDrawable="@drawable/progress_determinate"
+        android:indeterminateTint="@color/primary"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/app_dialog_progress_text"
+        style="@style/DeepSeekHarnessText.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_tight"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:textColor="@color/text_secondary"
+        android:visibility="gone" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/hairline"
+        android:layout_marginTop="@dimen/gap_section"
+        android:background="@color/line" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_control"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/app_dialog_negative"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="@dimen/gap_hair"
+            android:minHeight="@dimen/btn_height"
+            android:background="@drawable/bg_btn"
+            android:textAllCaps="false"
+            android:textSize="@dimen/text_body"
+            android:textColor="@color/text_secondary" />
+
+        <Button
+            android:id="@+id/app_dialog_neutral"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginEnd="@dimen/gap_hair"
+            android:minHeight="@dimen/btn_height"
+            android:background="@drawable/bg_btn"
+            android:textAllCaps="false"
+            android:textSize="@dimen/text_body"
+            android:textColor="@color/text_secondary" />
+
+        <Button
+            android:id="@+id/app_dialog_positive"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:minHeight="@dimen/btn_height"
+            android:background="@drawable/bg_btn_primary"
+            android:textAllCaps="false"
+            android:textSize="@dimen/text_body"
+            android:textStyle="bold"
+            android:textColor="@color/accent_on" />
+    </LinearLayout>
+</LinearLayout>

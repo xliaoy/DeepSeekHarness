@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 简易终端：iOS 工具条（窗口圆点 + 标题 chip + 右侧动作）+ 深色圆角终端卡片 + 底部输入行 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/page_pad"
+    android:paddingEnd="@dimen/page_pad"
+    android:paddingTop="@dimen/gap_tight"
+    android:paddingBottom="@dimen/gap_tight">
+
+    <!-- 顶部工具行为 iOS 工具条风格 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_bar"
+        android:elevation="1dp"
+        android:paddingStart="@dimen/gap_control"
+        android:paddingEnd="@dimen/gap_hair"
+        android:paddingTop="@dimen/gap_hair"
+        android:paddingBottom="@dimen/gap_hair">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingEnd="@dimen/gap_control">
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/dot_red" />
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/dot_amber" />
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/dot_green" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip"
+            android:elevation="1dp"
+            android:fontFamily="monospace"
+            android:paddingStart="@dimen/gap_control"
+            android:paddingTop="@dimen/gap_tight"
+            android:paddingEnd="@dimen/gap_control"
+            android:paddingBottom="@dimen/gap_tight"
+            android:text="简易终端"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_caption" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/term_ctrlc"
+            style="@style/Widget.DeepSeekHarness.ToolbarAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="中止"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_caption" />
+
+        <TextView
+            android:id="@+id/term_clear"
+            style="@style/Widget.DeepSeekHarness.ToolbarAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:text="清理"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_caption" />
+
+        <TextView
+            android:id="@+id/term_pty"
+            style="@style/Widget.DeepSeekHarness.ToolbarAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:text="PTY"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_caption" />
+    </LinearLayout>
+
+    <!-- 终端容器：深色圆角卡片 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="@dimen/gap_control"
+        android:background="@drawable/bg_terminal"
+        android:orientation="vertical"
+        android:padding="@dimen/gap_tight">
+
+        <ScrollView
+            android:id="@+id/term_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/term_output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:lineSpacingExtra="2dp"
+                android:padding="@dimen/gap_control"
+                android:textColor="@color/text_secondary"
+                android:textIsSelectable="true"
+                android:textSize="@dimen/text_caption" />
+        </ScrollView>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/hairline"
+            android:background="@color/terminal_outline" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:background="@drawable/bg_input"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/gap_control"
+            android:paddingEnd="@dimen/gap_control"
+            android:paddingTop="@dimen/gap_hair"
+            android:paddingBottom="@dimen/gap_hair">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="# "
+                android:textColor="@color/primary"
+                android:textSize="@dimen/text_caption" />
+
+            <EditText
+                android:id="@+id/term_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="@dimen/input_height"
+                android:background="@android:color/transparent"
+                android:fontFamily="monospace"
+                android:hint="输入命令，回车执行"
+                android:imeOptions="actionSend"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_muted"
+                android:textSize="@dimen/text_label" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

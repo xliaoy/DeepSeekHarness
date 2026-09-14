@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 源设置下拉弹层背景：圆角卡片风（card 色昼夜自动切换）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/card" />
+    <corners android:radius="@dimen/radius_control" />
+    <stroke android:width="@dimen/stroke" android:color="@color/line" />
+</shape>

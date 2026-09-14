@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols outlined「dark_mode」—— 黑夜/月亮（线性） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M12.021,3.172q-3.684,0 -6.263,2.579T3.179,12.014q0,3.684 2.579,6.263t6.263,2.579q0.196,0 0.418,-0.012t0.565,-0.037q-0.884,-0.786 -1.375,-1.94t-0.491,-2.432q0,-2.21 1.547,-3.758t3.758,-1.547q1.277,0 2.432,0.454t1.94,1.265q0.025,-0.295 0.037,-0.479t0.012,-0.356q0,-3.684 -2.579,-6.263T12.021,3.172Zm0,1.474q2.677,0 4.667,1.658T19.168,10.197q-0.614,-0.27 -1.318,-0.405Q17.146,9.656 16.442,9.656q-2.817,0 -4.798,1.981Q9.663,13.618 9.663,16.435q0,0.589 0.123,1.265t0.442,1.535q-2.407,-0.663 -3.991,-2.689T4.652,12.014q0,-3.07 2.149,-5.219T12.021,4.646Zm-0.098,7.295Z" />
+</vector>

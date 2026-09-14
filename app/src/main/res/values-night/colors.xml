@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色模式：iOS dark 系统色（不透明），同样不使用半透明 -->
+<resources>
+    <color name="primary">#FFFFFF</color>
+    <color name="primary_dark">#FFFFFF</color>
+    <color name="accent_on">#121316</color>
+    <color name="surface">#000000</color>
+    <color name="card">#1C1C1E</color>
+    <color name="raised">#2C2C2E</color>
+    <color name="line">#38383A</color>
+    <color name="text">#FFFFFF</color>
+    <color name="text_secondary">#C7C7CC</color>
+    <color name="text_muted">#8E8E93</color>
+    <color name="ok">#EBEBF5</color>
+    <color name="warn">#AEAEB2</color>
+    <color name="err">#C7C7CC</color>
+    <color name="preview">#1C1C1E</color>
+    <color name="logo_top">#2C2C2E</color>
+    <color name="logo_bot">#1C1C1E</color>
+    <color name="ripple">#14FFFFFF</color>
+    <color name="primary_ripple">#20FFFFFF</color>
+    <color name="error_on">#121316</color>
+    <color name="disabled">#2C2C2E</color>
+    <color name="err_bg">#14F2F2F7</color>
+</resources>

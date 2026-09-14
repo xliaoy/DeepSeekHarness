@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols outlined「terminal」—— 终端：线性方框 + 提示符 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M2.911,3.454q-0.643,0 -1.125,0.482t-0.482,1.125v13.934q0,0.643 0.482,1.125t1.125,0.482h18.221q0.643,0 1.125,-0.482t0.482,-1.125v-13.934q0,-0.643 -0.482,-1.125t-1.125,-0.482H2.911Zm0,1.608h18.221v11.683H2.911v-11.683Zm4.287,1.929 -1.125,1.125 2.76,2.787 -2.787,2.787 1.152,1.125 3.912,-3.912 -3.912,-3.912Zm5.091,-0.107v1.608h5.895v-1.608H12.29Z" />
+</vector>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PTY 终端：iOS 工具条（窗口圆点 + 标题 chip + 字号/模式动作）+ 深色圆角终端卡片 + 快捷键条 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/page_pad"
+    android:paddingEnd="@dimen/page_pad"
+    android:paddingTop="@dimen/gap_tight"
+    android:paddingBottom="@dimen/gap_tight">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_bar"
+        android:elevation="1dp"
+        android:paddingStart="@dimen/gap_control"
+        android:paddingEnd="@dimen/gap_hair"
+        android:paddingTop="@dimen/gap_hair"
+        android:paddingBottom="@dimen/gap_hair">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingEnd="@dimen/gap_control">
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/dot_red" />
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/dot_amber" />
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/dot_green" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/pty_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_chip"
+            android:elevation="1dp"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
+            android:maxLines="1"
+            android:paddingStart="@dimen/gap_control"
+            android:paddingTop="@dimen/gap_tight"
+            android:paddingEnd="@dimen/gap_control"
+            android:paddingBottom="@dimen/gap_tight"
+            android:text="Ubuntu · PTY"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_caption" />
+
+        <TextView
+            android:id="@+id/pty_font_dec"
+            style="@style/Widget.DeepSeekHarness.ToolbarAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_tight"
+            android:text="A−"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_label" />
+
+        <TextView
+            android:id="@+id/pty_font_inc"
+            style="@style/Widget.DeepSeekHarness.ToolbarAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="A+"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_label" />
+
+        <TextView
+            android:id="@+id/pty_simple"
+            style="@style/Widget.DeepSeekHarness.ToolbarAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:text="简易"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_caption" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="@dimen/gap_control"
+        android:background="@drawable/bg_terminal"
+        android:elevation="2dp"
+        android:padding="@dimen/gap_tight">
+
+        <com.termux.view.TerminalView
+            android:id="@+id/pty_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/terminal_surface"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+    </FrameLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_control"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/pty_keys"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+</LinearLayout>

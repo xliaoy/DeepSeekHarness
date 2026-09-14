@@ -1,0 +1,22 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        // 本地 ~/.m2 放最前：离线构建时优先吃本地缓存，网络不通也不至于白跑解析。
+        mavenLocal()
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+        maven { url 'https://maven.mozilla.org/maven2/'
+            content { includeGroupByRegex 'org\\.mozilla.*' }
+        }
+    }
+}
+rootProject.name = "deepseekharness"
+include ':app'

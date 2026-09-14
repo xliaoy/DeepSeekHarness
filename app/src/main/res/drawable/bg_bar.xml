@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- iOS 导航栏 / 底栏背景：不透明浅色渐变（顶部略亮），配合 hairline 分隔线 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:type="linear" android:angle="270"
+        android:startColor="@color/card" android:endColor="@color/raised" />
+</shape>

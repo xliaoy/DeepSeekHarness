@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 源设置下拉展开项文字颜色：选中（高亮底）用 surface 反色，未选中用正文色。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true" android:color="@color/surface" />
+    <item android:color="@color/text" />
+</selector>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols outlined「stop_circle」—— 停止：精致圆形停止 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M8.241,9.256h7.519v7.519H8.241v-7.519ZM12.007,2.99q-2.074,0 -3.897,0.789Q6.286,4.569 4.92,5.935t-2.155,3.191Q1.975,10.952 1.975,13.028t0.789,3.901Q3.554,18.754 4.92,20.108t3.191,2.143Q9.937,23.04 12.013,23.04t3.901,-0.789Q17.739,21.461 19.093,20.108t2.143,-3.183Q22.025,15.095 22.025,13.022q0,-2.074 -0.789,-3.897Q20.446,7.301 19.093,5.939q-1.353,-1.361 -3.183,-2.155Q14.08,2.99 12.007,2.99Zm0.006,1.504Q15.559,4.494 18.04,6.988t2.481,6.04Q20.521,16.574 18.045,19.055T12,21.536q-3.534,0 -6.028,-2.476T3.479,13.015q0,-3.534 2.494,-6.028t6.04,-2.494Zm-0.013,8.521Z" />
+</vector>

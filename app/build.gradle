@@ -1,0 +1,189 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 两版共用功能和离线环境；只有 low 携带兼容旧 Android 的 Gecko 内核。
+
+android {
+    namespace 'com.deepseekharness.app'
+    compileSdk {
+        version = release(37)
+    }
+    ndkVersion '26.3.11579264'
+
+    defaultConfig {
+        applicationId "com.deepseek.harness"
+        minSdk 30
+        targetSdk 37
+        versionCode 116
+        versionName "1.0.9"
+        testInstrumentationRunner project.findProperty('deepseekharness.testRunner') ?: "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    flavorDimensions 'androidSupport'
+    productFlavors {
+        standard {
+            dimension 'androidSupport'
+            minSdk 30
+            buildConfigField 'boolean', 'LOW_ANDROID', 'false'
+            resValue 'string', 'edition_description', '标准版 · Android 11+ · 系统 WebView'
+            resValue 'string', 'browser_description', '使用系统 WebView，请保持 Android System WebView / Chrome 更新。'
+        }
+        low {
+            dimension 'androidSupport'
+            minSdk 23
+            versionName '1.0.9low'
+            buildConfigField 'boolean', 'LOW_ANDROID', 'true'
+            resValue 'string', 'edition_description', '兼容版 · Android 6+ · WebView / Gecko'
+            resValue 'string', 'browser_description', '旧系统 WebView 自动使用内置 Gecko；可手动开启兼容内核。'
+        }
+    }
+
+    signingConfigs {
+        // 线上发布签名 = DeepSeekHarness-ACTUAL-PUBLISH-KEY-debug.keystore（alias androiddebugkey，
+        // 证书 SHA-256 E7:E3:A3:1A:75:94:6F:26:69:19:4C:97:2B:3D:D0:C9:AE:A3:FC:7C:50:A8:B8:85:D2:DE:E7:10:B2:2A:53:F5）。
+        // v1.1.7 起线上包都是这把 debug keystore 签的（历史原因，勿换），
+        // Android 只允许同签名覆盖安装，换钥 = 逼用户卸载重装丢数据。
+        // 另一把 DeepSeekHarness-release.keystore 只签增量更新清单，绝不混用。
+        // 正式签名来源（按优先级）：
+        //   1. 环境变量 DeepSeekHarness_KEYSTORE / _KEYSTORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD
+        //   2. gradle 属性 deepseekharness.keystore / deepseekharness.keystore.password / deepseekharness.key.alias / deepseekharness.key.password
+        //   3. release/keystore.properties（storeFile/storePassword/keyAlias/keyPassword）—— Android Studio 直接打包常用
+        // 都没有时退回 AGP debug keystore，仅供本地调试，不可覆盖正式版。
+        publish {
+            Properties ks = new Properties()
+            File ksPropFile = rootProject.file("release/keystore.properties")
+            if (ksPropFile.exists()) {
+                ksPropFile.withInputStream { ks.load(it) }
+            }
+            def envOrProp = { String envKey, String propKey ->
+                String v = System.getenv(envKey)
+                if (v != null && !v.isEmpty()) return v
+                def pv = project.findProperty(propKey)
+                if (pv != null && !pv.toString().isEmpty()) return pv.toString()
+                return null
+            }
+            String ksPath = envOrProp("DeepSeekHarness_KEYSTORE", "deepseekharness.keystore")
+            if (ksPath == null || ksPath.isEmpty()) {
+                String rel = ks.getProperty("storeFile")
+                if (rel != null && !rel.isEmpty()) {
+                    File f = rootProject.file("release/" + rel)
+                    if (!f.exists()) f = rootProject.file(rel)
+                    ksPath = f.exists() ? f.canonicalPath : rel
+                }
+            }
+            if (ksPath != null && !ksPath.isEmpty() && file(ksPath).exists()) {
+                storeFile file(ksPath)
+                storePassword envOrProp("DeepSeekHarness_KEYSTORE_PASSWORD", "deepseekharness.keystore.password")
+                        ?: ks.getProperty("storePassword") ?: "android"
+                keyAlias envOrProp("DeepSeekHarness_KEY_ALIAS", "deepseekharness.key.alias")
+                        ?: ks.getProperty("keyAlias") ?: "androiddebugkey"
+                keyPassword envOrProp("DeepSeekHarness_KEY_PASSWORD", "deepseekharness.key.password")
+                        ?: ks.getProperty("keyPassword") ?: "android"
+                println "签名：发布 keystore ${ksPath}（alias=${keyAlias}）"
+            } else {
+                println "⚠️ 签名：未配置 DeepSeekHarness_KEYSTORE / release/keystore.properties，退回 AGP debug keystore —— 仅供本地调试，不可覆盖正式版"
+            }
+            enableV1Signing true
+            enableV2Signing true
+            enableV3Signing true
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.publish
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+            // 使用 app 自带的同版本 16 KB JNI，覆盖 terminal-emulator AAR 中的旧库。
+            pickFirsts += ['**/libtermux.so']
+            excludes += ['**/x86/**', '**/x86_64/**', '**/armeabi/**', '**/armeabi-v7a/**']
+        }
+    }
+
+    androidResources {
+        // 'bin' 是离线 rootfs：aapt 会把 .tar.gz 静默解成 .tar，所以打包前改名 .bin，
+        // 保持 STORED（不 deflate），避免对已经压缩的离线运行时再压缩一次。
+        noCompress += ['gz', 'xz', 'bin', 'ja', 'tar', 'whl']
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        resValues = true
+        aidl = true
+        buildConfig = true
+    }
+
+    sourceSets {
+        main.assets.setSrcDirs([layout.buildDirectory.dir("generated/standardAssets")])
+    }
+}
+
+def prepareStandardAssets = tasks.register("prepareStandardAssets", Exec) {
+    inputs.dir("src/main/assets")
+    inputs.file(rootProject.file("tools/prepare-standard-assets.py"))
+    inputs.file(rootProject.file("tools/build-dsh-runtime.py"))
+    inputs.dir(rootProject.file("tools/dsh-runtime"))
+    inputs.file(rootProject.file("tools/prepare-ubuntu-tools.py"))
+    inputs.dir(rootProject.file("tools/ubuntu-tools"))
+    outputs.dir(layout.buildDirectory.dir("generated/standardAssets"))
+    outputs.file(layout.buildDirectory.file("generated/standard-assets-report.json"))
+    commandLine(pythonForAssets() + ["-B",
+            rootProject.file("tools/prepare-standard-assets.py").absolutePath,
+            "--source", file("src/main/assets").absolutePath,
+            "--output", layout.buildDirectory.dir("generated/standardAssets").get().asFile.absolutePath])
+}
+tasks.named("preBuild").configure { dependsOn(prepareStandardAssets) }
+
+/**
+ * 解析调用 prepare-standard-assets.py 的 Python 解释器，兼容 Android Studio：
+ * 优先级为环境变量 DeepSeekHarness_PYTHON > python3 > python > py -3，
+ * 后两个对 Windows 上的 Android Studio 自动生效，避免硬编码 python3 导致 sync 失败。
+ */
+static List<String> pythonForAssets() {
+    String env = System.getenv("DeepSeekHarness_PYTHON")
+    if (env != null && !env.trim().isEmpty()) return [env.trim()]
+    List<List<String>> candidates = [["python3"], ["python"], ["py", "-3"]]
+    for (List<String> c : candidates) {
+        try {
+            Process p = new ProcessBuilder(c + ["--version"]).redirectErrorStream(true).start()
+            p.getOutputStream().close()
+            if (p.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) return c
+        } catch (Exception ignored) {
+        }
+    }
+    return ["python3"]
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    lowImplementation 'org.mozilla.geckoview:geckoview-arm64-v8a:143.0.20251003115653'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    // 1.15 保留 API 23；1.16 起要求 API 24，不能用于兼容版。
+    implementation 'androidx.webkit:webkit:1.15.0'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'dev.rikka.shizuku:api:12.2.0'
+    implementation 'dev.rikka.shizuku:provider:12.2.0'
+    // 真 PTY 终端：Termux 拆出的 terminal-view/terminal-emulator（Apache 2.0），
+    // 自带 JNI PTY 层（openpty+fork/exec）。坐标是 JitPack 多模块真实 groupId
+    // （com.termux.termux-app），不是 Wiki 上会 401 的 com.termux:terminal-view。
+    implementation 'com.termux.termux-app:terminal-view:0.118.0'
+    testImplementation 'junit:junit:4.13.2'
+}

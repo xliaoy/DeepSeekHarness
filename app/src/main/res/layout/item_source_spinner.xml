@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 源设置下拉框选中项：与自定义输入框同高同字（padding=gap_control + text=text_body），
+     水平内边距由 Spinner 自身 paddingStart/End 提供，保证与 EditText 左缘对齐。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/text1"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:ellipsize="end"
+    android:gravity="center_vertical"
+    android:maxLines="1"
+    android:paddingTop="@dimen/gap_control"
+    android:paddingBottom="@dimen/gap_control"
+    android:textColor="@color/text"
+    android:textSize="@dimen/text_body" />

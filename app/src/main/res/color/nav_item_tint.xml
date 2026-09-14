@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底栏图标/文字着色：选中 = 胶囊上的强调色（白天白字 / 黑夜深字），未选中 = 静音灰。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:color="@color/accent_on" />
+    <item android:color="@color/text_muted" />
+</selector>

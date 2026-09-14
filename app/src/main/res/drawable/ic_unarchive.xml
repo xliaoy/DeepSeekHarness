@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols outlined「unarchive」—— 侧边栏：重新解压（开箱） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M12.023,14.937 7.536,10.45l1.151,-1.151 2.474,2.474v-5.782h1.726v5.782l2.474,-2.474 1.151,1.151 -4.487,4.487Zm-8.629,2.675v-14.21h17.259v14.21H3.394Zm0,-15.935q-0.712,0 -1.219,0.507Q1.668,2.691 1.668,3.403v15.216q0,0.284 0.086,0.548 0.086,0.264 0.259,0.487l1.496,2.042q0.23,0.316 0.602,0.503Q4.483,22.387 4.889,22.387h14.238q0.406,0 0.778,-0.187T20.508,21.697l1.525,-2.042q0.173,-0.223 0.259,-0.487 0.086,-0.264 0.086,-0.548v-15.216q0,-0.712 -0.507,-1.219Q21.364,1.677 20.652,1.677H3.394Zm0.489,17.661h16.252l-1.047,1.323H4.918l-1.036,-1.323Zm8.14,-8.831Z" />
+</vector>

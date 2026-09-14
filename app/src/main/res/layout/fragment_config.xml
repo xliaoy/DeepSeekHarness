@@ -1,0 +1,604 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 配置页：iOS 拟态分组卡片（接口 / 显示与运行 / 安全与备份 / 设备能力） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:clipToPadding="false">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/page_pad"
+            android:paddingTop="@dimen/gap_control"
+            android:paddingEnd="@dimen/page_pad"
+            android:paddingBottom="@dimen/gap_section">
+
+            <!-- 组：接口 -->
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:layout_marginBottom="@dimen/gap_tight"
+                android:text="接口"
+                android:textStyle="bold" />
+
+            <LinearLayout style="@style/DeepSeekHarnessCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="0dp">
+
+                <TextView style="@style/DeepSeekHarnessText.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="API Key" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:layout_marginBottom="@dimen/gap_control"
+                    android:background="@color/line" />
+
+                <TextView style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DeepSeek API Key" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:text="可留空，也可在对话页设置官方或第三方接口与模型。" />
+
+                <EditText android:id="@+id/config_api_key" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/input_height"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:background="@drawable/bg_input"
+                    android:hint="sk-..."
+                    android:importantForAutofill="no"
+                    android:inputType="textPassword"
+                    android:paddingStart="@dimen/gap_control"
+                    android:paddingEnd="@dimen/gap_control" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <TextView android:id="@+id/config_adv_header" style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingTop="@dimen/gap_tight"
+                    android:paddingBottom="@dimen/gap_tight"
+                    android:text="▸ 高级：端口" />
+
+                <LinearLayout android:id="@+id/config_adv_body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView style="@style/DeepSeekHarnessText.Label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/gap_tight"
+                        android:text="端口" />
+
+                    <EditText android:id="@+id/config_port" style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/input_height"
+                        android:layout_marginTop="@dimen/gap_tight"
+                        android:background="@drawable/bg_input"
+                        android:hint="3080（1—65535，避开 3081 / 3090）"
+                        android:importantForAutofill="no"
+                        android:inputType="number"
+                        android:paddingStart="@dimen/gap_control"
+                        android:paddingEnd="@dimen/gap_control" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 组：行为 -->
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:layout_marginTop="@dimen/gap_section"
+                android:layout_marginBottom="@dimen/gap_tight"
+                android:text="行为"
+                android:textStyle="bold" />
+
+            <LinearLayout style="@style/DeepSeekHarnessCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="0dp">
+
+                <TextView style="@style/DeepSeekHarnessText.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="显示与运行" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_check_update" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="启动时检查更新" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="进入 App 后在后台检查所选稳定 / 预览通道；发现新版本时提示，由你决定是否下载。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_desktop_mode" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="使用桌面版网页布局" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="让对话页按电脑浏览器显示，适合大屏；手机通常保持关闭。保存后重新进入对话生效。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:paddingEnd="@dimen/gap_tight"
+                    android:paddingTop="@dimen/gap_tight"
+                    android:gravity="center_vertical"
+                    android:text="@string/browser_description" />
+
+                <CheckBox android:id="@+id/config_gecko_core"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/input_height"
+                    android:visibility="gone"
+                    android:text="使用兼容浏览内核"
+                    android:textColor="@color/text_secondary"
+                    android:buttonTint="@color/primary" />
+
+                <TextView android:id="@+id/config_gecko_hint" style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="强制使用内置 Gecko，适合系统网页白屏或不兼容时；关闭后由 App 自动选择可用内核。保存后重新进入对话生效。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_proroot" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="使用 proroot 运行时" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="尝试使用 proroot 加快容器运行；部分设备或命令不兼容时可关闭，使用 proot。保存并重启 Web 后生效。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_lan_mode" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="允许局域网访问" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="在本机 Web 运行时，通过 3081 端口供同一 Wi-Fi 的设备访问对话。需要局域网权限，请仅在可信网络开启。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_overlay_stream" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="悬浮显示 AI 输出" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="把 AI 回复和工具执行状态显示在其他 App 上方；保存后需允许悬浮窗权限。旁人也可能看到输出。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <TextView android:id="@+id/config_overlay_style" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:background="@drawable/bg_chip_clickable"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:paddingStart="@dimen/gap_control"
+                    android:paddingEnd="@dimen/gap_control"
+                    android:text="悬浮条设置 ›"
+                    android:elevation="1dp"/>
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="调整悬浮条底色、透明度、行数、字号和停留时间；也可选择是否显示思考过程和命令原文。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <TextView android:id="@+id/config_translate" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:background="@drawable/bg_chip_clickable"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:paddingStart="@dimen/gap_control"
+                    android:paddingEnd="@dimen/gap_control"
+                    android:text="插件翻译（尚未提供）"
+                    android:enabled="false"
+                    android:elevation="1dp"/>
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="当前版本没有插件翻译设置；不影响插件安装及使用。" />
+
+                <CheckBox android:id="@+id/config_rc6" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="deepseek-harness：默认最新 RC"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 组：安全 -->
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:layout_marginTop="@dimen/gap_section"
+                android:layout_marginBottom="@dimen/gap_tight"
+                android:text="安全"
+                android:textStyle="bold" />
+
+            <LinearLayout style="@style/DeepSeekHarnessCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="0dp">
+
+                <TextView style="@style/DeepSeekHarnessText.Title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="安全与备份" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_confirm_shell"
+                    android:visibility="gone"
+                    style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="旧版确认设置" />
+
+                <TextView style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="设备命令保护始终开启" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="允许查询设备目录；根目录、相册及 Android/data 等目录只读。禁止改分区、系统设置和不认识的命令；结束应用前刷新完整清单，保护系统应用与关键进程。普通下载文件操作和结束普通用户应用可直接执行。" />
+
+                <TextView android:id="@+id/config_guard_status" style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:visibility="gone" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_root_shell" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="允许 Root Shell" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="允许设备桥使用手机已授权的 Root 读取能力，设备保护规则仍然生效。容器里的 root 用户不代表手机有 Root。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_backup_key" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="备份包含 API Key" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="备份文件需妥善保管；关闭后恢复时需重填密钥。" />
+            </LinearLayout>
+
+            <!-- 组：设备 -->
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:layout_marginTop="@dimen/gap_section"
+                android:layout_marginBottom="@dimen/gap_tight"
+                android:text="设备"
+                android:textStyle="bold" />
+
+            <LinearLayout style="@style/DeepSeekHarnessCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="0dp">
+
+                <TextView style="@style/DeepSeekHarnessText.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="设备能力" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <LinearLayout android:id="@+id/config_all_files"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:minHeight="@dimen/touch_min"
+                    android:orientation="horizontal"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:paddingEnd="@dimen/gap_tight">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView style="@style/DeepSeekHarnessText.Body"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="所有文件访问权限 ›" />
+
+                        <TextView android:id="@+id/config_all_files_status" style="@style/DeepSeekHarnessText.Caption"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_muted" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_cap_location" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="允许读取位置" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginBottom="@dimen/gap_tight"
+                    android:text="涉及精确位置，默认关闭。" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_cap_sensors" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="传感器与手电" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:background="@color/line" />
+
+                <CheckBox android:id="@+id/config_adb_enable" style="@style/DeepSeekHarnessText.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:minHeight="@dimen/touch_min"
+                    android:paddingStart="@dimen/gap_tight"
+                    android:text="启用 ADB 设备通道（默认关闭）" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:text="不开也能用：设备状态、应用列表、启动应用、剪贴板、通知、震动、分享、导出文件、弹窗询问 —— 助手会走 App 层接口。\n开了才多出：模拟点击(input)、静默装卸应用(pm)、改系统设置(settings)、抓 logcat/dumpsys 这类 shell 能力，需要手机「开发者选项 → 无线调试」。" />
+
+                <TextView android:id="@+id/config_adb_status" style="@style/DeepSeekHarnessText.Label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:text="ADB 已关闭。不用无线调试就保持关闭。" />
+
+                <Button android:id="@+id/config_adb_pair" style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:text="ADB 无线配对"
+                    android:minHeight="@dimen/btn_height" />
+
+                <Button android:id="@+id/config_battery_opt" style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:text="设置电池优化"
+                    android:minHeight="@dimen/btn_height" />
+
+                <Button android:id="@+id/config_a11y" style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:text="设置屏幕操作权限"
+                    android:minHeight="@dimen/btn_height" />
+
+                <TextView android:id="@+id/config_a11y_status" style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginTop="@dimen/gap_hair" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/hairline"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:background="@color/line" />
+
+                <TextView android:id="@+id/config_battery_opt_hint" style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_control"
+                    android:text="系统休眠会冻结后台网络，ADB 连接因此断掉且无法自动恢复。加入白名单后保活才真正生效。" />
+
+                <TextView style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:text="只有勾选并保存后才会后台预热、扫配对、弹通知。要用时：系统设置 → 开发者选项 → 无线调试 → 使用配对码配对设备。" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/config_workspace_entry" style="@style/Widget.DeepSeekHarness.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/btn_height"
+                android:layout_marginTop="@dimen/gap_section"
+                android:background="@drawable/bg_action_plain"
+                android:gravity="center"
+                android:text="打开数据与备份" />
+        </LinearLayout>
+    </ScrollView>
+
+    <Button android:id="@+id/config_save" style="@style/Widget.DeepSeekHarness.PrimaryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_tight"
+        android:layout_marginBottom="@dimen/gap_tight"
+        android:layout_marginStart="@dimen/page_pad"
+        android:layout_marginEnd="@dimen/page_pad"
+        android:text="保存配置"
+        android:minHeight="@dimen/btn_height" />
+</LinearLayout>

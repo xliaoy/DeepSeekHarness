@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name=".ui.LayoutPreviewActivity" android:exported="false" android:excludeFromRecents="true" />
+        <activity android:name=".ui.FragmentSessionTestActivity" android:exported="false" android:excludeFromRecents="true" />
+        <activity android:name="com.deepseekharness.app.BridgeAuditInstrumentation$AskActivity" android:exported="false" />
+    </application>
+    <instrumentation android:name="com.deepseekharness.app.ui.LayoutAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.FunctionalAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.InstallAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.MaintenanceFixtureInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.FragmentSessionInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.AdbFlowAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.BridgeAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.DevicePolicyAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.ConfigurationAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.runtime.ProotCommandAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.DiagnosticPtyAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.UiPolishAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.UpgradeDeviceAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.runtime.RuntimeStartupAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.Alpha2Audit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.runtime.PidMaintenanceAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.StartupDiagnosticsAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.RuntimeFallbackAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.runtime.RestartRaceAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+</manifest>

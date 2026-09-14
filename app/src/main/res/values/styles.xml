@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  文本与容器样式：字号/颜色/行距成套定义，布局引用 style 而不是各自硬编码。
+  之前同样是"页面标题"，启动页 15sp、市场页 22sp、解压页 21sp，字号阶梯断裂。
+-->
+<resources>
+
+    <style name="InstallStep" parent="Widget.DeepSeekHarness.Button">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:background">@drawable/bg_btn</item>
+    </style>
+
+    <style name="PluginAction" parent="DeepSeekHarnessText.Label">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">12dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:background">@drawable/bg_btn</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:textColor">@color/text</item>
+    </style>
+
+    <!-- 页面主标题（每页顶部只有一个） -->
+    <style name="DeepSeekHarnessText.Display" parent="">
+        <item name="android:textSize">@dimen/text_display</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <!-- iOS 导航栏标题（17sp semibold，与系统导航栏一致） -->
+    <style name="DeepSeekHarnessText.NavTitle" parent="">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <!-- 区块标题（卡片内的小节名） -->
+    <style name="DeepSeekHarnessText.Title" parent="">
+        <item name="android:textSize">@dimen/text_title</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text</item>
+    </style>
+
+    <!-- 正文 -->
+    <style name="DeepSeekHarnessText.Body" parent="">
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- 次要说明 -->
+    <style name="DeepSeekHarnessText.Label" parent="">
+        <item name="android:textSize">@dimen/text_label</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- 辅助信息 / 脚注 -->
+    <style name="DeepSeekHarnessText.Caption" parent="">
+        <item name="android:textSize">@dimen/text_caption</item>
+        <item name="android:textColor">@color/text_muted</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- 卡片容器：统一底色、圆角、内边距 -->
+    <style name="DeepSeekHarnessCard" parent="">
+        <item name="android:elevation">2dp</item>
+        <item name="android:background">@drawable/bg_card</item>
+        <item name="android:padding">@dimen/card_pad</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+
+    <!-- Dialog 按钮栏：按钮居中排列 -->
+    <!-- Telegram 风格底栏：选中态胶囊由 nav_item_bg 提供，这里只定义文字外观 -->
+    <style name="TextAppearance.DeepSeekHarness.NavLabelActive" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/primary</item>
+    </style>
+    <style name="TextAppearance.DeepSeekHarness.NavLabelInactive" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
+    <!-- 悬浮底栏：Material 默认的图标后小胶囊指示器与自绘选中胶囊冲突，
+         用透明色关闭它（itemActiveIndicatorStyle 是 1.11 唯一暴露的指示器属性）。 -->
+    <style name="Widget.DeepSeekHarness.BottomNavActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.DeepSeekHarness.DialogButtonBar" parent="">
+        <item name="android:gravity">center_horizontal</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">6dp</item>
+    </style>
+
+    <!-- Dialog 确认按钮：实心主色圆角（弹窗美化） -->
+    <style name="Widget.DeepSeekHarness.DialogPositive" parent="Widget.Material3.Button">
+        <item name="android:background">@drawable/bg_btn_primary</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:textColor">@color/accent_on</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:minWidth">96dp</item>
+        <item name="android:insetTop">6dp</item>
+        <item name="android:insetBottom">6dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">@dimen/radius_control</item>
+    </style>
+
+    <!-- Dialog 次要/取消按钮：描边圆角 -->
+    <style name="Widget.DeepSeekHarness.DialogNegative" parent="Widget.Material3.Button.TextButton">
+        <item name="android:background">@drawable/bg_btn</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:minWidth">96dp</item>
+        <item name="android:insetTop">6dp</item>
+        <item name="android:insetBottom">6dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="cornerRadius">@dimen/radius_control</item>
+    </style>
+
+    <!-- 让 <Button> 回到「尊重 android:background」的行为。
+         定义在 styles.xml（不分 day/night）而不是某一份 themes.xml ——
+         深色模式有独立的 values-night/themes.xml，配置写在单边会漏，
+         本项目已经在「同一份配置散落两处」上栽过几次
+         （补丁标记版本不同步、插件安置两套实现并存）。 -->
+    <style name="Widget.DeepSeekHarness.Button" parent="Widget.Material3.Button.TextButton">
+        <item name="android:background">@drawable/bg_btn</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/button_text</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:singleLine">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="rippleColor">@color/ripple</item>
+        <item name="android:elevation">1dp</item>
+    </style>
+
+    <style name="Widget.DeepSeekHarness.PlatformButton" parent="android:style/Widget.Material.Button">
+        <item name="android:background">@drawable/bg_btn</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:textColor">@color/button_text</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+    </style>
+
+    <style name="Widget.DeepSeekHarness.PrimaryButton" parent="Widget.DeepSeekHarness.Button">
+        <item name="android:elevation">2dp</item>
+        <item name="android:background">@drawable/bg_btn_primary</item>
+        <item name="android:textColor">@color/button_primary_text</item>
+    </style>
+    <style name="Widget.DeepSeekHarness.RadioButton" parent="Widget.Material3.CompoundButton.RadioButton">
+        <item name="android:textColor">@color/button_text</item>
+    </style>
+    <style name="Widget.DeepSeekHarness.CheckBox" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="android:textColor">@color/button_text</item>
+    </style>
+    <style name="Widget.DeepSeekHarness.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:textColor">@color/button_text</item>
+    </style>
+    <style name="Widget.DeepSeekHarness.DangerButton" parent="Widget.DeepSeekHarness.Button">
+        <item name="android:elevation">2dp</item>
+        <item name="android:background">@drawable/bg_btn_danger</item>
+        <item name="android:textColor">@color/button_danger_text</item>
+    </style>
+    <style name="DeepSeekHarnessText.PageTitle" parent="DeepSeekHarnessText.Title">
+        <item name="android:textSize">@dimen/text_page_title</item>
+    </style>
+    <style name="Widget.DeepSeekHarness.TextButton" parent="Widget.DeepSeekHarness.Button">
+        <item name="android:background">@drawable/bg_action_plain</item>
+        <item name="android:textColor">@color/action_text</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+    </style>
+    <style name="Widget.DeepSeekHarness.ToolbarAction" parent="PluginAction">
+        <item name="android:background">@drawable/bg_action_plain</item>
+        <item name="android:minWidth">44dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:textColor">@color/button_text</item>
+    </style>
+</resources>

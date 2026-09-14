@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 源设置下拉展开项：卡片风、选中整行高亮（state_activated）、昼夜自动适配。 -->
+<CheckedTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/text1"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_spinner_dropdown_item"
+    android:ellipsize="end"
+    android:gravity="center_vertical"
+    android:maxLines="1"
+    android:padding="12dp"
+    android:textColor="@color/spinner_dropdown_text"
+    android:textSize="@dimen/text_body" />
