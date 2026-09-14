@@ -68,6 +68,8 @@ final class RuntimeTools {
                 if (name.equals("dsh-balance-panel")) for (String file : new String[]{"lib/client.js", "lib/host.js", "LICENSE"})
                     install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
             }
+            // 预装第三方插件（不进内置清单，保持「可在线更新 / 可删除」）：dsh-infinite-gen-4 按包结构安装
+            installPresetPlugin(context, rootfs);
             install(context, rootfs, "deepseekharness-plugin.sh", "root/dsh-bin/deepseekharness-plugin", true);
             install(context, rootfs, "install-ubuntu-tools.sh", "root/dsh-bin/install-ubuntu-tools", true);
             for (String command : new String[]{"npm", "npx"}) {
@@ -208,6 +210,23 @@ final class RuntimeTools {
         } catch (org.json.JSONException | IllegalArgumentException error) {
             throw new IOException("网页脚本拼接优化未应用，原文件保留：" + error.getMessage(), error);
         }
+    }
+
+    /** 预装第三方插件 dsh-infinite-gen-4：按包结构把 assets/builtin-plugins 内容装到 /root/deepseekharness-*。
+     *  不进 DEFAULT_BUILTINS —— 保持第三方身份，插件页可在线更新 / 删除。 */
+    private static void installPresetPlugin(Context context, File rootfs) throws IOException {
+        final String name = "dsh-infinite-gen-4";
+        String destination = "/root/deepseekharness-" + name.substring(4) + "/";
+        for (String file : new String[]{
+                "package.json", "cordis.patch.yml", "index.js", "client.js",
+                "HARNESS_PLUGIN.md", "README.md", "LICENSE",
+                "prompts/infinite-gen-3.md", "prompts/infinite-gen-4.md", "prompts/infinite-gen-4.1-flash.md",
+                "scripts/verify_prompt.mjs", "scripts/verify_prompt_gen4.mjs", "scripts/verify_prompt_gen41.mjs",
+                "scripts/lib/scorer.mjs",
+                "tests/prompt-bank.jsonl", "tests/prompt-bank-gen4.jsonl", "tests/prompt-bank-gen41.jsonl",
+                "tests/v4pro-benchmark.jsonl",
+                "assets/banner.png", "assets/community.jpg", "assets/sponsor.jpg"})
+            install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
     }
 
     private static void install(Context context, File rootfs, String asset, String path, boolean executable) throws IOException {
