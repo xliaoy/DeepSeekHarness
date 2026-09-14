@@ -20,3 +20,6 @@ keystore.properties
 
 # 系统
 .DS_Store
+
+# 大体积运行时资源（离线环境/运行时 bin，走 Release 分发）
+app/src/main/assets/
