@@ -514,6 +514,20 @@
                     android:text="ADB 无线配对"
                     android:minHeight="@dimen/btn_height" />
 
+                <Button android:id="@+id/config_shizuku_activate" style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/gap_tight"
+                    android:text="Shizuku 激活（免 ADB）"
+                    android:minHeight="@dimen/btn_height" />
+
+                <TextView android:id="@+id/config_shizuku_status" style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginTop="@dimen/gap_hair"
+                    android:text="Shizuku：免配对免线缆，激活后设备命令走 Shizuku，替代 ADB 无线调试。" />
+
                 <Button android:id="@+id/config_battery_opt" style="@style/Widget.DeepSeekHarness.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

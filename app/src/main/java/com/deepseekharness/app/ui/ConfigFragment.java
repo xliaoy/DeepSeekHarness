@@ -120,6 +120,10 @@ public class ConfigFragment extends Fragment {
                         "知道了", null, null);
             } else startActivity(new Intent(ctx, AdbPairActivity.class));
         });
+        // Shizuku 通道（免 ADB）：激活后设备命令走 Shizuku（root/shell 身份）
+        final TextView shizukuStatus = v.findViewById(R.id.config_shizuku_status);
+        v.findViewById(R.id.config_shizuku_activate).setOnClickListener(x -> activateShizuku(ctx, shizukuStatus));
+        refreshShizukuStatus(shizukuStatus);
         v.findViewById(R.id.config_battery_opt).setOnClickListener(x -> openBatteryOpt(ctx));
         v.findViewById(R.id.config_a11y).setOnClickListener(x -> openA11ySettings(ctx));
         refreshA11yStatus(v.findViewById(R.id.config_a11y_status));
@@ -207,6 +211,49 @@ public class ConfigFragment extends Fragment {
                 .addToBackStack(null)
                 .replace(R.id.fragment_container, f)
                 .commit();
+    }
+
+    /** Shizuku 激活：免 ADB，授权后设备命令走 Shizuku（root/shell 身份）。 */
+    private void activateShizuku(Context ctx, TextView status) {
+        com.deepseekharness.app.ShizukuShell.init(ctx);
+        if (!com.deepseekharness.app.ShizukuShell.isAvailable()) {
+            AppDialogs.show(ctx, android.R.drawable.ic_dialog_info, "未检测到 Shizuku 服务",
+                    "请先在手机上安装并启动 Shizuku 应用（https://shizuku.rikka.app），\n在 Shizuku 内「启动服务」（无线调试方式启动一次即可），然后回到这里重新点激活。",
+                    "知道了", null, null);
+            refreshShizukuStatus(status);
+            return;
+        }
+        if (!com.deepseekharness.app.ShizukuShell.hasPermission()) {
+            com.deepseekharness.app.ShizukuShell.requestPermission((code, result) -> {
+                if (result == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    toast("Shizuku 已授权，正在绑定服务…");
+                }
+                if (getView() != null) refreshShizukuStatus(getView().findViewById(R.id.config_shizuku_status));
+            });
+            refreshShizukuStatus(status);
+            return;
+        }
+        com.deepseekharness.app.ShizukuShell.ensureBound(ctx);
+        toast("Shizuku 已激活");
+        refreshShizukuStatus(status);
+    }
+
+    /** Shizuku 通道状态：未运行 / 未授权 / 授权中 / 已就绪。 */
+    private void refreshShizukuStatus(TextView status) {
+        if (status == null) return;
+        try {
+            if (!com.deepseekharness.app.ShizukuShell.isAvailable()) {
+                status.setText("Shizuku 未运行。请安装并启动 Shizuku（https://shizuku.rikka.app），再点上方按钮激活（激活后无需 ADB）。");
+            } else if (!com.deepseekharness.app.ShizukuShell.hasPermission()) {
+                status.setText("Shizuku 服务已运行，尚未授权 → 点「Shizuku 激活」弹出授权即可。");
+            } else if (!com.deepseekharness.app.ShizukuShell.isReady()) {
+                status.setText("Shizuku 已授权，正在绑定服务…（稍后自动就绪）");
+            } else {
+                status.setText("Shizuku 已激活 ✓ 设备命令走 Shizuku（shell 权限），无需 ADB 配对。");
+            }
+        } catch (Throwable t) {
+            status.setText("Shizuku 状态读取失败：" + t.getClass().getSimpleName());
+        }
     }
 
     /** 后台读 ADB 通道真实状态（key/deps/端口 + 保活服务的连接状态），刷到状态栏。 */
@@ -368,6 +415,7 @@ public class ConfigFragment extends Fragment {
             if (v != null) refreshAllFilesStatus(v.findViewById(R.id.config_all_files_status));
             if (v != null) refreshA11yStatus(v.findViewById(R.id.config_a11y_status));
             if (v != null) refreshAdbStatus(v.findViewById(R.id.config_adb_status));
+            if (v != null) refreshShizukuStatus(v.findViewById(R.id.config_shizuku_status));
         } catch (Throwable ignored) {
         }
     }
