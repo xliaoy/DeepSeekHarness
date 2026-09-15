@@ -555,7 +555,7 @@ public final class HttpShellService {
                 result = plan.kind == com.deepseekharness.app.util.DeviceShellPolicy.Kind.READ ? "YES" : "NO";
             } else if (route.equals("/exec")) {
                 com.deepseekharness.app.util.DeviceShellPolicy.Plan plan = com.deepseekharness.app.util.DeviceShellPolicy.inspect(cmd);
-                result = plan.allowed() ? ShizukuShell.exec(cmd) : plan.reason + "\n[EXIT=126]";
+                result = plan.allowed() ? execViaChannel(cmd) : plan.reason + "\n[EXIT=126]";
             } else {
                 result = "[UNKNOWN_ENDPOINT]";
             }
@@ -1343,7 +1343,12 @@ public final class HttpShellService {
 
     /** 危险命令：挂起等待用户确认（前台弹窗 / 后台通知），超时默认拒绝 */
     private String awaitConfirm(String cmd) {
-        return requestUserConfirm(cmd) ? ShizukuShell.exec(cmd) : "[USER_REJECTED]";
+        return requestUserConfirm(cmd) ? execViaChannel(cmd) : "[USER_REJECTED]";
+    }
+
+    /** 设备命令执行通道：Stellar 激活时优先走 Stellar，否则回退 Shizuku。 */
+    private String execViaChannel(String cmd) {
+        return StellarShell.isReady() ? StellarShell.exec(cmd) : ShizukuShell.exec(cmd);
     }
 
     /** 只请求用户确认（不执行命令），返回是否允许；/confirm 端点用。

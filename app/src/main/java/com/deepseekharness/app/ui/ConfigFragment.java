@@ -124,6 +124,10 @@ public class ConfigFragment extends Fragment {
         final TextView shizukuStatus = v.findViewById(R.id.config_shizuku_status);
         v.findViewById(R.id.config_shizuku_activate).setOnClickListener(x -> activateShizuku(ctx, shizukuStatus));
         refreshShizukuStatus(shizukuStatus);
+        // Stellar 通道（Shizuku 兼容分支，独立命名空间）：同样免 ADB
+        final TextView stellarStatus = v.findViewById(R.id.config_stellar_status);
+        v.findViewById(R.id.config_stellar_activate).setOnClickListener(x -> activateStellar(ctx, stellarStatus));
+        refreshStellarStatus(stellarStatus);
         v.findViewById(R.id.config_battery_opt).setOnClickListener(x -> openBatteryOpt(ctx));
         v.findViewById(R.id.config_a11y).setOnClickListener(x -> openA11ySettings(ctx));
         refreshA11yStatus(v.findViewById(R.id.config_a11y_status));
@@ -236,6 +240,46 @@ public class ConfigFragment extends Fragment {
         com.deepseekharness.app.ShizukuShell.ensureBound(ctx);
         toast("Shizuku 已激活");
         refreshShizukuStatus(status);
+    }
+
+    /** Stellar 激活（Shizuku 兼容分支，独立命名空间）：免 ADB，授权后设备命令走 Stellar。 */
+    private void activateStellar(Context ctx, TextView status) {
+        com.deepseekharness.app.StellarShell.init(ctx);
+        if (!com.deepseekharness.app.StellarShell.isAvailable()) {
+            AppDialogs.show(ctx, android.R.drawable.ic_dialog_info, "未检测到 Stellar 服务",
+                    "请先在手机上安装 Stellar 管理器（https://github.com/roro2239/Stellar/releases），\n在 Stellar 内启动服务（ADB 或 Root），然后回到这里重新点「Stellar 配对」。",
+                    "知道了", null, null);
+            refreshStellarStatus(status);
+            return;
+        }
+        if (!com.deepseekharness.app.StellarShell.hasPermission()) {
+            com.deepseekharness.app.StellarShell.requestPermission(() -> {
+                toast("Stellar 已授权，服务就绪");
+                if (getView() != null) refreshStellarStatus(getView().findViewById(R.id.config_stellar_status));
+            });
+            refreshStellarStatus(status);
+            return;
+        }
+        toast("Stellar 已激活");
+        refreshStellarStatus(status);
+    }
+
+    /** Stellar 通道状态：未运行 / 未授权 / 已就绪。 */
+    private void refreshStellarStatus(TextView status) {
+        if (status == null) return;
+        try {
+            if (!com.deepseekharness.app.StellarShell.isAvailable()) {
+                status.setText("Stellar 未运行。安装 Stellar 管理器并启动服务后，点「Stellar 配对」激活（激活后设备命令走 Stellar，免 ADB）。");
+            } else if (!com.deepseekharness.app.StellarShell.hasPermission()) {
+                status.setText("Stellar 服务已运行，尚未授权 → 点「Stellar 配对」弹出授权即可。");
+            } else if (!com.deepseekharness.app.StellarShell.isReady()) {
+                status.setText("Stellar 已授权，正在连接服务…（稍后自动就绪）");
+            } else {
+                status.setText("Stellar 已激活 ✓ 设备命令走 Stellar（shell 权限），无需 ADB 配对。");
+            }
+        } catch (Throwable t) {
+            status.setText("Stellar 状态读取失败：" + t.getClass().getSimpleName());
+        }
     }
 
     /** Shizuku 通道状态：未运行 / 未授权 / 授权中 / 已就绪。 */
@@ -416,6 +460,7 @@ public class ConfigFragment extends Fragment {
             if (v != null) refreshA11yStatus(v.findViewById(R.id.config_a11y_status));
             if (v != null) refreshAdbStatus(v.findViewById(R.id.config_adb_status));
             if (v != null) refreshShizukuStatus(v.findViewById(R.id.config_shizuku_status));
+            if (v != null) refreshStellarStatus(v.findViewById(R.id.config_stellar_status));
         } catch (Throwable ignored) {
         }
     }

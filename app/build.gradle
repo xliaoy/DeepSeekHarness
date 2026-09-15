@@ -181,6 +181,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'dev.rikka.shizuku:api:12.2.0'
     implementation 'dev.rikka.shizuku:provider:12.2.0'
+    // Stellar（Shizuku 深度定制分支）：免 ADB 特权通道，配 StellarProvider 使用
+    implementation 'com.github.roro2239:Stellar-API:1.0.3'
     // 真 PTY 终端：Termux 拆出的 terminal-view/terminal-emulator（Apache 2.0），
     // 自带 JNI PTY 层（openpty+fork/exec）。坐标是 JitPack 多模块真实 groupId
     // （com.termux.termux-app），不是 Wiki 上会 401 的 com.termux:terminal-view。

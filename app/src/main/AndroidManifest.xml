@@ -47,6 +47,18 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.DeepseekHarness">
 
+        <!-- Stellar（Shizuku 兼容分支）特权通道：免 ADB 激活后设备命令走 Stellar -->
+        <provider
+            android:name="roro.stellar.StellarProvider"
+            android:authorities="${applicationId}.stellar"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <meta-data
+            android:name="roro.stellar.permissions"
+            android:value="stellar" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
