@@ -54,7 +54,7 @@
             android:paddingTop="@dimen/gap_tight"
             android:paddingEnd="@dimen/gap_control"
             android:paddingBottom="@dimen/gap_tight"
-            android:text="简易终端"
+            android:text="@string/terminal_simple_title"
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_caption" />
 
@@ -68,7 +68,7 @@
             style="@style/Widget.DeepSeekHarness.ToolbarAction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="中止"
+            android:text="@string/terminal_abort"
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_caption" />
 
@@ -78,7 +78,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/gap_hair"
-            android:text="清理"
+            android:text="@string/terminal_clear"
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_caption" />
 
@@ -92,6 +92,13 @@
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_caption" />
     </LinearLayout>
+
+    <!-- 多标签行：横向滚动标签 + 独立「＋ 新建」按钮 -->
+    <include
+        layout="@layout/view_terminal_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_tight" />
 
     <!-- 终端容器：深色圆角卡片 -->
     <LinearLayout
@@ -155,7 +162,7 @@
                 android:minHeight="@dimen/input_height"
                 android:background="@android:color/transparent"
                 android:fontFamily="monospace"
-                android:hint="输入命令，回车执行"
+                android:hint="@string/terminal_input_hint"
                 android:imeOptions="actionSend"
                 android:inputType="text"
                 android:maxLines="1"

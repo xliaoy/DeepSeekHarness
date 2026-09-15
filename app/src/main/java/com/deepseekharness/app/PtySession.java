@@ -136,8 +136,14 @@ public final class PtySession implements TerminalSessionClient {
         try {
         if (isRunning()) {
             com.deepseekharness.app.util.ProcessIdentity expected = identity;
-            if (expected == null) throw new java.io.IOException("无法确认终端身份，原环境保持保护");
-            try {
+            if (expected == null) {
+                int pid = session != null ? session.getPid() : -1;
+                if (pid > 0) expected = readIdentity(pid);
+            }
+            if (expected == null) {
+                // 身份无法确认：直接终止（PTY 受管会话，环境保护保持不变）
+                finish();
+            } else try {
                 String executable = android.system.Os.readlink("/proc/" + expected.pid + "/exe");
                 if (com.deepseekharness.app.util.ProcessIdentity.isProot(executable)) finish();
                 else com.deepseekharness.app.runtime.TerminalProcessCloser.close(expected, timeoutMs);
@@ -163,7 +169,16 @@ public final class PtySession implements TerminalSessionClient {
         try {
             com.deepseekharness.app.util.ProcessIdentity expected = identity;
             if (expected == null) expected = readIdentity(pid);
-            if (expected == null || !expected.sameProcess(readIdentity(pid)))
+            if (expected == null) {
+                // 身份无法确认（/proc 读取失败等）：PTY 是受管 proot 会话，直接发 HUP 终止，不阻塞关闭。
+                try { android.system.Os.kill(pid, android.system.OsConstants.SIGHUP); }
+                catch (android.system.ErrnoException e) {
+                    if (e.errno != android.system.OsConstants.ESRCH)
+                        throw new IllegalStateException("终端停止失败，后台任务仍保留保护", e);
+                }
+                return;
+            }
+            if (!expected.sameProcess(readIdentity(pid)))
                 throw new IllegalStateException("无法确认本次终端进程身份，尚未停止");
             String executable = android.system.Os.readlink("/proc/" + pid + "/exe");
             // proot 的 SIGQUIT 会先清理自己登记的全部 tracee；直接 KILL 会遗留后台 shell/命令。

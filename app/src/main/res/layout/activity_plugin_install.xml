@@ -31,7 +31,7 @@
                 style="@style/Widget.DeepSeekHarness.ToolbarAction"
                 android:layout_width="44dp"
                 android:layout_height="wrap_content"
-                android:contentDescription="返回"
+                android:contentDescription="@string/common_back"
                 android:text="‹"
                 android:textSize="@dimen/text_display" />
 
@@ -41,7 +41,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_tight"
                 android:layout_weight="1"
-                android:text="安装插件" />
+                android:text="@string/plugin_install_title" />
         </LinearLayout>
 
         <!-- ================= 请求信息 ================= -->
@@ -93,7 +93,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/btn_height"
-                android:text="解析链接" />
+                android:text="@string/plugin_install_parse_link" />
 
             <Button
                 android:id="@+id/link_install_manage"
@@ -101,7 +101,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
-                android:text="打开插件管理" />
+                android:text="@string/common_open_plugin_manager" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

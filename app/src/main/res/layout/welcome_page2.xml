@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="四个页面" />
+            android:text="@string/welcome_p2_title" />
 
         <TextView
             style="@style/DeepSeekHarnessText.Label"
@@ -30,7 +30,7 @@
             android:layout_marginTop="@dimen/gap_tight"
             android:layout_marginBottom="@dimen/gap_section"
             android:gravity="center"
-            android:text="启动、终端、市场、设置，底栏一切换" />
+            android:text="@string/welcome_p2_desc" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -63,7 +63,7 @@
                     style="@style/DeepSeekHarnessText.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="启动"
+                    android:text="@string/nav_launch"
                     android:textStyle="bold" />
 
                 <TextView
@@ -71,7 +71,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_hair"
-                    android:text="启动 Web UI，点「进入」在软件里打开" />
+                    android:text="@string/welcome_p2_launch_desc" />
             </LinearLayout>
         </LinearLayout>
 
@@ -106,7 +106,7 @@
                     style="@style/DeepSeekHarnessText.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="终端"
+                    android:text="@string/nav_terminal"
                     android:textStyle="bold" />
 
                 <TextView
@@ -114,7 +114,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_hair"
-                    android:text="进 Linux 环境敲命令" />
+                    android:text="@string/welcome_p2_terminal_desc" />
             </LinearLayout>
         </LinearLayout>
 
@@ -149,7 +149,7 @@
                     style="@style/DeepSeekHarnessText.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="市场"
+                    android:text="@string/welcome_p2_market"
                     android:textStyle="bold" />
 
                 <TextView
@@ -157,7 +157,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_hair"
-                    android:text="浏览、安装、开关插件" />
+                    android:text="@string/welcome_p2_market_desc" />
             </LinearLayout>
         </LinearLayout>
 
@@ -191,7 +191,7 @@
                     style="@style/DeepSeekHarnessText.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="设置"
+                    android:text="@string/nav_settings"
                     android:textStyle="bold" />
 
                 <TextView
@@ -199,7 +199,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_hair"
-                    android:text="API key、安装、工作区、备份" />
+                    android:text="@string/welcome_p2_settings_desc" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

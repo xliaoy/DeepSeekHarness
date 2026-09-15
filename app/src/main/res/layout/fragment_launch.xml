@@ -32,7 +32,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_hair"
                 android:layout_marginBottom="@dimen/gap_tight"
-                android:text="运行状态"
+                android:text="@string/launch_status"
                 android:textStyle="bold" />
 
             <!-- 卡片一：运行状态与操作 -->
@@ -65,7 +65,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/gap_tight"
                         android:layout_weight="1"
-                        android:text="DSH 未运行" />
+                        android:text="@string/launch_stopped" />
                 </LinearLayout>
 
                 <TextView
@@ -138,7 +138,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_control"
                     android:minHeight="@dimen/btn_height"
-                    android:text="启动" />
+                    android:text="@string/launch_start" />
 
                 <!-- 次要操作：权重分栏 -->
                 <LinearLayout
@@ -155,7 +155,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:minHeight="@dimen/btn_height"
-                        android:text="重启" />
+                        android:text="@string/launch_restart" />
 
                     <Button
                         android:id="@+id/launch_stop"
@@ -165,7 +165,7 @@
                         android:layout_marginStart="@dimen/gap_tight"
                         android:layout_weight="1"
                         android:minHeight="@dimen/btn_height"
-                        android:text="停止"
+                        android:text="@string/launch_stop"
                         android:textColor="@color/err" />
                 </LinearLayout>
 
@@ -177,7 +177,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_tight"
                     android:minHeight="@dimen/btn_height"
-                    android:text="安全启动" />
+                    android:text="@string/launch_safe_start" />
 
                 <Button
                     android:id="@+id/launch_recovery"
@@ -186,7 +186,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_tight"
                     android:minHeight="@dimen/btn_height"
-                    android:text="查看恢复选项"
+                    android:text="@string/launch_recovery_options"
                     android:visibility="gone" />
             </LinearLayout>
 
@@ -198,7 +198,7 @@
                 android:layout_marginStart="@dimen/gap_hair"
                 android:layout_marginTop="@dimen/gap_section"
                 android:layout_marginBottom="@dimen/gap_tight"
-                android:text="运行日志"
+                android:text="@string/launch_logs"
                 android:textStyle="bold" />
 
             <!-- 卡片二：日志预览 -->
@@ -245,7 +245,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="实时输出"
+                        android:text="@string/launch_live_output"
                         android:textStyle="bold" />
 
                     <Button
@@ -253,7 +253,7 @@
                         style="@style/Widget.DeepSeekHarness.TextButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="下载日志" />
+                        android:text="@string/launch_download_logs" />
                 </LinearLayout>
 
                 <androidx.core.widget.NestedScrollView
@@ -275,7 +275,7 @@
                         android:paddingTop="@dimen/gap_control"
                         android:paddingEnd="@dimen/card_pad"
                         android:paddingBottom="@dimen/card_pad"
-                        android:text="还没有日志。"
+                        android:text="@string/launch_no_logs"
                         android:textColor="@color/text_secondary"
                         android:textIsSelectable="true" />
                 </androidx.core.widget.NestedScrollView>

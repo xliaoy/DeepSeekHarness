@@ -13,412 +13,142 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="@dimen/page_pad">
-
-        <!-- 组标题：插件来源 -->
+        <!-- 组标题：插件管理 -->
         <TextView
             style="@style/DeepSeekHarnessText.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="插件来源"
+            android:text="@string/plugins_title"
             android:textStyle="bold" />
 
-        <!-- 分段控件卡片 -->
+        <!-- 管理与筛选卡（搜索 + 筛选 + 同步/检测更新） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_card"
             android:elevation="2dp"
-            android:orientation="horizontal"
-            android:padding="@dimen/gap_hair">
-
-            <TextView
-                android:id="@+id/btnMarket"
-                style="@style/PluginAction"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_tab_on"
-                android:text="插件安装" />
-
-            <TextView
-                android:id="@+id/btnInstalled"
-                style="@style/PluginAction"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/gap_hair"
-                android:background="@drawable/bg_tab"
-                android:text="插件管理" />
-        </LinearLayout>
-
-        <!-- 同步状态卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="@dimen/card_pad">
 
-            <TextView
-                style="@style/DeepSeekHarnessText.Caption"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="@dimen/gap_control"
-                android:text="同步本机安装状态" />
-
-            <TextView
-                android:id="@+id/btnRefresh"
-                style="@style/PluginAction"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="120dp"
-                android:minHeight="@dimen/btn_height"
-                android:paddingStart="@dimen/gap_block"
-                android:paddingEnd="@dimen/gap_block"
-                android:drawableStart="@drawable/ic_plugin_scan"
-                android:drawablePadding="@dimen/gap_tight"
-                android:background="@drawable/bg_chip_clickable"
-                android:text="检测插件"
-                android:singleLine="true"
-                android:textColor="@color/primary"
-                android:contentDescription="检测已安装插件"
-                android:elevation="1dp" />
-        </LinearLayout>
-
-        <!-- 已安装插件的筛选与管理（安装页隐藏） -->
-        <LinearLayout
-            android:id="@+id/installedControls"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Caption"
+            <EditText
+                android:id="@+id/pluginSearch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/gap_hair"
+                android:minHeight="@dimen/input_height"
+                android:background="@drawable/bg_input"
+                android:hint="@string/plugins_search_hint"
+                android:singleLine="true"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:padding="@dimen/gap_control"
+                android:textColor="@color/text"
+                android:textColorHint="@color/text_muted"
+                android:textSize="@dimen/text_body" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/hairline"
+                android:layout_marginTop="@dimen/gap_tight"
                 android:layout_marginBottom="@dimen/gap_tight"
-                android:text="管理与筛选"
-                android:textStyle="bold" />
+                android:background="@color/line" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
-                android:elevation="2dp"
-                android:orientation="vertical"
-                android:padding="@dimen/card_pad">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/pluginSearch"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/pluginCount"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/btnSort"
+                    style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minHeight="@dimen/input_height"
-                    android:background="@drawable/bg_input"
-                    android:hint="搜索插件名称或描述"
-                    android:singleLine="true"
-                    android:imeOptions="actionDone"
-                    android:inputType="text"
-                    android:padding="@dimen/gap_control"
-                    android:textColor="@color/text"
-                    android:textColorHint="@color/text_muted"
-                    android:textSize="@dimen/text_body" />
+                    android:text="@string/plugins_sort_name" />
 
-                <CheckBox
-                    android:id="@+id/chkHideBuiltin"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/btnRefresh"
+                    style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minHeight="@dimen/touch_min"
-                    android:layout_marginTop="@dimen/gap_tight"
-                    android:text="只看自己装的"
-                    android:buttonTint="@color/primary"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="@dimen/text_label" />
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:text="@string/plugins_sync_status" />
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/hairline"
-                    android:layout_marginTop="@dimen/gap_tight"
-                    android:layout_marginBottom="@dimen/gap_tight"
-                    android:background="@color/line" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <Button
+                    android:id="@+id/btnPluginUpdates"
+                    style="@style/Widget.DeepSeekHarness.TextButton"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/pluginCount"
-                        style="@style/DeepSeekHarnessText.Caption"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content" />
-
-                    <TextView
-                        android:id="@+id/btnSort"
-                        style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="名称排序" />
-
-                    <Button
-                        android:id="@+id/btnPluginUpdates"
-                        style="@style/Widget.DeepSeekHarness.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="0dp"
-                        android:text="检查更新" />
-                </LinearLayout>
+                    android:layout_marginBottom="0dp"
+                    android:text="@string/update_check" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 在线安装卡片 -->
+        <!-- 安装插件卡：在线安装 / 命令行安装 弹窗入口 -->
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
-            android:id="@+id/pluginMarketCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_section">
 
             <LinearLayout
-                android:id="@+id/pluginWebsiteSection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="0dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <TextView
                     style="@style/DeepSeekHarnessText.Title"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="在线安装"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:text="@string/plugin_install_title" />
 
                 <TextView
-                    style="@style/DeepSeekHarnessText.Caption"
+                    android:id="@+id/btnPluginHelp"
+                    style="@style/Widget.DeepSeekHarness.ToolbarAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="GitHub / npm" />
+                    android:text="？"
+                    android:contentDescription="@string/plugins_tip" />
             </LinearLayout>
 
-            <View
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/hairline"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_control"
-                android:layout_marginBottom="@dimen/gap_control"
-                android:background="@color/line" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/pluginLinkSection"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="0dp"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/DeepSeekHarnessText.Label"
-                    android:layout_width="match_parent"
+                <Button
+                    android:id="@+id/btnOnlineInstall"
+                    style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="插件链接或 npm 包名" />
+                    android:layout_weight="1"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="@string/plugins_online_install" />
 
-                <EditText
-                    android:id="@+id/appbar_github_input"
-                    android:layout_width="match_parent"
+                <Button
+                    android:id="@+id/btnCommandInstallBtn"
+                    style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:minHeight="@dimen/input_height"
-                    android:layout_marginTop="@dimen/gap_tight"
-                    android:background="@drawable/bg_input"
-                    android:hint="插件链接或 npm 包名"
-                    android:inputType="textUri"
-                    android:imeOptions="actionGo"
-                    android:singleLine="true"
-                    android:importantForAutofill="no"
-                    android:padding="@dimen/gap_control"
-                    android:textColor="@color/text"
-                    android:textColorHint="@color/text_muted"
-                    android:textSize="@dimen/text_body" />
-
-                <TextView
-                    android:id="@+id/pluginLinkHint"
-                    style="@style/DeepSeekHarnessText.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_tight" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_control"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/btnPluginPaste"
-                        style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="粘贴链接" />
-
-                    <TextView
-                        android:id="@+id/btnPluginInstall"
-                        style="@style/PluginAction"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/gap_tight"
-                        android:text="解析并安装"
-                        android:background="@drawable/bg_btn_primary"
-                        android:textColor="@color/accent_on" />
-                </LinearLayout>
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_weight="1"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="@string/plugins_cli_install" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 命令安装卡片 -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:id="@+id/pluginCommandCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section">
-
-            <LinearLayout
-                android:id="@+id/pluginCommandSection"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="0dp"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/DeepSeekHarnessText.Title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="命令安装" />
-
-                <TextView
-                    style="@style/DeepSeekHarnessText.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_hair"
-                    android:text="粘贴 dsh 插件安装命令，例如：dsh plugin --profile web add 插件包名" />
-
-                <EditText
-                    android:id="@+id/commandInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="@dimen/input_height"
-                    android:layout_marginTop="@dimen/gap_control"
-                    android:background="@drawable/bg_input"
-                    android:hint="dsh plugin --profile web add 插件包名"
-                    android:inputType="textUri"
-                    android:imeOptions="actionGo"
-                    android:singleLine="true"
-                    android:importantForAutofill="no"
-                    android:padding="@dimen/gap_control"
-                    android:textColor="@color/text"
-                    android:textColorHint="@color/text_muted"
-                    android:textSize="@dimen/text_body" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_control"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/btnPluginCommandPaste"
-                        style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="粘贴命令" />
-
-                    <TextView
-                        android:id="@+id/btnPluginCommandInstall"
-                        style="@style/PluginAction"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/gap_tight"
-                        android:text="解析并安装"
-                        android:background="@drawable/bg_btn_primary"
-                        android:textColor="@color/accent_on" />
-                </LinearLayout>
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 导入导出卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="@dimen/gap_tight">
-
-            <TextView
-                android:id="@+id/btnImport"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="导入插件包" />
-
-            <TextView
-                android:id="@+id/btnExport"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/gap_tight"
-                android:text="导出插件包" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/btnImportFallback"
-            style="@style/Widget.DeepSeekHarness.ToolbarAction"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_tight"
-            android:text="其他文件选择器"
-            android:textColor="@color/text_secondary" />
-
-        <!-- 使用提示卡片 -->
-        <LinearLayout
-            android:id="@+id/marketHelp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
-            android:padding="@dimen/card_pad">
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="使用提示"
-                android:textStyle="bold" />
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_hair"
-                android:text="安装或修改插件后，重启 Web 生效。支持 GitHub、npm 和 ZIP / TAR / TAR.GZ / TGZ 的已构建插件包；导出包可在其他 DeepSeek Harness 中导入。" />
-        </LinearLayout>
 
         <Button
             android:id="@+id/btnPluginRestore"
@@ -427,7 +157,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_section"
             android:visibility="gone"
-            android:text="安全模式：恢复此前启用的第三方插件" />
+            android:text="@string/plugins_safe_mode" />
 
         <TextView
             android:id="@+id/pluginEmpty"
@@ -442,12 +172,45 @@
             android:visibility="gone"
             android:textColor="@color/text_muted" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/gap_hair"
+                android:text="@string/plugins_list"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnImport"
+                style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/plugins_import" />
+
+            <TextView
+                android:id="@+id/btnExport"
+                style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_tight"
+                android:text="@string/plugins_export" />
+        </LinearLayout>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/pluginList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_tight"
             android:nestedScrollingEnabled="false"
-            android:visibility="gone" />
+            android:visibility="visible" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

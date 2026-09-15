@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -28,8 +29,8 @@ public final class PluginInstallActivity extends AppCompatActivity {
         try { request = PluginInstallLink.parse(getIntent().getDataString()); }
         catch (IllegalArgumentException e) { status.setText(e.getMessage()); install.setEnabled(false); return; }
         if (!request.builtin.isEmpty()) {
-            status.setText("请在插件管理中查看 " + request.builtin + " 的安装和启用状态");
-            install.setText("打开插件管理"); install.setOnClickListener(v -> openMain(true)); return;
+            status.setText(UiText.text("请在插件管理中查看 ") + request.builtin + UiText.text(" 的安装和启用状态"));
+            install.setText(UiText.text("打开插件管理")); install.setOnClickListener(v -> openMain(true)); return;
         }
         repository = new ViewModelProvider(this).get(PluginRepository.class);
         repository.state().observe(this, state -> {
@@ -45,21 +46,21 @@ public final class PluginInstallActivity extends AppCompatActivity {
             else inspect();
         });
         if (!HarnessController.get(this).isEnvironmentReady()) {
-            status.setText("请先完成 DeepSeek Harness 首次初始化，完成后会返回插件安装确认页"); install.setText("初始化 DeepSeek Harness");
+            status.setText(UiText.text("请先完成 DeepSeek Harness 首次初始化，完成后会返回插件安装确认页")); install.setText(UiText.text("初始化 DeepSeek Harness"));
         } else if (saved == null) inspect();
     }
     private void inspect() { repository.inspect(PluginSource.parse(request.url), request.sha256, request.name, request.version); }
     private void renderPreview() {
         if (repository.installationSucceeded()) {
             details.setText(repository.installedDescription());
-            install.setText("安装完成"); install.setEnabled(false); return;
+            install.setText(UiText.text("安装完成")); install.setEnabled(false); return;
         }
         PluginRepository.Preview preview = repository.preview().getValue();
         if (preview != null) {
-            details.setText(preview.description); install.setText("确认安装");
+            details.setText(preview.description); install.setText(UiText.text("确认安装"));
         } else {
-            details.setText("下载并解析插件包后，会显示真实作者、版本和兼容范围。确认安装前不会启用插件。\n\n" + com.deepseekharness.app.util.SensitiveData.redact(request.url));
-            install.setText(HarnessController.get(this).isEnvironmentReady() ? "解析链接 / 重试" : "初始化 DeepSeek Harness");
+            details.setText(UiText.text("下载并解析插件包后，会显示真实作者、版本和兼容范围。确认安装前不会启用插件。\n\n") + com.deepseekharness.app.util.SensitiveData.redact(request.url));
+            install.setText(HarnessController.get(this).isEnvironmentReady() ? UiText.text("解析链接 / 重试") : UiText.text("初始化 DeepSeek Harness"));
         }
     }
     private void openMain(boolean plugins) {

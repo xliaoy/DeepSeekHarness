@@ -6,9 +6,9 @@
     <color name="primary_dark">#1C1C1E</color>
     <color name="accent_on">#FFFFFF</color>
     <!-- 分组背景（iOS systemGroupedBackground）与卡片 -->
-    <color name="surface">#F2F2F7</color>
+    <color name="surface">#FFFFFF</color>
     <color name="card">#FFFFFF</color>
-    <color name="raised">#F7F7FA</color>
+    <color name="raised">#FFFFFF</color>
     <color name="line">#E5E5EA</color>
     <!-- 文字阶梯（iOS label / secondary / tertiary） -->
     <color name="text">#000000</color>
@@ -18,13 +18,14 @@
     <color name="ok">#1C1C1E</color>
     <color name="warn">#6C6C70</color>
     <color name="err">#48484A</color>
-    <color name="preview">#F2F2F7</color>
+    <color name="preview">#FFFFFF</color>
     <!-- 终端背景保持深色（白色前景可读） -->
     <color name="terminal_surface">#0A0D12</color>
     <color name="terminal_outline">#2A2F36</color>
-    <color name="logo_top">#F7F7FA</color>
+    <color name="logo_top">#FFFFFF</color>
     <color name="logo_bot">#E5E5EA</color>
     <color name="ripple">#0F000000</color>
+    <color name="drawer_row_focused">#14000000</color>
     <color name="primary_ripple">#1A000000</color>
     <color name="error_on">#FFFFFF</color>
     <color name="disabled">#E9E9EE</color>

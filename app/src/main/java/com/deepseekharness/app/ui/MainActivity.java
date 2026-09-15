@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.Context;
 import android.content.Intent;
@@ -27,7 +28,9 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 /**
  * 主界面外壳：启动门禁 + 悬浮胶囊底部导航（启动 / 插件 / 终端）+ 顶栏
  * （汉堡侧边栏 + 固定 App 标题 + 主题纯图标按钮）。
- * 侧边栏 = 设置页全部功能入口（模块 / 更新 / 诊断 / 重新解压 / 镜像源），不再跳设置页。
+ * 侧边栏 = 设置页全部功能入口（模块[安装/配置/数据与备份/设备能力授权] +
+ * 其他[更新/自检/重新解压/镜像与源/关于]），分类与官方设置页一致。
+ * 宽屏（平板/大屏）下侧边栏靠右、面板加宽；切页动画走 UiMotion。
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -36,13 +39,17 @@ public class MainActivity extends AppCompatActivity {
     private com.google.android.material.snackbar.Snackbar updateNotice;
     private boolean requestingLocalNetwork;
     private DrawerLayout drawer;
+    /** 宽屏（平板 / 大屏折叠 / 横屏 ≥600dp）：侧边栏靠右、面板加宽。 */
+    private boolean wideScreen;
+    /** 侧边栏所在侧：手机靠左(START)，宽屏靠右(END)，所有开合调用走这一侧。 */
+    private int drawerGravity = GravityCompat.START;
     private final androidx.activity.result.ActivityResultLauncher<String> localNetworkPermission =
             registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
                     granted -> {
                         requestingLocalNetwork = false;
                         if (granted) com.deepseekharness.app.bridge.LocalNetworkAccess.applyConfiguredFeatures(this);
                         else android.widget.Toast.makeText(this,
-                                "未允许局域网访问；本机对话仍可使用，LAN / 无线 ADB 需在系统权限设置中开启",
+                                UiText.text("未允许局域网访问；本机对话仍可使用，LAN / 无线 ADB 需在系统权限设置中开启"),
                                 android.widget.Toast.LENGTH_LONG).show();
                     });
 
@@ -84,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         // 保证状态栏与顶栏始终同色；强制沉浸式下该值会被系统忽略（透明）不影响内容延伸。
         getWindow().setStatusBarColor(getColor(R.color.card));
 
+        com.deepseekharness.app.ui.LanguageController.apply(this);
         setContentView(R.layout.activity_main);
         // 状态栏图标颜色随明暗（浅色背景深图标 / 深色背景浅图标）
         androidx.core.view.WindowInsetsControllerCompat wic =
@@ -104,15 +112,15 @@ public class MainActivity extends AppCompatActivity {
         ImageView theme = findViewById(R.id.btn_theme);
         boolean dark = ThemeController.isDark(this);
         theme.setImageResource(dark ? R.drawable.ic_moon : R.drawable.ic_sun);
-        theme.setContentDescription(dark ? "当前黑夜模式，点击切换白天" : "当前白天模式，点击切换黑夜");
+        theme.setContentDescription(dark ? UiText.text("当前黑夜模式，点击切换白天") : UiText.text("当前白天模式，点击切换黑夜"));
         theme.setOnClickListener(v -> ThemeController.toggle(this));
         findViewById(R.id.sub_back).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         buildDrawer();
         // 抽屉打开时返回键先关抽屉，再走默认（退出/子页返回）。
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
-                if (drawer != null && drawer.isDrawerOpen(GravityCompat.START)) {
-                    drawer.closeDrawer(GravityCompat.START);
+                if (drawer != null && drawer.isDrawerOpen(drawerGravity)) {
+                    drawer.closeDrawer(drawerGravity);
                 } else {
                     setEnabled(false);
                     getOnBackPressedDispatcher().onBackPressed();
@@ -143,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
                 f = PtyTerminalFragment.preferred(this)
                         ? new PtyTerminalFragment() : new TerminalFragment();
             }
-            getSupportFragmentManager().beginTransaction()
+            UiMotion.page(this, getSupportFragmentManager().beginTransaction())
                     .replace(R.id.fragment_container, f)
                     .commit();
             return true;
@@ -219,10 +227,10 @@ public class MainActivity extends AppCompatActivity {
         String latest = startupUpdates.startupNotice();
         if (latest == null) return;
         updateNotice = com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content),
-                "发现新版本 " + latest + " · DeepSeek Harness",
+                UiText.text("发现新版本 ") + latest + " · DeepSeek Harness",
                 com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
                 .setAnchorView(R.id.bottom_nav)
-                .setAction("查看更新", view -> startActivity(new Intent(this, UpdateActivity.class)));
+                .setAction(UiText.text("查看更新"), view -> startActivity(new Intent(this, UpdateActivity.class)));
         updateNotice.addCallback(new com.google.android.material.snackbar.Snackbar.Callback() {
             @Override public void onShown(com.google.android.material.snackbar.Snackbar bar) {
                 if (hasWindowFocus() && getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
@@ -268,51 +276,81 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.sub_back).setVisibility(nested ? android.view.View.VISIBLE : android.view.View.GONE);
         findViewById(R.id.btn_menu).setVisibility(nested ? android.view.View.GONE : android.view.View.VISIBLE);
         if (!nested) { title.setText(R.string.app_name); return; }
-        if (shown instanceof ConfigFragment) title.setText("配置");
-        else if (shown instanceof WorkspaceFragment) title.setText("数据与备份");
-        else if (shown instanceof InstallFragment) title.setText("安装与修复");
-        else if (shown instanceof SettingsFragment) title.setText("设置");
+        if (shown instanceof ConfigFragment) title.setText(UiText.text("功能设置"));
+        else if (shown instanceof DeviceGrantsFragment) title.setText(UiText.text("权限配置"));
+        else if (shown instanceof WorkspaceFragment) title.setText(UiText.text("备份还原"));
+        else if (shown instanceof InstallFragment) title.setText(UiText.text("检测修复"));
+        else if (shown instanceof SettingsFragment) title.setText(UiText.text("设置"));
         else title.setText(R.string.app_name);
     }
 
-    // ===================== 侧边栏（设置全部功能入口） =====================
+    // ===================== 侧边栏（设置入口，分类对齐官方） =====================
 
     private void buildDrawer() {
         drawer = findViewById(R.id.drawer_layout);
-        findViewById(R.id.btn_menu).setOnClickListener(v -> drawer.openDrawer(GravityCompat.START));
-        ((EdgeSwipeLayout) findViewById(R.id.main_content)).attachDrawer(drawer);
+        // 宽屏（平板 / 大屏折叠 / 横屏）：侧边栏靠右、面板加宽，避免 280dp 窄条。
+        wideScreen = getResources().getConfiguration().screenWidthDp >= 600;
+        drawerGravity = wideScreen ? GravityCompat.END : GravityCompat.START;
+        findViewById(R.id.btn_menu).setOnClickListener(v -> drawer.openDrawer(drawerGravity));
+        ((EdgeSwipeLayout) findViewById(R.id.main_content)).attachDrawer(drawer, drawerGravity);
         LinearLayout panel = findViewById(R.id.drawer_panel);
+        if (wideScreen) {
+            // androidx drawerlayout 1.1.1 没有 setDrawerGravity 公开方法，直接改 LayoutParams。
+            // DrawerLayout 在布局/查找时实时读取子 View 的 gravity，重新 setLayoutParams
+            // 触发重排后左侧固定面板即移到右侧，开合与滑动按 drawerGravity(END) 进行。
+            DrawerLayout.LayoutParams dlp = (DrawerLayout.LayoutParams) panel.getLayoutParams();
+            dlp.gravity = GravityCompat.getAbsoluteGravity(drawerGravity, panel.getLayoutDirection())
+                    | (dlp.gravity & Gravity.VERTICAL_GRAVITY_MASK);
+            panel.setLayoutParams(dlp);
+            ViewGroup.LayoutParams plp = panel.getLayoutParams();
+            plp.width = dp(360);
+            panel.setLayoutParams(plp);
+        }
         panel.addView(buildDrawerHeader());
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setFillViewport(true);
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
         body.setPadding(0, 0, 0, dp(16));
-        body.addView(buildDrawerSection("模块"));
-        body.addView(buildDrawerRow(R.drawable.ic_build, "安装", "安装与修复运行环境", () -> openChild(new InstallFragment())));
-        body.addView(buildDrawerRow(R.drawable.ic_settings, "配置", "接口、行为与权限", () -> openChild(new ConfigFragment())));
-        body.addView(buildDrawerRow(R.drawable.ic_backup, "数据与备份", "备份恢复 · 文件共享", () -> openChild(new WorkspaceFragment())));
-        body.addView(buildDrawerSection("其他"));
-        body.addView(buildDrawerRow(R.drawable.ic_update, "更新 DeepSeek Harness", "从 GitHub Releases 获取最新版本",
+        // 模块：与官方设置分类一致（安装 / 配置 / 数据与备份 / 设备能力授权）
+        body.addView(buildDrawerSection(com.deepseekharness.app.util.UiText.text("模块")));
+        body.addView(buildDrawerRow(R.drawable.ic_build, com.deepseekharness.app.util.UiText.text("检测修复"),
+                com.deepseekharness.app.util.UiText.text("安装与修复运行环境"), () -> openChild(new InstallFragment())));
+        body.addView(buildDrawerRow(R.drawable.ic_settings, com.deepseekharness.app.util.UiText.text("功能设置"),
+                com.deepseekharness.app.util.UiText.text("接口、行为与权限"), () -> openChild(new ConfigFragment())));
+        body.addView(buildDrawerRow(R.drawable.ic_backup, com.deepseekharness.app.util.UiText.text("备份还原"),
+                com.deepseekharness.app.util.UiText.text("备份恢复 · 文件共享"), () -> openChild(new WorkspaceFragment())));
+        body.addView(buildDrawerRow(R.drawable.ic_plugin_scan, com.deepseekharness.app.util.UiText.text("权限配置"),
+                "Root · Shizuku · Stellar · ADB · " + com.deepseekharness.app.util.UiText.text("权限"), () -> openChild(new DeviceGrantsFragment())));
+        body.addView(buildDrawerSection(com.deepseekharness.app.util.UiText.text("其他")));
+        body.addView(buildDrawerRow(R.drawable.ic_update, com.deepseekharness.app.util.UiText.text("在线更新"),
+                com.deepseekharness.app.util.UiText.text("从 GitHub Releases 获取最新版本"),
                 () -> startActivity(new Intent(this, UpdateActivity.class))));
-        body.addView(buildDrawerRow(R.drawable.ic_description, "诊断与日志", "下载错误日志 · 环境检查 · 故障修复",
+        body.addView(buildDrawerRow(R.drawable.ic_description, com.deepseekharness.app.util.UiText.text("系统诊断"),
+                com.deepseekharness.app.util.UiText.text("下载错误日志 · 环境检查 · 故障修复"),
                 () -> startActivity(new Intent(this, DiagnosticActivity.class))));
-        body.addView(buildDrawerRow(R.drawable.ic_unarchive, "重新解压", "dsh / npm 损坏时用；配置与对话记录会保留",
+        body.addView(buildDrawerRow(R.drawable.ic_unarchive, com.deepseekharness.app.util.UiText.text("系统修复"),
+                com.deepseekharness.app.util.UiText.text("dsh / npm 损坏时用；配置与对话记录会保留"),
                 () -> SettingsFragment.confirmReextract(this)));
-        body.addView(buildDrawerRow(R.drawable.ic_dns, "镜像与源", "npm · Ubuntu 软件包(APT) · pip 镜像切换",
+        body.addView(buildDrawerRow(R.drawable.ic_dns, com.deepseekharness.app.util.UiText.text("镜像与源"),
+                "npm · APT · pip " + com.deepseekharness.app.util.UiText.text("镜像切换"),
                 () -> startActivity(new Intent(this, SourceSettingsActivity.class))));
-        body.addView(buildDrawerSection("关于"));
-        body.addView(buildDrawerRow(R.drawable.ic_info, "关于软件", "免费声明 · 交流群 · 开发者", this::showAboutDialog));
+        boolean langEn = "en".equals(new ConfigStore(this).getUiLanguage());
+        body.addView(buildDrawerRow(R.drawable.ic_settings, com.deepseekharness.app.util.UiText.text("界面语言"),
+                com.deepseekharness.app.util.UiText.text("当前：") + (langEn ? "English" : UiText.text("中文")),
+                this::showLanguageDialog));
+        body.addView(buildDrawerRow(R.drawable.ic_info, com.deepseekharness.app.util.UiText.text("关于软件"),
+                com.deepseekharness.app.util.UiText.text("免费声明 · 交流群 · 开发者"), this::showAboutDialog));
         scroll.addView(body);
         panel.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         panel.addView(buildDrawerFooter());
     }
 
-    /** 从侧边栏压栈打开子页（返回箭头可回主界面）。 */
+    /** 从侧边栏压栈打开子页（返回箭头可回主界面）。切页动画走 UiMotion。 */
     private void openChild(Fragment f) {
         if (getSupportFragmentManager().isStateSaved()) return;
-        getSupportFragmentManager().beginTransaction()
+        UiMotion.page(this, getSupportFragmentManager().beginTransaction())
                 .replace(R.id.fragment_container, f)
                 .addToBackStack("settings")
                 .commit();
@@ -377,10 +415,11 @@ public class MainActivity extends AppCompatActivity {
         row.setPadding(dp(16), dp(12), dp(16), dp(12));
         row.setMinimumHeight(dp(64));
         row.setFocusable(true);
-        android.util.TypedValue tv = new android.util.TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
-        row.setBackgroundResource(tv.resourceId);
-        row.setContentDescription("侧边栏-" + title);
+        // 行背景：Material ripple + 自绘聚焦态。关掉系统默认焦点黑框（触屏平板接键盘
+        // 导航时会出现难看的黑框），键盘焦点提示改由 bg_drawer_row 的 state_focused 提供。
+        row.setDefaultFocusHighlightEnabled(false);
+        row.setBackgroundResource(R.drawable.bg_drawer_row);
+        row.setContentDescription(UiText.text("侧边栏-") + title);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
@@ -422,7 +461,7 @@ public class MainActivity extends AppCompatActivity {
         row.addView(chev);
         row.setOnClickListener(v -> {
             action.run();
-            drawer.closeDrawer(GravityCompat.START);
+            drawer.closeDrawer(drawerGravity);
         });
         return row;
     }
@@ -433,7 +472,7 @@ public class MainActivity extends AppCompatActivity {
         footer.setPadding(dp(16), dp(8), dp(16), dp(12));
         com.google.android.material.materialswitch.MaterialSwitch eco =
                 new com.google.android.material.materialswitch.MaterialSwitch(this);
-        eco.setText("省电模式");
+        eco.setText(UiText.text("省电模式"));
         eco.setTextSize(15);
         eco.setMinHeight(dp(48));
         eco.setPadding(dp(16), dp(8), dp(16), dp(4));
@@ -445,8 +484,8 @@ public class MainActivity extends AppCompatActivity {
         hint.setTextColor(getColor(R.color.text_muted));
         hint.setPadding(dp(16), 0, dp(16), dp(8));
         java.util.function.Consumer<Boolean> describe = enabled -> hint.setText(enabled
-                ? "熄屏空闲 1 分钟后减少保活；有任务时继续运行。"
-                : "持续保持运行，适合长时间任务。");
+                ? UiText.text("熄屏空闲 1 分钟后减少保活；有任务时继续运行。")
+                : UiText.text("持续保持运行，适合长时间任务。"));
         describe.accept(config.isEcoMode());
         eco.setOnCheckedChangeListener((button, checked) -> {
             config.setEcoMode(checked);
@@ -470,18 +509,31 @@ public class MainActivity extends AppCompatActivity {
     private static final String QQ_DEV_JOIN = "https://qm.qq.com/q/yVTeGUfLjy";
 
     /** 关于软件：免费声明 + 应用信息 + 开源地址 + 打赏 / 交流群 / 开发者。 */
+    private void showLanguageDialog() {
+        String current = new ConfigStore(this).getUiLanguage();
+        AppDialogs.showList(this, android.R.drawable.ic_menu_manage, UiText.text("界面语言 / Language"),
+                new String[]{UiText.text("中文"), "English"},
+                index -> {
+                    String language = index == 0 ? "zh" : "en";
+                    if (!language.equals(current)) {
+                        com.deepseekharness.app.ui.LanguageController.select(this, language);
+                        recreate();
+                    }
+                });
+    }
+
     private void showAboutDialog() {
-        String msg = "DeepSeek Harness 手机端（DSHA 二开版）\n\n"
-                + "本软件完全免费开源，不收取任何费用，也没有会员、内购或任何付费功能。\n"
-                + "如果你是通过付费购买获得本软件，说明你被骗了，请立即退款，并到官方交流群反馈。\n\n"
-                + "应用名称：DeepSeek Harness\n"
-                + "包名：" + getPackageName() + "\n"
-                + "版本：v" + appVersion() + "\n"
-                + "开源地址：" + OPEN_SOURCE_URL + "\n\n"
-                + "交流QQ群：1125393952\n"
-                + "开发者QQ：3445790958";
-        AppDialogs.show(this, R.drawable.ic_info, "关于 DeepSeek Harness", msg,
-                "打赏支持", "加入交流群", "关闭",
+        String msg = UiText.text("DeepSeek Harness 手机端（DSHA 二开版）\n\n")
+                + UiText.text("本软件完全免费开源，不收取任何费用，也没有会员、内购或任何付费功能。\n")
+                + UiText.text("如果你是通过付费购买获得本软件，说明你被骗了，请立即退款，并到官方交流群反馈。\n\n")
+                + UiText.text("应用名称：DeepSeek Harness\n")
+                + UiText.text("包名：") + getPackageName() + "\n"
+                + UiText.text("版本：v") + appVersion() + "\n"
+                + UiText.text("开源地址：") + OPEN_SOURCE_URL + "\n\n"
+                + UiText.text("交流QQ群：1125393952\n")
+                + UiText.text("开发者QQ：3445790958");
+        AppDialogs.show(this, R.drawable.ic_info, UiText.text("关于 DeepSeek Harness"), msg,
+                UiText.text("打赏支持"), UiText.text("加入交流群"), UiText.text("关闭"),
                 this::showDonateDialog, () -> openUrl(QQ_GROUP_JOIN), null);
     }
 
@@ -500,7 +552,7 @@ public class MainActivity extends AppCompatActivity {
         wechat.setScaleType(ImageView.ScaleType.FIT_CENTER);
         wechatCol.addView(wechat, new LinearLayout.LayoutParams(size, size));
         TextView wl = new TextView(this);
-        wl.setText("微信");
+        wl.setText(UiText.text("微信"));
         wl.setTextSize(13);
         wl.setTextColor(getColor(R.color.text_muted));
         wl.setGravity(Gravity.CENTER);
@@ -520,7 +572,7 @@ public class MainActivity extends AppCompatActivity {
         alipay.setScaleType(ImageView.ScaleType.FIT_CENTER);
         alipayCol.addView(alipay, new LinearLayout.LayoutParams(size, size));
         TextView al = new TextView(this);
-        al.setText("支付宝");
+        al.setText(UiText.text("支付宝"));
         al.setTextSize(13);
         al.setTextColor(getColor(R.color.text_muted));
         al.setGravity(Gravity.CENTER);
@@ -534,15 +586,15 @@ public class MainActivity extends AppCompatActivity {
 
         row.addView(wechatCol);
         row.addView(alipayCol);
-        AppDialogs.showCustom(this, R.drawable.ic_info, "打赏支持（自愿）", row,
-                "开发者QQ", "关闭", () -> openUrl(QQ_DEV_JOIN));
+        AppDialogs.showCustom(this, R.drawable.ic_info, UiText.text("打赏支持（自愿）"), row,
+                UiText.text("开发者QQ"), UiText.text("关闭"), () -> openUrl(QQ_DEV_JOIN));
     }
 
     private void openUrl(String url) {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
         } catch (Throwable t) {
-            android.widget.Toast.makeText(this, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(this, UiText.text("无法打开链接"), android.widget.Toast.LENGTH_SHORT).show();
         }
     }
 

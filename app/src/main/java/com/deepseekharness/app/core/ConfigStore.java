@@ -61,6 +61,29 @@ public class ConfigStore {
         return String.valueOf(getPortInt());
     }
 
+    /** 首选端口被占用时记过的备用端口；与首选不符或没记过返回 0。 */
+    public int fallbackWebPort(int preferred) {
+        return prefs.getInt("web_fallback_for", -1) == preferred
+                ? prefs.getInt("web_fallback_port", 0) : 0;
+    }
+
+    /** 记下首选端口对应的备用端口，下次启动先试备用。 */
+    public void rememberFallbackWebPort(int preferred, int actual) {
+        prefs.edit().putInt("web_fallback_for", preferred)
+                .putInt("web_fallback_port", actual).apply();
+    }
+
+    public String getUiLanguage() {
+        String value = text("uiLanguage", "zh");
+        return com.deepseekharness.app.util.UiLanguagePreference.normalize(value);
+    }
+    public void setUiLanguage(String language) {
+        prefs.edit().putString("uiLanguage", com.deepseekharness.app.util.UiLanguagePreference.normalize(language)).apply();
+    }
+
+    public String getDnsMode() { return com.deepseekharness.app.util.ResolverConfig.mode(text("dns_mode", "auto")); }
+    public void setDnsMode(String value) { prefs.edit().putString("dns_mode", com.deepseekharness.app.util.ResolverConfig.mode(value)).apply(); }
+
     public int getPortInt() {
         int p = parsePort(text(Constants.KEY_PORT, String.valueOf(Constants.DSH_WEB_PORT)));
         return p == Constants.LAN_BRIDGE_PORT || p == Constants.SHELL_BRIDGE_PORT ? Constants.DSH_WEB_PORT : p;

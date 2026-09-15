@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 选中态：主色填充（白天黑 / 黑夜白），与反色文字组合成明确选择 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/primary" />
+    <corners android:radius="@dimen/radius_control" />
+</shape>

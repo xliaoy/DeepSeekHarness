@@ -53,6 +53,23 @@ public final class TerminalSession {
         thread.setDaemon(true);
         return thread;
     });
+    private volatile boolean disposed;
+    private boolean permanentlyClosing;
+
+    /** 官方语义：永久关闭（置 disposed 后不再接受/恢复任务，control 线程池随之关闭）。 */
+    public synchronized boolean disposeAndWait(long timeoutMs) throws InterruptedException {
+        if (disposed) return true;
+        permanentlyClosing = true;
+        try {
+            if (!shutdownAndWait(timeoutMs)) return false;
+            disposed = true;
+            control.shutdown();
+            return true;
+        } finally {
+            if (!disposed) permanentlyClosing = false;
+        }
+    }
+
     /** 下列可变会话状态仅由 control 线程访问。 */
     private final ArrayDeque<String> pending = new ArrayDeque<>();
     private Run active;
@@ -111,6 +128,20 @@ public final class TerminalSession {
         if (!dispatched.await(Math.max(0, timeoutMs), TimeUnit.MILLISECONDS)) return false;
         while (state != State.STOPPED && state != State.FAILED && System.nanoTime() < deadline) Thread.sleep(25);
         return state == State.STOPPED;
+    }
+
+    /** 强制终止当前进程组并标记已停止（关闭标签超时兜底：挂起 shell 不等优雅退出）。 */
+    public void forceStop() {
+        Run run = active;
+        if (run != null && run.process != null) {
+            try { backend.terminate(run.process, run.group); } catch (Exception ignored) { }
+            try { releaseLifetime(run); } catch (Exception ignored) { }
+            active = null;
+            change(State.STOPPED);
+            emit("[会话已强制结束]\n");
+        } else {
+            change(State.STOPPED);
+        }
     }
 
     private void shutdownNow() {

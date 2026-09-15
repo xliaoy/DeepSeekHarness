@@ -86,10 +86,17 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/gap_hair"
-            android:text="简易"
+            android:text="@string/pty_simple_mode"
             android:textColor="@color/text_secondary"
             android:textSize="@dimen/text_caption" />
     </LinearLayout>
+
+    <!-- 多标签行：横向滚动标签 + 独立「＋ 新建」按钮 -->
+    <include
+        layout="@layout/view_terminal_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/gap_tight" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -107,6 +114,16 @@
             android:background="@color/terminal_surface"
             android:focusable="true"
             android:focusableInTouchMode="true" />
+
+        <TextView
+            android:id="@+id/pty_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="@string/pty_empty"
+            android:textColor="@color/text_muted"
+            android:visibility="gone" />
     </FrameLayout>
 
     <HorizontalScrollView

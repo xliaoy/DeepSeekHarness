@@ -57,7 +57,7 @@
         android:layout_marginTop="@dimen/gap_block"
         android:gravity="center"
         android:lineSpacingExtra="6dp"
-        android:text="DeepSeek Harness 一键启动器\n\n内置 Linux 环境，无需 Termux，\n自动安装并启动，开箱即用。"
+        android:text="@string/welcome_p1_title"
         android:textSize="@dimen/text_body" />
 
     <View

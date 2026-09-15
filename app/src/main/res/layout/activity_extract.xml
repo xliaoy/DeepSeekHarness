@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_block"
             android:gravity="center"
-            android:text="正在准备运行环境" />
+            android:text="@string/extract_preparing" />
 
         <!-- 状态卡片：extract_status 必须直接位于垂直 LinearLayout 中 -->
         <LinearLayout
@@ -61,7 +61,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="首次启动需要解压内置环境，请稍候…" />
+                android:text="@string/extract_wait" />
 
             <ProgressBar
                 android:id="@+id/extract_progress"

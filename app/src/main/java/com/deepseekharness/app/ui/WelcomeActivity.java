@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -62,7 +63,7 @@ public class WelcomeActivity extends AppCompatActivity {
             @Override
             public void onPageSelected(int position) {
                 applyDotState(position);
-                btn.setText(position == 2 ? "开始" : "下一步");
+                btn.setText(position == 2 ? UiText.text("开始") : UiText.text("下一步"));
             }
         });
 
@@ -84,10 +85,10 @@ public class WelcomeActivity extends AppCompatActivity {
     }
 
     private void requestAllFilesAccessConfirm() {
-        androidx.appcompat.app.AlertDialog dialog = AppDialogs.show(this, android.R.drawable.ic_menu_manage, "需要存储权限",
-                "DeepSeek Harness 需要在容器中读写手机存储（如把工作区建到 /sdcard 任意位置）。"
-                        + "请点击下方按钮在系统设置中开启「所有文件访问」权限，开启后返回本页再次点击「开始」。",
-                "去开启", "跳过", () -> requestAllFilesAccess());
+        androidx.appcompat.app.AlertDialog dialog = AppDialogs.show(this, android.R.drawable.ic_menu_manage, UiText.text("需要存储权限"),
+                UiText.text("DeepSeek Harness 需要在容器中读写手机存储（如把工作区建到 /sdcard 任意位置）。")
+                        + UiText.text("请点击下方按钮在系统设置中开启「所有文件访问」权限，开启后返回本页再次点击「开始」。"),
+                UiText.text("去开启"), UiText.text("跳过"), () -> requestAllFilesAccess());
         dialog.setCancelable(false);
     }
 

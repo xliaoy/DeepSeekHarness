@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.os.Bundle;
 import android.view.View;
@@ -74,8 +75,8 @@ public final class SourceSettingsActivity extends AppCompatActivity {
     private void setupSpinner(int spinnerId, String[][] presets, int customInputId, String savedUrl) {
         android.widget.Spinner spinner = findViewById(spinnerId);
         String[] names = new String[presets.length + 1];
-        for (int i = 0; i < presets.length; i++) names[i] = presets[i][0];
-        names[presets.length] = "自定义";
+        for (int i = 0; i < presets.length; i++) names[i] = UiText.text(presets[i][0]);
+        names[presets.length] = UiText.text("自定义");
         android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(this,
                 R.layout.item_source_spinner, android.R.id.text1, names);
         adapter.setDropDownViewResource(R.layout.item_source_spinner_dropdown);
@@ -118,32 +119,32 @@ public final class SourceSettingsActivity extends AppCompatActivity {
 
     private void applyNpm(String url) {
         if (bad(url)) return;
-        showApplyDialog("npm 源", "正在应用 npm 源…", () -> {
+        showApplyDialog(UiText.text("npm 源"), UiText.text("正在应用 npm 源…"), () -> {
             proot.execAndRead("export npm_config_prefix=/usr/local; npm config set registry " + shell(url)
                     + " && npm config get registry", 30_000);
-        }, "npm 源已切换", () -> { config.setNpmSource(url); refreshCurrent(R.id.npm_current, url, "npm"); });
+        }, UiText.text("npm 源已切换"), () -> { config.setNpmSource(url); refreshCurrent(R.id.npm_current, url, "npm"); });
     }
 
     private void applyApt(String url) {
         if (bad(url)) return;
-        showApplyDialog("Ubuntu 软件包源", "正在写入源并刷新索引…", () -> {
+        showApplyDialog(UiText.text("Ubuntu 软件包源"), UiText.text("正在写入源并刷新索引…"), () -> {
             // 用 deb822 格式写入独立源文件（Ubuntu 软件包镜像源，本机为 arm64 走 ubuntu-ports）
             String content = "Types: deb\nURIs: " + url + "\nSuites: noble noble-updates noble-security\n"
                     + "Components: main universe multiverse restricted\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n";
             String result = proot.execAndRead("mkdir -p /etc/apt/sources.list.d && cat > /etc/apt/sources.list.d/deepseekharness-mirror.sources << 'SRCEOF'\n"
                     + content + "SRCEOF\ncat /etc/apt/sources.list.d/deepseekharness-mirror.sources && apt-get update -o Acquire::Retries=1", 120_000);
             boolean ok = result != null && !result.contains("Failed to fetch") && !result.contains("Err:");
-            if (!ok) throw new RuntimeException("源已写入，但 apt-get update 有问题，可稍后在终端重试");
-        }, "Ubuntu 软件包源已切换并刷新索引", () -> { config.setAptSource(url); refreshCurrent(R.id.apt_current, url, "APT"); });
+            if (!ok) throw new RuntimeException(UiText.text("源已写入，但 apt-get update 有问题，可稍后在终端重试"));
+        }, UiText.text("Ubuntu 软件包源已切换并刷新索引"), () -> { config.setAptSource(url); refreshCurrent(R.id.apt_current, url, "APT"); });
     }
 
     private void applyPip(String url) {
         if (bad(url)) return;
-        showApplyDialog("pip 源", "正在应用 pip 源…", () -> {
+        showApplyDialog(UiText.text("pip 源"), UiText.text("正在应用 pip 源…"), () -> {
             String content = "[global]\nindex-url = " + url + "\n";
             proot.execAndRead("mkdir -p /root/.config/pip && cat > /root/.config/pip/pip.conf << 'PIPEOF'\n"
                     + content + "PIPEOF\ncat /root/.config/pip/pip.conf", 15_000);
-        }, "pip 源已切换", () -> { config.setPipSource(url); refreshCurrent(R.id.pip_current, url, "pip"); });
+        }, UiText.text("pip 源已切换"), () -> { config.setPipSource(url); refreshCurrent(R.id.pip_current, url, "pip"); });
     }
 
     /**
@@ -154,7 +155,7 @@ public final class SourceSettingsActivity extends AppCompatActivity {
      */
     private void showApplyDialog(String kind, String busyText, Runnable work, String successText, Runnable onSuccess) {
         final java.util.concurrent.atomic.AtomicBoolean applied = new java.util.concurrent.atomic.AtomicBoolean(false);
-        final androidx.appcompat.app.AlertDialog dialog = AppDialogs.showProgress(this, 0, "应用" + kind, busyText, "取消", null);
+        final androidx.appcompat.app.AlertDialog dialog = AppDialogs.showProgress(this, 0, UiText.text("应用") + kind, busyText, UiText.text("取消"), null);
         dialog.setCancelable(true);   // 进行中也可用返回键 / 点击外部手动关闭
         new Thread(() -> {
             try {
@@ -162,13 +163,13 @@ public final class SourceSettingsActivity extends AppCompatActivity {
                 main.post(() -> {
                     if (applied.compareAndSet(false, true)) onSuccess.run();   // 成功即应用配置
                     if (!dialog.isShowing()) return;
-                    finishApplyDialog(dialog, successText, "完成");
+                    finishApplyDialog(dialog, successText, UiText.text("完成"));
                     main.postDelayed(() -> { if (dialog.isShowing()) dialog.dismiss(); }, 1600);   // 成功自动关闭
                 });
             } catch (Throwable e) {
                 main.post(() -> {
                     if (!dialog.isShowing()) return;
-                    finishApplyDialog(dialog, "应用" + kind + "失败：" + String.valueOf(e), "关闭");
+                    finishApplyDialog(dialog, UiText.text("应用") + kind + UiText.text("失败：") + String.valueOf(e), UiText.text("关闭"));
                     main.postDelayed(() -> { if (dialog.isShowing()) dialog.dismiss(); }, 4000);   // 失败稍候自动关闭
                 });
             }
@@ -195,7 +196,7 @@ public final class SourceSettingsActivity extends AppCompatActivity {
 
     private boolean bad(String url) {
         if (url == null || url.trim().isEmpty() || !url.trim().startsWith("http")) {
-            Toast.makeText(this, "请输入有效的源地址（http/https 开头）", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, UiText.text("请输入有效的源地址（http/https 开头）"), Toast.LENGTH_SHORT).show();
             return true;
         }
         return false;
@@ -206,8 +207,8 @@ public final class SourceSettingsActivity extends AppCompatActivity {
     }
 
     private String currentOf(int id, String saved, String label) {
-        String name = saved == null || saved.isEmpty() ? "未设置（默认）" : saved;
-        return "当前：" + label + " → " + name;
+        String name = saved == null || saved.isEmpty() ? UiText.text("未设置（默认）") : saved;
+        return UiText.text("当前：") + label + " → " + name;
     }
 
     private static String shell(String s) {

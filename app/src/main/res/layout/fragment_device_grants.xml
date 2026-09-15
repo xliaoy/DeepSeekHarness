@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设备能力授权：Root / Shizuku / ADB 通道 + 系统权限集中管理（样式对齐本 App iOS 拟态） -->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:fillViewport="true"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/page_pad">
+
+        <!-- 组标题：系统权限 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/grants_system"
+            android:textStyle="bold" />
+
+        <!-- 文件访问 -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_all_files" />
+
+            <TextView
+                android:id="@+id/config_all_files_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_hair"
+                android:text="@string/grants_checking"
+                android:textColor="@color/text_muted" />
+
+            <Button
+                android:id="@+id/config_all_files"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_open_all_files" />
+        </LinearLayout>
+
+        <!-- 定位与传感器 -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_location" />
+
+            <CheckBox
+                android:id="@+id/config_cap_location"
+                style="@style/DeepSeekHarnessText.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/touch_min"
+                android:text="@string/grants_location_allow"
+android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+
+            <CheckBox
+                android:id="@+id/config_cap_sensors"
+                style="@style/DeepSeekHarnessText.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:text="@string/grants_sensors_allow"
+android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+        </LinearLayout>
+
+        <!-- 屏幕操作与后台 -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_screen_bg" />
+
+            <TextView
+                android:id="@+id/config_a11y_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_hair"
+                android:layout_marginStart="@dimen/gap_tight"
+                android:text="@string/grants_not_enabled" />
+
+            <Button
+                android:id="@+id/config_a11y"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_setup_screen" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="@string/grants_battery_desc"
+                android:textColor="@color/text_muted" />
+
+            <Button
+                android:id="@+id/config_battery_opt"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_setup_battery" />
+        </LinearLayout>
+
+        <!-- 短信读取（Root/ADB 授权后查询） -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_sms" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/device_sms"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="48dp"
+                android:text="@string/grants_sms_allow"
+                android:textColor="@color/text"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/device_sms_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_hair"
+                android:background="@drawable/bg_chip_clickable"
+                android:padding="@dimen/gap_control"
+                android:text="@string/grants_checking" />
+        </LinearLayout>
+
+        <!-- 组标题：设备通道 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/grants_channels"
+            android:textStyle="bold" />
+
+        <!-- Root -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Root Shell" />
+
+            <CheckBox
+                android:id="@+id/config_root_shell"
+                style="@style/DeepSeekHarnessText.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/touch_min"
+                android:text="@string/grants_allow_root"
+android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_tight"
+                android:text="@string/grants_allow_root_desc"
+                android:textColor="@color/text_muted" />
+
+            <TextView
+                android:id="@+id/device_root_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:background="@drawable/bg_chip_clickable"
+                android:padding="@dimen/gap_control"
+                android:text="@string/grants_checking" />
+
+            <TextView
+                android:id="@+id/config_guard_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_tight"
+                android:layout_marginTop="@dimen/gap_hair"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/device_root_verify"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_verify_root"
+                android:textColor="@color/primary" />
+        </LinearLayout>
+
+        <!-- Stellar（Shizuku 兼容分支） -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_stellar" />
+
+            <TextView
+                android:id="@+id/device_stellar_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:background="@drawable/bg_chip_clickable"
+                android:padding="@dimen/gap_control"
+                android:text="@string/grants_checking" />
+
+            <Button
+                android:id="@+id/device_stellar_auth"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_authorize_stellar"
+                android:textColor="@color/primary" />
+        </LinearLayout>
+
+        <!-- Shizuku -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Shizuku" />
+
+            <TextView
+                android:id="@+id/workspace_shizuku_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:background="@drawable/bg_chip_clickable"
+                android:padding="@dimen/gap_control"
+                android:text="@string/grants_checking" />
+
+            <Button
+                android:id="@+id/workspace_shizuku_auth"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_authorize_shizuku"
+                android:textColor="@color/primary" />
+
+            <TextView
+                android:id="@+id/device_shizuku_open"
+                style="@style/Widget.DeepSeekHarness.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_open_shizuku" />
+        </LinearLayout>
+
+        <!-- ADB -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_adb" />
+
+            <CheckBox
+                android:id="@+id/config_adb_enable"
+                style="@style/DeepSeekHarnessText.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/touch_min"
+                android:text="@string/grants_adb_enable"
+android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/grants_adb_desc"
+                android:textColor="@color/text_muted" />
+
+            <TextView
+                android:id="@+id/config_adb_status"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_hair"
+                android:background="@drawable/bg_chip_clickable"
+                android:padding="@dimen/gap_control"
+                android:text="@string/grants_adb_off" />
+
+            <Button
+                android:id="@+id/config_adb_pair"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/grants_adb_pairing" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_tight"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:text="@string/grants_protection_note"
+            android:textColor="@color/text_muted" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

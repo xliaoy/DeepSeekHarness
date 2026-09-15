@@ -1,11 +1,10 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -23,21 +22,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.deepseekharness.app.DeviceBridgeService;
-import com.deepseekharness.app.DeepSeekHarnessAccessibilityService;
 import com.deepseekharness.app.OverlayController;
 import com.deepseekharness.app.R;
-import com.deepseekharness.app.bridge.AdbBridge;
 import com.deepseekharness.app.core.ConfigStore;
 import com.deepseekharness.app.core.HarnessController;
 import com.deepseekharness.app.util.Constants;
 
 /**
- * 配置子页：接入（API Key / 端口）+ 行为开关 + ADB 设备通道。
+ * 配置子页：接口（API Key / 端口）+ 显示与运行（行为开关）+ DNS。
+ * 页面结构对齐官方 DSHA v0.1.5-rc2；Root/ADB/Shizuku/Stellar 等设备通道由「权限配置」页统一管理。
  * 所有开关都落到 ConfigStore / SharedPreferences，并真正影响启动与预览。
  */
 public class ConfigFragment extends Fragment {
-    private int adbStatusRequest;
 
     @Nullable
     @Override
@@ -46,23 +42,26 @@ public class ConfigFragment extends Fragment {
         View v = inflater.inflate(R.layout.fragment_config, container, false);
         ConfigStore c = new ConfigStore(requireContext());
         Context ctx = requireContext();
-
+        android.widget.RadioGroup dns = v.findViewById(R.id.config_dns_mode);
+        String dnsMode = ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE)
+                .getString("dns_mode", "auto");
+        dns.check("ipv4".equals(dnsMode) ? R.id.dns_ipv4
+                : "native".equals(dnsMode) ? R.id.dns_native : R.id.dns_auto);
+        android.widget.RadioGroup language = v.findViewById(R.id.config_ui_language);
+        boolean english = "en".equals(new com.deepseekharness.app.core.ConfigStore(ctx).getUiLanguage());
+        ((android.widget.RadioButton) v.findViewById(english ? R.id.lang_en : R.id.lang_zh)).setChecked(true);
+        com.deepseekharness.app.ui.LanguageController.apply(ctx);
 
         v.findViewById(R.id.config_workspace_entry).setOnClickListener(x -> open(new WorkspaceFragment()));
 
         EditText apiKey = v.findViewById(R.id.config_api_key);
         EditText port = v.findViewById(R.id.config_port);
-        CheckBox confirm = v.findViewById(R.id.config_confirm_shell);
-        CheckBox rootShell = v.findViewById(R.id.config_root_shell);
         CheckBox checkUpdate = v.findViewById(R.id.config_check_update);
         CheckBox desktop = v.findViewById(R.id.config_desktop_mode);
-        CheckBox backupKey = v.findViewById(R.id.config_backup_key);
+        CheckBox confirm = v.findViewById(R.id.config_confirm_shell);
         CheckBox proroot = v.findViewById(R.id.config_proroot);
         CheckBox lan = v.findViewById(R.id.config_lan_mode);
         CheckBox overlay = v.findViewById(R.id.config_overlay_stream);
-        CheckBox sensors = v.findViewById(R.id.config_cap_sensors);
-        CheckBox location = v.findViewById(R.id.config_cap_location);
-        CheckBox adb = v.findViewById(R.id.config_adb_enable);
         Button save = v.findViewById(R.id.config_save);
 
         // 高级项折叠
@@ -73,111 +72,69 @@ public class ConfigFragment extends Fragment {
         // 回填当前值
         apiKey.setText(c.getApiKey());
         port.setText(c.getPort());
-        confirm.setChecked(c.isConfirmShell());
-        rootShell.setChecked(c.isRootShellAllowed());
         checkUpdate.setChecked(c.isCheckUpdate());
         desktop.setChecked(c.isDesktopMode());
         CheckBox gecko = v.findViewById(R.id.config_gecko_core);
         gecko.setVisibility(com.deepseekharness.app.BuildConfig.LOW_ANDROID ? View.VISIBLE : View.GONE);
         v.findViewById(R.id.config_gecko_hint).setVisibility(com.deepseekharness.app.BuildConfig.LOW_ANDROID ? View.VISIBLE : View.GONE);
         gecko.setChecked(c.isGeckoCore());
-        backupKey.setChecked(c.isBackupKey());
+        confirm.setChecked(c.isConfirmShell());
         proroot.setChecked(c.isProroot());
         lan.setChecked(c.isLanMode());
-        overlay.setChecked(pref(ctx, "overlay_stream", false));
-        sensors.setChecked(pref(ctx, "cap_sensors", false));
-        location.setChecked(pref(ctx, "cap_location", false));
-        location.setOnCheckedChangeListener((button, checked) -> {
-            if (checked && ctx.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
-                    != android.content.pm.PackageManager.PERMISSION_GRANTED)
-                requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION,
-                        android.Manifest.permission.ACCESS_COARSE_LOCATION}, 104);
-        });
-        adb.setChecked(pref(ctx, "adb_enabled", false));
-        TextView adbStatus = v.findViewById(R.id.config_adb_status);
-        adb.setOnCheckedChangeListener((b, checked) ->
-                adbStatus.setText(checked
-                        ? "ADB 已开启。无线配对：开发者选项 → 无线调试"
-                        : "ADB 已关闭。不用无线调试就保持关闭。"));
-        refreshAdbStatus(adbStatus);
-
-        // 所有文件访问权限（Android 11+ MANAGE_EXTERNAL_STORAGE）：跳系统设置开启，
-        // 让容器/proot 能读写手机存储任意文件（含 DeepSeek Harness 目录外），WebUI 工作区可建到 /sdcard
-        View allFiles = v.findViewById(R.id.config_all_files);
-        if (allFiles != null) {
-            allFiles.setOnClickListener(x -> openAllFilesAccess(ctx));
-            refreshAllFilesStatus(v.findViewById(R.id.config_all_files_status));
-        }
-
+        overlay.setChecked(ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE)
+                .getBoolean("overlay_stream", false));
         // 悬浮条外观与行为（照 1.1.9.1：底色预设 + 不透明度/行数/字号/停留 + 行为开关）
         v.findViewById(R.id.config_overlay_style).setOnClickListener(x -> showOverlayStyleDialog());
 
-        // ADB 通道（可直接用）
-        v.findViewById(R.id.config_adb_pair).setOnClickListener(x -> {
-            if (android.os.Build.VERSION.SDK_INT < 30) {
-                AppDialogs.show(ctx, android.R.drawable.ic_dialog_alert, "当前系统没有配对码接口",
-                        "无线调试配对码需要 Android 11+。Android 6—10 可使用 Shizuku 或由电脑开启 ADB TCP 通道；对话、插件和终端不受影响。",
-                        "知道了", null, null);
-            } else startActivity(new Intent(ctx, AdbPairActivity.class));
-        });
-        // Shizuku 通道（免 ADB）：激活后设备命令走 Shizuku（root/shell 身份）
-        final TextView shizukuStatus = v.findViewById(R.id.config_shizuku_status);
-        v.findViewById(R.id.config_shizuku_activate).setOnClickListener(x -> activateShizuku(ctx, shizukuStatus));
-        refreshShizukuStatus(shizukuStatus);
-        // Stellar 通道（Shizuku 兼容分支，独立命名空间）：同样免 ADB
-        final TextView stellarStatus = v.findViewById(R.id.config_stellar_status);
-        v.findViewById(R.id.config_stellar_activate).setOnClickListener(x -> activateStellar(ctx, stellarStatus));
-        refreshStellarStatus(stellarStatus);
-        v.findViewById(R.id.config_battery_opt).setOnClickListener(x -> openBatteryOpt(ctx));
-        v.findViewById(R.id.config_a11y).setOnClickListener(x -> openA11ySettings(ctx));
-        refreshA11yStatus(v.findViewById(R.id.config_a11y_status));
+        v.findViewById(R.id.config_repo_link).setOnClickListener(x -> openRepo(ctx));
 
         save.setOnClickListener(x -> {
             final int chosenPort;
             try { chosenPort = com.deepseekharness.app.util.ConfigInput.port(port.getText().toString()); }
-            catch (IllegalArgumentException e) { advBody.setVisibility(View.VISIBLE); port.setError(e.getMessage()); port.requestFocus(); return; }
+            catch (IllegalArgumentException e) {
+                advBody.setVisibility(View.VISIBLE); port.setError(e.getMessage()); port.requestFocus(); return;
+            }
             port.setError(null); apiKey.setError(null);
             com.deepseekharness.app.util.EnvironmentTaskGate.Lease saving =
-                    com.deepseekharness.app.util.EnvironmentTaskGate.tryAcquire("保存配置");
-            if (saving == null) { toast("正在" + com.deepseekharness.app.util.EnvironmentTaskGate.activeKind() + "，完成后再保存配置"); return; }
-            try {
-            saving.run(() -> {
-            String key = apiKey.getText().toString().trim();
-            if (!c.saveApiKey(key)) { apiKey.setError("密钥加密保存失败，原配置已保留，请重试"); return null; }
-            c.setPort(String.valueOf(chosenPort));
-            c.setConfirmShell(confirm.isChecked());
-            c.setRootShellAllowed(rootShell.isChecked());
-            c.setCheckUpdate(checkUpdate.isChecked());
-            c.setDesktopMode(desktop.isChecked());
-            if (com.deepseekharness.app.BuildConfig.LOW_ANDROID) c.setGeckoCore(gecko.isChecked());
-            c.setBackupKey(backupKey.isChecked());
-            c.setProroot(proroot.isChecked());
-            c.setLanMode(lan.isChecked());
-            setPref(ctx, "overlay_stream", overlay.isChecked());
-            setPref(ctx, "cap_sensors", sensors.isChecked());
-            setPref(ctx, "cap_location", location.isChecked());
-            setPref(ctx, "adb_enabled", adb.isChecked());
-            String synced = AdbBridge.applySettings(ctx, HarnessController.get(ctx).proot());
-            TextView guardStatus = v.findViewById(R.id.config_guard_status);
-            guardStatus.setText("设备命令保护始终生效；" + synced.replaceFirst("^SETTINGS_[A-Z]+: ", ""));
-            guardStatus.setVisibility(View.VISIBLE);
-            if (adb.isChecked()) {
-                DeviceBridgeService.apply(ctx);
-            } else {
-                ctx.stopService(new Intent(ctx, DeviceBridgeService.class));
+                    com.deepseekharness.app.util.EnvironmentTaskGate.tryAcquire(UiText.text("保存配置"));
+            if (saving == null) {
+                toast(UiText.text("正在") + com.deepseekharness.app.util.EnvironmentTaskGate.activeKind() + UiText.text("，完成后再保存配置"));
+                return;
             }
-            applyLanMode(c, lan.isChecked());
-            if ((adb.isChecked() || lan.isChecked()) && getActivity() instanceof MainActivity)
-                ((MainActivity) getActivity()).requestLocalNetwork();
-            Toast.makeText(ctx, synced.startsWith("SETTINGS_FAILED") || synced.startsWith("ENVIRONMENT_BUSY")
-                    ? "配置已保存，但设备授权同步失败，请查看安全与备份下的说明并重试保存"
-                    : "已保存；网页显示选项重新进入对话生效，端口与运行时需重启 Web", Toast.LENGTH_LONG).show();
-            if (overlay.isChecked() && !OverlayController.permitted(ctx)) openOverlayPermission();
-            refreshAdbStatus(adbStatus);
-            return null;
-            });
+            try {
+                saving.run(() -> {
+                    String key = apiKey.getText().toString().trim();
+                    if (!c.saveApiKey(key)) { apiKey.setError(UiText.text("密钥加密保存失败，原配置已保留，请重试")); return null; }
+                    c.setPort(String.valueOf(chosenPort));
+                    c.setCheckUpdate(checkUpdate.isChecked());
+                    c.setDesktopMode(desktop.isChecked());
+                    if (com.deepseekharness.app.BuildConfig.LOW_ANDROID) c.setGeckoCore(gecko.isChecked());
+                    c.setConfirmShell(confirm.isChecked());
+                    c.setProroot(proroot.isChecked());
+                    ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE).edit()
+                            .putString("dns_mode",
+                                    dns.getCheckedRadioButtonId() == R.id.dns_ipv4 ? "ipv4"
+                                            : dns.getCheckedRadioButtonId() == R.id.dns_native ? "native" : "auto")
+                            .apply();
+                    String langChoice = language.getCheckedRadioButtonId() == R.id.lang_en ? "en" : "zh";
+                    com.deepseekharness.app.core.ConfigStore store2 = new com.deepseekharness.app.core.ConfigStore(ctx);
+                    store2.setUiLanguage(langChoice);
+                    if (!langChoice.equals(store2.getUiLanguage())) {
+                        com.deepseekharness.app.ui.LanguageController.select(ctx, langChoice);
+                        if (getActivity() != null) getActivity().recreate();
+                    }
+                    c.setLanMode(lan.isChecked());
+                    ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE).edit()
+                            .putBoolean("overlay_stream", overlay.isChecked()).apply();
+                    applyLanMode(c, lan.isChecked());
+                    if (lan.isChecked() && getActivity() instanceof MainActivity)
+                        ((MainActivity) getActivity()).requestLocalNetwork();
+                    Toast.makeText(ctx, UiText.text("已保存；网页显示选项重新进入对话生效，端口与运行时需重启 Web"), Toast.LENGTH_LONG).show();
+                    if (overlay.isChecked() && !OverlayController.permitted(ctx)) openOverlayPermission();
+                    return null;
+                });
             } catch (Exception e) {
-                toast("配置保存未完成：" + com.deepseekharness.app.util.SensitiveData.redact(String.valueOf(e)));
+                toast(UiText.text("配置保存未完成：") + com.deepseekharness.app.util.SensitiveData.redact(String.valueOf(e)));
             } finally { saving.close(); }
         });
 
@@ -185,8 +142,12 @@ public class ConfigFragment extends Fragment {
     }
 
     private void openOverlayPermission() {
-        try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + requireContext().getPackageName()))); }
-        catch (Exception e) { toast("未取得悬浮窗权限，请到系统设置 → 应用 → DeepSeek Harness → 悬浮窗中允许"); }
+        try {
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + requireContext().getPackageName())));
+        } catch (Exception e) {
+            toast(UiText.text("未取得悬浮窗权限，请到系统设置 → 应用 → DeepSeek Harness → 悬浮窗中允许"));
+        }
     }
 
     /** LAN 开关真正生效：开启时若 dsh 已鉴权则启动 3081 代理，关闭时停掉监听。 */
@@ -211,257 +172,18 @@ public class ConfigFragment extends Fragment {
     }
 
     private void open(Fragment f) {
-        getParentFragmentManager().beginTransaction()
+        UiMotion.page(requireContext(), getParentFragmentManager().beginTransaction())
                 .addToBackStack(null)
                 .replace(R.id.fragment_container, f)
                 .commit();
     }
 
-    /** Shizuku 激活：免 ADB，授权后设备命令走 Shizuku（root/shell 身份）。 */
-    private void activateShizuku(Context ctx, TextView status) {
-        com.deepseekharness.app.ShizukuShell.init(ctx);
-        if (!com.deepseekharness.app.ShizukuShell.isAvailable()) {
-            AppDialogs.show(ctx, android.R.drawable.ic_dialog_info, "未检测到 Shizuku 服务",
-                    "请先在手机上安装并启动 Shizuku 应用（https://shizuku.rikka.app），\n在 Shizuku 内「启动服务」（无线调试方式启动一次即可），然后回到这里重新点激活。",
-                    "知道了", null, null);
-            refreshShizukuStatus(status);
-            return;
-        }
-        if (!com.deepseekharness.app.ShizukuShell.hasPermission()) {
-            com.deepseekharness.app.ShizukuShell.requestPermission((code, result) -> {
-                if (result == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    toast("Shizuku 已授权，正在绑定服务…");
-                }
-                if (getView() != null) refreshShizukuStatus(getView().findViewById(R.id.config_shizuku_status));
-            });
-            refreshShizukuStatus(status);
-            return;
-        }
-        com.deepseekharness.app.ShizukuShell.ensureBound(ctx);
-        toast("Shizuku 已激活");
-        refreshShizukuStatus(status);
-    }
-
-    /** Stellar 激活（Shizuku 兼容分支，独立命名空间）：免 ADB，授权后设备命令走 Stellar。 */
-    private void activateStellar(Context ctx, TextView status) {
-        com.deepseekharness.app.StellarShell.init(ctx);
-        if (!com.deepseekharness.app.StellarShell.isAvailable()) {
-            AppDialogs.show(ctx, android.R.drawable.ic_dialog_info, "未检测到 Stellar 服务",
-                    "请先在手机上安装 Stellar 管理器（https://github.com/roro2239/Stellar/releases），\n在 Stellar 内启动服务（ADB 或 Root），然后回到这里重新点「Stellar 配对」。",
-                    "知道了", null, null);
-            refreshStellarStatus(status);
-            return;
-        }
-        if (!com.deepseekharness.app.StellarShell.hasPermission()) {
-            com.deepseekharness.app.StellarShell.requestPermission(() -> {
-                toast("Stellar 已授权，服务就绪");
-                if (getView() != null) refreshStellarStatus(getView().findViewById(R.id.config_stellar_status));
-            });
-            refreshStellarStatus(status);
-            return;
-        }
-        toast("Stellar 已激活");
-        refreshStellarStatus(status);
-    }
-
-    /** Stellar 通道状态：未运行 / 未授权 / 已就绪。 */
-    private void refreshStellarStatus(TextView status) {
-        if (status == null) return;
+    private void openRepo(Context ctx) {
         try {
-            if (!com.deepseekharness.app.StellarShell.isAvailable()) {
-                status.setText("Stellar 未运行。安装 Stellar 管理器并启动服务后，点「Stellar 配对」激活（激活后设备命令走 Stellar，免 ADB）。");
-            } else if (!com.deepseekharness.app.StellarShell.hasPermission()) {
-                status.setText("Stellar 服务已运行，尚未授权 → 点「Stellar 配对」弹出授权即可。");
-            } else if (!com.deepseekharness.app.StellarShell.isReady()) {
-                status.setText("Stellar 已授权，正在连接服务…（稍后自动就绪）");
-            } else {
-                status.setText("Stellar 已激活 ✓ 设备命令走 Stellar（shell 权限），无需 ADB 配对。");
-            }
-        } catch (Throwable t) {
-            status.setText("Stellar 状态读取失败：" + t.getClass().getSimpleName());
-        }
-    }
-
-    /** Shizuku 通道状态：未运行 / 未授权 / 授权中 / 已就绪。 */
-    private void refreshShizukuStatus(TextView status) {
-        if (status == null) return;
-        try {
-            if (!com.deepseekharness.app.ShizukuShell.isAvailable()) {
-                status.setText("Shizuku 未运行。请安装并启动 Shizuku（https://shizuku.rikka.app），再点上方按钮激活（激活后无需 ADB）。");
-            } else if (!com.deepseekharness.app.ShizukuShell.hasPermission()) {
-                status.setText("Shizuku 服务已运行，尚未授权 → 点「Shizuku 激活」弹出授权即可。");
-            } else if (!com.deepseekharness.app.ShizukuShell.isReady()) {
-                status.setText("Shizuku 已授权，正在绑定服务…（稍后自动就绪）");
-            } else {
-                status.setText("Shizuku 已激活 ✓ 设备命令走 Shizuku（shell 权限），无需 ADB 配对。");
-            }
-        } catch (Throwable t) {
-            status.setText("Shizuku 状态读取失败：" + t.getClass().getSimpleName());
-        }
-    }
-
-    /** 后台读 ADB 通道真实状态（key/deps/端口 + 保活服务的连接状态），刷到状态栏。 */
-    private void refreshAdbStatus(final TextView status) {
-        final Context app = requireContext().getApplicationContext();
-        final View page = getView();
-        final android.app.Activity activity = getActivity();
-        if (activity == null) return;
-        final int request = ++adbStatusRequest;
-        new Thread(() -> {
-            final String text = computeAdbStatus(app);
-            activity.runOnUiThread(() -> {
-                if (request != adbStatusRequest || status == null || getView() != page || !isAdded()) return;
-                status.setText(text);
-                if (text.startsWith("环境任务进行中") && isResumed()) status.postDelayed(() -> {
-                    if (request == adbStatusRequest && getView() == page && isResumed()) refreshAdbStatus(status);
-                }, 1500);
-            });
-        }, "adb-status").start();
-    }
-
-    private String computeAdbStatus(Context app) {
-        try {
-            if (!pref(app, "adb_enabled", false)) return "ADB 已关闭。开启并保存后才会保持连接。";
-            String bridge = DeviceBridgeService.adbState;
-            String detail = DeviceBridgeService.adbDetail == null ? "" : DeviceBridgeService.adbDetail;
-            HarnessController hc = HarnessController.get(app);
-            String st = hc.proot().isEnvironmentReady()
-                    ? AdbBridge.status(hc.proot()) : "env:not_ready";
-            if (st.startsWith("ENVIRONMENT_BUSY") || "environment_busy".equals(bridge))
-                return "环境任务进行中，ADB 暂停检查，完成后自动重试。"
-                        + (detail.isEmpty() ? "" : "\n" + detail);
-            boolean key = st.contains("key=YES");
-            String port = "?";
-            int p = st.indexOf("port=");
-            if (p >= 0) port = st.substring(p + 5).trim();
-            if ("need_pair".equals(bridge)) {
-                return "配对已失效，请重新配对。";
-            } else if ("reconnecting".equals(bridge)) {
-                return "正在重连无线调试…" + (detail.isEmpty() ? "" : "\n" + detail);
-            } else if ("connected".equals(bridge)) {
-                return "连接已验证 · 端口 " + port + (detail.isEmpty() ? "" : "\n" + detail);
-            } else if (key) {
-                return "配对密钥已保存，连接尚未验证。" + (detail.isEmpty() ? "" : "\n" + detail);
-            } else {
-                return "尚未配对：点下方「ADB 无线配对」，配对后还会验证连接。";
-            }
-        } catch (Throwable e) {
-            return "ADB 状态读取失败：" + e.getMessage();
-        }
-    }
-
-    private void openBatteryOpt(Context ctx) {
-        try {
-            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:" + ctx.getPackageName()));
-            startActivity(i);
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse(AboutDialog.GITHUB_URL)));
         } catch (Exception e) {
-            toast("无法打开电池优化设置");
-        }
-    }
-
-    /** 「所有文件访问」入口：Android 11+ 跳系统 MANAGE 设置；Android 6-10 请求 WRITE_EXTERNAL_STORAGE。 */
-    private void openAllFilesAccess(Context ctx) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            try {
-                Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                        Uri.parse("package:" + ctx.getPackageName()));
-                startActivity(i);
-            } catch (Throwable e) {
-                try {
-                    startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
-                } catch (Throwable e2) {
-                    toast("打开设置失败：" + e2.getMessage());
-                }
-            }
-            return;
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            // Android 6-10：运行时请求 WRITE_EXTERNAL_STORAGE（Android 10 作用域存储下尽力而为）
-            if (ctx.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(
-                        new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 501);
-            } else {
-                toast("存储权限已授予，容器可访问手机存储");
-            }
-            return;
-        }
-        toast("当前系统无需存储权限");
-    }
-
-    /** 刷新「所有文件访问权限」状态行（含从系统设置返回后的更新）。 */
-    private void refreshAllFilesStatus(TextView status) {
-        if (status == null) return;
-        boolean granted;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            granted = Environment.isExternalStorageManager();
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            granted = requireContext().checkSelfPermission(
-                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
-        } else {
-            granted = true;
-        }
-        status.setText(granted
-                ? "已开启：容器可读写手机存储任意文件（含 DeepSeek Harness 目录外）"
-                : "未开启：仅能访问 App 私有目录；去系统设置开启后可访问全部文件");
-        try {
-            status.setTextColor(granted
-                    ? getResources().getColor(R.color.primary, null)
-                    : getResources().getColor(R.color.err, null));
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** 跳到本应用无障碍服务的开关页；部分 ROM 不支持直达就退回系统无障碍列表。 */
-    private void openA11ySettings(Context ctx) {
-        try {
-            // Settings.ACTION_ACCESSIBILITY_DETAILS_SETTINGS 常量在 compileSdk 里缺失
-            // （各版本 SDK 不一致），直接用 action 字符串，运行时兼容
-            Intent i = new Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS");
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            i.putExtra(Intent.EXTRA_COMPONENT_NAME,
-                    new ComponentName(ctx, DeepSeekHarnessAccessibilityService.class));
-            startActivity(i);
-        } catch (Throwable e) {
-            try {
-                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-            } catch (Throwable e2) {
-                toast("打不开无障碍设置：" + e2.getMessage());
-            }
-        }
-    }
-
-    /** 刷新「屏幕操作权限」状态行：是否已开启无障碍服务（从系统设置返回后也会更新）。 */
-    private void refreshA11yStatus(TextView status) {
-        if (status == null) return;
-        String st = DeepSeekHarnessAccessibilityService.enabledState(requireContext());
-        boolean ok = "YES".equals(st);
-        if (ok) {
-            status.setText("✅ 已开启：AI 可读屏 / 点按 / 输入 / 截屏（截屏需 Android 11+）");
-        } else if ("NO".equals(st)) {
-            status.setText("❌ 未开启：点上方去系统设置开启「DeepSeek Harness 配对助手」");
-        } else {
-            status.setText("⚠️ 状态未知：点上方到系统设置确认「DeepSeek Harness 配对助手」已开启");
-        }
-        try {
-            status.setTextColor(getResources().getColor(ok ? R.color.primary : R.color.err, null));
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        try {
-            View v = getView();
-            if (v != null) refreshAllFilesStatus(v.findViewById(R.id.config_all_files_status));
-            if (v != null) refreshA11yStatus(v.findViewById(R.id.config_a11y_status));
-            if (v != null) refreshAdbStatus(v.findViewById(R.id.config_adb_status));
-            if (v != null) refreshShizukuStatus(v.findViewById(R.id.config_shizuku_status));
-            if (v != null) refreshStellarStatus(v.findViewById(R.id.config_stellar_status));
-        } catch (Throwable ignored) {
+            toast(UiText.text("无法打开浏览器"));
         }
     }
 
@@ -478,7 +200,7 @@ public class ConfigFragment extends Fragment {
         box.setPadding(pad, pad, pad, 0);
 
         // 底色不做取色器：悬浮条只需要「在任何壁纸上都读得清」，几个深色预设够用
-        box.addView(sectionLabel("底色"));
+        box.addView(sectionLabel(UiText.text("底色")));
         final int[] pickedBg = {sp.getInt(OverlayController.K_BG, 0)};
         LinearLayout swatches = new LinearLayout(requireContext());
         swatches.setOrientation(LinearLayout.HORIZONTAL);
@@ -506,27 +228,27 @@ public class ConfigFragment extends Fragment {
         paintSwatches(cells, pickedBg[0]);
         box.addView(swatches);
 
-        final android.widget.SeekBar alpha = slider(box, "底色不透明度", 20, 100,
+        final android.widget.SeekBar alpha = slider(box, UiText.text("底色不透明度"), 20, 100,
                 sp.getInt(OverlayController.K_ALPHA, OverlayController.DEF_ALPHA), "%");
-        final android.widget.SeekBar lines = slider(box, "最多显示几行（写满后丢最旧一行）", 1, 8,
-                sp.getInt(OverlayController.K_LINES, OverlayController.DEF_LINES), " 行");
-        final android.widget.SeekBar wide = slider(box, "字号（越小一行放得越多）", 6, 20,
+        final android.widget.SeekBar lines = slider(box, UiText.text("最多显示几行（写满后丢最旧一行）"), 1, 8,
+                sp.getInt(OverlayController.K_LINES, OverlayController.DEF_LINES), UiText.text(" 行"));
+        final android.widget.SeekBar wide = slider(box, UiText.text("字号（越小一行放得越多）"), 6, 20,
                 sp.getInt(OverlayController.K_TEXT_SP, OverlayController.DEF_TEXT_SP), " sp");
-        final android.widget.SeekBar hold = slider(box, "无新内容后停留", 2, 60,
-                sp.getInt(OverlayController.K_HOLD, OverlayController.DEF_HOLD), " 秒");
+        final android.widget.SeekBar hold = slider(box, UiText.text("无新内容后停留"), 2, 60,
+                sp.getInt(OverlayController.K_HOLD, OverlayController.DEF_HOLD), UiText.text(" 秒"));
 
         final CheckBox think = new CheckBox(requireContext());
-        think.setText("显示思考过程（reasoning，会明显更吵）");
+        think.setText(UiText.text("显示思考过程（reasoning，会明显更吵）"));
         think.setChecked(sp.getBoolean(OverlayController.K_REASONING, false));
         box.addView(think);
 
         final CheckBox cmd = new CheckBox(requireContext());
-        cmd.setText("工具调用带上命令原文（否则只看到「正在执行命令」）");
+        cmd.setText(UiText.text("工具调用带上命令原文（否则只看到「正在执行命令」）"));
         cmd.setChecked(sp.getBoolean(OverlayController.K_COMMAND, true));
         box.addView(cmd);
 
         final CheckBox confirmHere = new CheckBox(requireContext());
-        confirmHere.setText("危险命令在悬浮条上直接批准（不必切回 App 或拉通知栏）");
+        confirmHere.setText(UiText.text("危险命令在悬浮条上直接批准（不必切回 App 或拉通知栏）"));
         confirmHere.setChecked(sp.getBoolean(OverlayController.K_CONFIRM, true));
         box.addView(confirmHere);
 
@@ -545,26 +267,26 @@ public class ConfigFragment extends Fragment {
                 .putBoolean(OverlayController.K_CONFIRM, confirmHere.isChecked())
                 .apply();
 
-        AppDialogs.showCustom(requireContext(), android.R.drawable.ic_menu_edit, "悬浮条外观与行为",
-                scroll, "保存", "预览", "取消",
+        AppDialogs.showCustom(requireContext(), android.R.drawable.ic_menu_edit, UiText.text("悬浮条外观与行为"),
+                scroll, UiText.text("保存"), UiText.text("预览"), UiText.text("取消"),
                 () -> {
                     save.run();
                     OverlayController.applyStyleNow(app);
-                    Toast.makeText(requireContext(), "已保存（下一条输出即生效）",
+                    Toast.makeText(requireContext(), UiText.text("已保存（下一条输出即生效）"),
                             Toast.LENGTH_SHORT).show();
                 },
                 () -> {
                     // 中间按钮当预览：调样式最烦的就是「保存 → 等 agent 说话 → 不合适 → 再调」
                     save.run();
                     if (!OverlayController.permitted(requireContext())) {
-                        Toast.makeText(requireContext(), "还没给悬浮窗权限，先勾上面那个开关授权",
+                        Toast.makeText(requireContext(), UiText.text("还没给悬浮窗权限，先勾上面那个开关授权"),
                                 Toast.LENGTH_LONG).show();
                         return;
                     }
                     OverlayController.applyStyleNow(app);
                     OverlayController.push(app, "preview", "text",
-                            "这是预览：AI 的回复会像这样流出来，调工具时会变成"
-                                    + "「⚙ 正在执行命令: ls -la」这种。");
+                            UiText.text("这是预览：AI 的回复会像这样流出来，调工具时会变成")
+                                    + UiText.text("「⚙ 正在执行命令: ls -la」这种。"));
                 });
     }
 
@@ -591,7 +313,7 @@ public class ConfigFragment extends Fragment {
     /** 一条「标题 + 当前值」的滑杆。SeekBar 只有 0..max，下限靠回弹保证。 */
     private android.widget.SeekBar slider(LinearLayout parent, String title,
                                           int min, int max, int value, String unit) {
-        final TextView label = sectionLabel(title + "：" + value + unit);
+        final TextView label = sectionLabel(title + UiText.text("：") + value + unit);
         parent.addView(label);
         final android.widget.SeekBar bar = new android.widget.SeekBar(requireContext());
         bar.setMax(max);
@@ -603,7 +325,7 @@ public class ConfigFragment extends Fragment {
                     sb.setProgress(min);
                     return;
                 }
-                label.setText(title + "：" + progress + unit);
+                label.setText(title + UiText.text("：") + progress + unit);
             }
 
             @Override
@@ -620,28 +342,6 @@ public class ConfigFragment extends Fragment {
 
     private int dpx(int v) {
         return Math.round(v * getResources().getDisplayMetrics().density);
-    }
-
-    private void openDeveloperOptions(Context ctx) {
-        try {
-            startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
-        } catch (Exception e) {
-            toast("无法打开开发者选项");
-        }
-    }
-
-    private void checkScriptUpdate(Context ctx) {
-        try { startActivity(new Intent(ctx, UpdateActivity.class)); }
-        catch (Exception e) { toast("无法打开更新页面：" + e.getClass().getSimpleName()); }
-    }
-
-
-    private boolean pref(Context ctx, String k, boolean def) {
-        return ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE).getBoolean(k, def);
-    }
-
-    private void setPref(Context ctx, String k, boolean v) {
-        ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE).edit().putBoolean(k, v).apply();
     }
 
     private void toast(String s) {

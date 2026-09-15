@@ -11,7 +11,7 @@ import java.util.Set;
 /** 设备命令默认拒绝：只接受可完整识别的单条 argv，不执行用户提供的 shell 程序。 */
 public final class DeviceShellPolicy {
     private DeviceShellPolicy() { }
-    public enum Kind { READ, FILE, STOP, DENY }
+    public enum Kind { READ, FILE, STOP, SENSITIVE_READ, DENY }
     public static final class Plan {
         public final Kind kind;
         public final List<String> argv, operands;
@@ -55,6 +55,10 @@ public final class DeviceShellPolicy {
         if (BLOCK.contains(name) || name.startsWith("mkfs.") || name.startsWith("fsck."))
             return deny("禁止设备分区、SELinux、系统属性、挂载或刷机操作：" + name);
         if (READ.contains(name)) return plan(Kind.READ, args, Collections.emptyList());
+        if (name.equals("content")) {
+            try { com.deepseekharness.app.util.SmsQuery.validate(args); return plan(Kind.SENSITIVE_READ, args, Collections.emptyList()); }
+            catch (IllegalArgumentException rejected) { return deny(rejected.getMessage()); }
+        }
         if (name.equals("date")) {
             for (String arg : args.subList(1, args.size()))
                 if (!arg.equals("-u") && !arg.equals("-R") && !arg.equals("-I") && !arg.startsWith("+")) return deny("date 只允许读取时间");

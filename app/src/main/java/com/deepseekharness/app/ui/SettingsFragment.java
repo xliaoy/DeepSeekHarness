@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -63,15 +64,15 @@ public class SettingsFragment extends Fragment {
         }
         LinearLayout power = v.findViewById(R.id.settings_power);
         com.google.android.material.materialswitch.MaterialSwitch eco = new com.google.android.material.materialswitch.MaterialSwitch(requireContext());
-        eco.setText("省电模式"); eco.setTextSize(15); eco.setMinHeight(dp(48)); eco.setPadding(dp(16),dp(8),dp(16),dp(4));
+        eco.setText(UiText.text("省电模式")); eco.setTextSize(15); eco.setMinHeight(dp(48)); eco.setPadding(dp(16),dp(8),dp(16),dp(4));
         com.deepseekharness.app.core.ConfigStore config = HarnessController.get(requireContext()).config();
         eco.setChecked(config.isEcoMode()); power.addView(eco);
         TextView powerHint = new TextView(requireContext());
         powerHint.setTextSize(13); powerHint.setTextColor(requireContext().getColor(R.color.text_muted));
         powerHint.setPadding(dp(16),0,dp(16),dp(12)); power.addView(powerHint);
         java.util.function.Consumer<Boolean> describe = enabled -> powerHint.setText(enabled
-                ? "熄屏空闲 1 分钟后减少保活；有任务时继续运行。"
-                : "持续保持运行，适合长时间任务。");
+                ? UiText.text("熄屏空闲 1 分钟后减少保活；有任务时继续运行。")
+                : UiText.text("持续保持运行，适合长时间任务。"));
         describe.accept(config.isEcoMode());
         eco.setOnCheckedChangeListener((button, checked) -> {
             config.setEcoMode(checked); com.deepseekharness.app.HarnessService.refreshPowerMode(); describe.accept(checked);
@@ -98,27 +99,27 @@ public class SettingsFragment extends Fragment {
     public static void confirmReextract(Context context) {
         com.deepseekharness.app.core.BackupTask task = com.deepseekharness.app.core.BackupTask.get(context);
         if (task.busy()) {
-            Toast.makeText(context, "已有数据任务进行中，可到数据与备份页查看。", Toast.LENGTH_LONG).show();
+            Toast.makeText(context, UiText.text("已有数据任务进行中，可到数据与备份页查看。"), Toast.LENGTH_LONG).show();
             return;
         }
         boolean recovery = task.pendingMaintenance();
         AppDialogs.show(context, android.R.drawable.ic_menu_save,
-                recovery ? "恢复中断维护" : "备份并重建内置环境",
-                recovery ? "先停止 Web，再回切原环境；安全备份和失败的新环境均保留。"
-                        : "先停止 Web 并等待退出（会中断正在执行的任务），完整备份并校验配置、会话与本地插件，再解压并恢复。\n\n"
-                        + "备份失败不会切换环境；解压或恢复失败会回切。旧环境和安全备份留在私有目录，需要额外空间。\n"
-                        + "原生配置和 API Key 保持原位；额外安装的系统软件留在旧环境中。",
-                recovery ? "恢复原环境" : "备份并重建", "算了", () -> {
+                recovery ? UiText.text("恢复中断维护") : UiText.text("备份并重建内置环境"),
+                recovery ? UiText.text("先停止 Web，再回切原环境；安全备份和失败的新环境均保留。")
+                        : UiText.text("先停止 Web 并等待退出（会中断正在执行的任务），完整备份并校验配置、会话与本地插件，再解压并恢复。\n\n")
+                        + UiText.text("备份失败不会切换环境；解压或恢复失败会回切。旧环境和安全备份留在私有目录，需要额外空间。\n")
+                        + UiText.text("原生配置和 API Key 保持原位；额外安装的系统软件留在旧环境中。"),
+                recovery ? UiText.text("恢复原环境") : UiText.text("备份并重建"), UiText.text("算了"), () -> {
                     try {
                         if (!(recovery ? task.recoverMaintenance() : task.rebuild())) {
-                            Toast.makeText(context, "已有任务或未完成维护，请到数据与备份页查看。", Toast.LENGTH_LONG).show();
+                            Toast.makeText(context, UiText.text("已有任务或未完成维护，请到数据与备份页查看。"), Toast.LENGTH_LONG).show();
                             return;
                         }
                         Intent i = new Intent(context, ExtractActivity.class);
                         i.putExtra("data_task_id", task.snapshot().id);
                         context.startActivity(i);
                     } catch (Throwable t) {
-                        Toast.makeText(context, "打不开解压页：" + t.getMessage(),
+                        Toast.makeText(context, UiText.text("打不开解压页：") + t.getMessage(),
                                 Toast.LENGTH_LONG).show();
                     }
                 });
@@ -163,13 +164,13 @@ public class SettingsFragment extends Fragment {
         bodyParams.leftMargin = dp(12); bodyParams.rightMargin = dp(8); body.setLayoutParams(bodyParams);
 
         TextView title = new TextView(requireContext());
-        title.setText(opt.title);
+        title.setText(UiText.text(opt.title));
         title.setTextSize(15);
         title.setTextColor(requireContext().getColor(R.color.text));
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
 
         TextView sub = new TextView(requireContext());
-        sub.setText(opt.sub);
+        sub.setText(UiText.text(opt.sub));
         sub.setTextSize(13);
         sub.setTextColor(requireContext().getColor(R.color.text_muted));
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(

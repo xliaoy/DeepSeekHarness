@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 诊断与日志：iOS 拟态分组排版（浅灰底 + 白色大圆角卡片 + 组标题在上） -->
+<!-- 诊断与日志：与官方页结构一致（错误日志 / 环境检查 / 反馈问题 / 诊断报告），
+     UI 用 DeepSeekHarness 样式；诊断报告区用 LogScrollView 固定高度滚动，可上下滑动查看。 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/diagnostic_page_scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface"
@@ -28,46 +30,38 @@
                 style="@style/Widget.DeepSeekHarness.ToolbarAction"
                 android:layout_width="44dp"
                 android:layout_height="wrap_content"
+                android:contentDescription="@string/common_back"
                 android:text="‹"
-                android:textSize="24sp"
-                android:contentDescription="返回" />
+                android:textSize="24sp" />
 
             <TextView
                 style="@style/DeepSeekHarnessText.PageTitle"
                 android:layout_width="0dp"
-                android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_tight"
-                android:text="诊断与日志" />
+                android:layout_weight="1"
+                android:text="@string/diag_title" />
         </LinearLayout>
 
-        <!-- 组标题：错误日志 -->
-        <TextView
-            style="@style/DeepSeekHarnessText.Caption"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/gap_hair"
-            android:layout_marginTop="@dimen/gap_section"
-            android:text="错误日志" />
-
+        <!-- 错误日志：下载 / 另存为 / 状态 -->
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_tight">
+            android:layout_marginTop="@dimen/gap_section">
 
             <TextView
                 style="@style/DeepSeekHarnessText.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="日志收集" />
+                android:text="@string/diag_error_logs" />
 
             <TextView
-                style="@style/DeepSeekHarnessText.Label"
+                style="@style/DeepSeekHarnessText.Caption"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_hair"
-                android:text="收集启动失败、崩溃和最近运行输出。下载后可在 Download/DeepSeekHarness 中找到。" />
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="@string/diag_error_logs_desc" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -79,10 +73,10 @@
                     android:id="@+id/diagnostic_logs_download"
                     style="@style/Widget.DeepSeekHarness.PrimaryButton"
                     android:layout_width="0dp"
-                    android:layout_weight="1"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:minHeight="@dimen/btn_height"
-                    android:text="下载错误日志" />
+                    android:text="@string/diag_download_logs" />
 
                 <Button
                     android:id="@+id/diagnostic_logs_save_as"
@@ -90,7 +84,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/gap_tight"
-                    android:text="另存为" />
+                    android:text="@string/common_save_as" />
             </LinearLayout>
 
             <TextView
@@ -98,56 +92,42 @@
                 style="@style/DeepSeekHarnessText.Caption"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:background="@color/raised"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
                 android:minHeight="@dimen/touch_min"
                 android:padding="@dimen/gap_tight"
-                android:background="@color/raised"
-                android:gravity="center_vertical"
-                android:textColor="@color/primary"
-                android:clickable="true"
-                android:focusable="true" />
+                android:textColor="@color/primary" />
         </LinearLayout>
 
-        <!-- 组标题：环境 -->
-        <TextView
-            style="@style/DeepSeekHarnessText.Caption"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/gap_hair"
-            android:layout_marginTop="@dimen/gap_section"
-            android:text="环境" />
-
+        <!-- 环境检查：重新诊断 / 修复工具 / 打开插件管理 -->
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_tight">
+            android:layout_marginTop="@dimen/gap_section">
 
             <TextView
                 style="@style/DeepSeekHarnessText.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="环境检查" />
+                android:text="@string/env_check" />
 
             <TextView
                 style="@style/DeepSeekHarnessText.Label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_hair"
-                android:text="检查运行环境、证书和插件状态。" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/hairline"
-                android:layout_marginTop="@dimen/gap_control"
-                android:background="@color/line" />
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="@string/env_check_desc" />
 
             <TextView
                 android:id="@+id/diagnostic_status"
                 style="@style/DeepSeekHarnessText.Label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
+                android:layout_marginTop="@dimen/gap_tight"
                 android:lineSpacingExtra="2dp"
                 android:text="" />
 
@@ -161,19 +141,19 @@
                     android:id="@+id/diagnostic_refresh"
                     style="@style/Widget.DeepSeekHarness.PrimaryButton"
                     android:layout_width="0dp"
-                    android:layout_weight="1"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:minHeight="@dimen/btn_height"
-                    android:text="重新诊断" />
+                    android:text="@string/diag_rerun" />
 
                 <Button
                     android:id="@+id/diagnostic_repair"
                     android:layout_width="0dp"
-                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_weight="1"
                     android:minHeight="@dimen/btn_height"
-                    android:text="修复工具" />
+                    android:text="@string/diag_repair_tools" />
             </LinearLayout>
 
             <Button
@@ -182,39 +162,95 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
-                android:text="打开插件管理" />
+                android:text="@string/common_open_plugin_manager" />
         </LinearLayout>
 
-        <!-- 组标题：报告 -->
-        <TextView
-            style="@style/DeepSeekHarnessText.Caption"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/gap_hair"
-            android:layout_marginTop="@dimen/gap_section"
-            android:text="报告" />
-
+        <!-- 反馈问题：补充复现步骤 + 复制 / 导出 -->
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_tight">
+            android:layout_marginTop="@dimen/gap_section">
 
             <TextView
                 style="@style/DeepSeekHarnessText.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="诊断报告" />
+                android:text="@string/diag_feedback" />
 
-            <TextView
-                android:id="@+id/diagnostic_report"
-                style="@style/DeepSeekHarnessText.Label"
+            <EditText
+                android:id="@+id/diagnostic_steps"
+                style="@style/DeepSeekHarnessText.Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_control"
-                android:fontFamily="monospace"
-                android:lineSpacingExtra="2dp"
-                android:textIsSelectable="true" />
+                android:background="@drawable/bg_input"
+                android:gravity="top"
+                android:hint="@string/diag_feedback_hint"
+                android:inputType="textMultiLine"
+                android:maxLength="2000"
+                android:minHeight="80dp"
+                android:padding="@dimen/card_pad" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/diagnostic_copy"
+                    style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="@string/diag_copy_feedback" />
+
+                <Button
+                    android:id="@+id/diagnostic_export"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_weight="1"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="@string/diag_export_report" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 诊断报告：LogScrollView 固定高度滚动区，可上下滑动查看 -->
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_section"
+            android:background="@drawable/bg_preview">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/diag_report" />
+
+            <com.deepseekharness.app.ui.LogScrollView
+                android:id="@+id/diagnostic_report_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_marginTop="@dimen/gap_control"
+                android:fadeScrollbars="false"
+                android:fillViewport="true"
+                android:scrollbars="vertical">
+
+                <TextView
+                    android:id="@+id/diagnostic_report"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="1dp"
+                    android:paddingEnd="@dimen/gap_tight"
+                    android:textIsSelectable="true" />
+            </com.deepseekharness.app.ui.LogScrollView>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

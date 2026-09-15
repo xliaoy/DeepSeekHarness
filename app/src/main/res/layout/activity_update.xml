@@ -32,7 +32,7 @@
                 style="@style/Widget.DeepSeekHarness.ToolbarAction"
                 android:layout_width="44dp"
                 android:layout_height="wrap_content"
-                android:contentDescription="返回"
+                android:contentDescription="@string/common_back"
                 android:text="‹"
                 android:textSize="@dimen/text_display" />
 
@@ -42,7 +42,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_tight"
                 android:layout_weight="1"
-                android:text="更新 DeepSeek Harness" />
+                android:text="@string/update_title" />
         </LinearLayout>
 
         <!-- ================= 当前版本 ================= -->
@@ -59,7 +59,7 @@
                 style="@style/DeepSeekHarnessText.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="当前版本" />
+                android:text="@string/update_current_version" />
 
             <TextView
                 android:id="@+id/update_current"
@@ -73,7 +73,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_control"
-                android:text="从 deepseek-ai/deepseek-harness 的 GitHub Releases 获取最新版本，在容器内通过 npm 自动更新。"
+                android:text="@string/update_desc"
                 android:textColor="@color/text_muted" />
         </LinearLayout>
 
@@ -91,7 +91,7 @@
                 style="@style/DeepSeekHarnessText.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="检查结果" />
+                android:text="@string/update_result" />
 
             <TextView
                 android:id="@+id/update_status"
@@ -131,7 +131,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_control"
                 android:minHeight="@dimen/btn_height"
-                android:text="更新到最新版本"
+                android:text="@string/update_apply"
                 android:visibility="gone" />
 
             <!-- 次操作：描边按钮，避免与主操作抢视觉 -->
@@ -142,7 +142,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
                 android:minHeight="@dimen/btn_height"
-                android:text="检查更新" />
+                android:text="@string/update_check" />
         </LinearLayout>
 
         <Button
@@ -151,7 +151,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_tight"
-            android:text="在浏览器查看发布页" />
+            android:text="@string/update_view_releases" />
 
         <!-- ================= 版本说明 ================= -->
         <LinearLayout
@@ -169,7 +169,7 @@
                 style="@style/DeepSeekHarnessText.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="版本说明" />
+                android:text="@string/update_changelog" />
 
             <TextView
                 android:id="@+id/update_notes"

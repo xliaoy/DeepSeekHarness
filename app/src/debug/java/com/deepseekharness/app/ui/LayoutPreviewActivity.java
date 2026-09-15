@@ -81,8 +81,9 @@ public final class LayoutPreviewActivity extends AppCompatActivity {
             if (scene.equals("launch_error")) { visible(R.id.launch_recovery,true);text(R.id.launch_recovery,"失败 3/3 · 查看恢复选项");text(R.id.launch_run_state,"自动重启已暂停"); }
         } else if (scene.startsWith("plugins")) {
             boolean management=scene.equals("plugins_installed");
-            visible(R.id.pluginMarketCard,!management);visible(R.id.pluginWebsiteSection,!management);visible(R.id.pluginLinkSection,!management);visible(R.id.marketHelp,!management);visible(R.id.installedControls,management);
-            text(R.id.pluginLinkHint,"支持 npm、GitHub 和已构建压缩包");text(R.id.pluginCount,"共 12 个插件");
+            // 布局已重构为「搜索+筛选卡 / 安装卡 / 列表」：旧的市场/网站/链接卡片
+            // (pluginMarketCard 等) 已从 fragment_plugins.xml 删除，这里只绑定现存 ID。
+            text(R.id.pluginCount,"共 12 个插件");
             if(management) { visible(R.id.pluginEmpty,true);text(R.id.pluginEmpty,"布局检查样例：插件列表会显示在这里"); }
         } else if (scene.equals("fragment_workspace")) {
             text(R.id.workspace_backup_status,"最近成功备份：今天 14:26\n全量备份 · 2.1 MiB");

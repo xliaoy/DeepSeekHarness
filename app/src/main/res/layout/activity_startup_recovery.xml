@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  启动恢复工作台：不依赖 Web 的原生恢复页面。iOS 拟态分组卡片排版。
+  顶栏（返回 + 标题）→ 进入原因 → 恢复与修复 → 最近启动记录 / 配置快照 / 插件卸载 → 其他工具。
+-->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/recovery_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:clipToPadding="false"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/page_pad"
+        android:paddingTop="@dimen/gap_control"
+        android:paddingEnd="@dimen/page_pad"
+        android:paddingBottom="@dimen/gap_section">
+
+        <!-- 顶栏：返回 + 标题 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/recovery_back"
+                style="@style/Widget.DeepSeekHarness.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
+                android:minWidth="64dp"
+                android:text="@string/recovery_back" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.PageTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/gap_tight"
+                android:layout_weight="1"
+                android:text="@string/recovery_title" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/recovery_reason"
+            style="@style/DeepSeekHarnessText.Label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:textColor="@color/text_muted" />
+
+        <TextView
+            style="@style/DeepSeekHarnessText.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:textColor="@color/text_secondary"
+            android:text="@string/recovery_desc" />
+
+        <TextView
+            android:id="@+id/recovery_progress"
+            style="@style/DeepSeekHarnessText.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:textColor="@color/primary"
+            android:visibility="gone" />
+
+        <!-- 组：恢复与修复 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/recovery_section"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/recovery_retry"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_retry" />
+
+            <Button
+                android:id="@+id/recovery_safe"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_safe_mode" />
+
+            <Button
+                android:id="@+id/recovery_new_config"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_new_profile" />
+
+            <Button
+                android:id="@+id/recovery_repair_interrupted"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_resume" />
+        </LinearLayout>
+
+        <!-- 组：最近启动记录 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/recovery_recent"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/recovery_attempts"
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- 组：配置快照 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/recovery_snapshots"
+            android:textStyle="bold" />
+
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/recovery_snapshots_desc" />
+
+        <LinearLayout
+            android:id="@+id/recovery_snapshots"
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gap_tight"
+            android:orientation="vertical" />
+
+        <!-- 组：插件卸载 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/recovery_plugin_uninstall"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/recovery_plugins_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/recovery_plugins"
+                style="@style/DeepSeekHarnessCard"
+                android:background="@drawable/bg_card"
+                android:elevation="2dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:text="@string/recovery_plugin_uninstall_desc" />
+        </LinearLayout>
+
+        <!-- 组：其他工具 -->
+        <TextView
+            style="@style/DeepSeekHarnessText.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gap_hair"
+            android:layout_marginTop="@dimen/gap_section"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:text="@string/recovery_other_tools"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            style="@style/DeepSeekHarnessCard"
+            android:background="@drawable/bg_card"
+            android:elevation="2dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/recovery_tools_env"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_env_install" />
+
+            <Button
+                android:id="@+id/recovery_tools_logs"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_view_logs" />
+
+            <Button
+                android:id="@+id/recovery_tools_refresh"
+                style="@style/Widget.DeepSeekHarness.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:minHeight="@dimen/btn_height"
+                android:text="@string/recovery_refresh" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

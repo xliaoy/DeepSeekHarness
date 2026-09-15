@@ -35,14 +35,14 @@
                 android:layout_width="44dp"
                 android:layout_height="44dp"
                 android:background="@drawable/bg_action_plain"
-                android:contentDescription="打开菜单"
+                android:contentDescription="@string/main_open_menu"
                 android:padding="10dp"
                 android:src="@drawable/ic_menu"
                 app:tint="@color/text" />
 
             <TextView android:id="@+id/sub_back" style="@style/Widget.DeepSeekHarness.ToolbarAction"
                 android:layout_width="44dp" android:layout_height="wrap_content" android:text="‹"
-                android:textSize="24sp" android:contentDescription="返回上一页" android:visibility="gone" />
+                android:textSize="24sp" android:contentDescription="@string/main_back" android:visibility="gone" />
 
             <TextView
                 android:id="@+id/app_title"
@@ -60,7 +60,7 @@
                 android:layout_height="44dp"
                 android:layout_marginEnd="@dimen/gap_tight"
                 android:background="@drawable/bg_action_plain"
-                android:contentDescription="切换白天黑夜"
+                android:contentDescription="@string/main_toggle_theme"
                 android:padding="10dp"
                 android:src="@drawable/ic_sun"
                 app:tint="@color/text" />

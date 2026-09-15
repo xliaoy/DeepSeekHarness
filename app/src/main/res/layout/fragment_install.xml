@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  安装/环境检查页：iOS 拟态分组排版。
-  浅灰页底，四张白色大圆角卡片分组：环境检查、安装步骤、日志与诊断、环境维护。
+  安装与修复运行环境页：iOS 拟态分组排版，结构与官方 DSHA 安装页一致。
+  入口（仅检查/按需修复）→ 六步流程状态 → 固定高度滚动日志 → 环境维护。
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/install_scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface"
@@ -18,29 +19,62 @@
         android:paddingEnd="@dimen/page_pad"
         android:paddingBottom="@dimen/gap_section">
 
-        <!-- ================= 环境检查 ================= -->
+        <!-- ================= 环境检查：入口与状态 ================= -->
         <TextView
             style="@style/DeepSeekHarnessText.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="环境检查"
+            android:text="@string/env_check"
             android:textStyle="bold" />
 
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/install_btn"
+                    style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/gap_hair"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="@string/env_install_check_only" />
+
+                <Button
+                    android:id="@+id/install_repair"
+                    style="@style/Widget.DeepSeekHarness.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/gap_hair"
+                    android:minHeight="@dimen/btn_height"
+                    android:text="@string/env_install_check_fix" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/install_status"
                 style="@style/DeepSeekHarnessText.Label"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
+                android:accessibilityLiveRegion="polite" />
+
+            <TextView
+                android:id="@+id/install_progress"
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_tight"
+                android:visibility="gone" />
 
             <ProgressBar
                 android:id="@+id/install_progressbar"
@@ -51,40 +85,6 @@
                 android:indeterminateTint="@color/primary"
                 android:visibility="gone" />
 
-            <!-- 进度百分比文本：必须保留 -->
-            <TextView
-                android:id="@+id/install_progress"
-                style="@style/DeepSeekHarnessText.Label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:visibility="gone" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/stroke"
-                android:layout_marginTop="@dimen/gap_control"
-                android:background="@color/line" />
-
-            <!-- 主操作：整行 -->
-            <Button
-                android:id="@+id/install_btn"
-                style="@style/Widget.DeepSeekHarness.PrimaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:minHeight="@dimen/btn_height"
-                android:text="仅检查环境" />
-
-            <Button
-                android:id="@+id/install_repair"
-                style="@style/Widget.DeepSeekHarness.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:minHeight="@dimen/btn_height"
-                android:text="检查并按需修复" />
-
             <Button
                 android:id="@+id/install_cancel"
                 style="@style/Widget.DeepSeekHarness.Button"
@@ -92,7 +92,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
                 android:minHeight="@dimen/btn_height"
-                android:text="取消检查"
+                android:text="@string/env_install_cancel"
                 android:visibility="gone" />
 
             <TextView
@@ -100,10 +100,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_control"
-                android:text="仅检查不会安装组件。按需修复只处理失败项，curl / git 缺失时会联网下载。切页或旋转后任务继续，返回可查看进度和结果；修复期间的停止请求会等待安全点。" />
+                android:text="@string/env_install_check_desc" />
         </LinearLayout>
 
-        <!-- ================= 安装步骤 ================= -->
+        <!-- ================= 安装步骤：六项流程状态 ================= -->
         <TextView
             style="@style/DeepSeekHarnessText.Caption"
             android:layout_width="match_parent"
@@ -111,80 +111,442 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="安装步骤"
+            android:text="@string/env_install_steps"
             android:textStyle="bold" />
 
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <Button
+            <!-- 1 · Linux 环境 -->
+            <LinearLayout
                 android:id="@+id/install_step1"
-                style="@style/InstallStep"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="1 · Linux 环境（rootfs）" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:paddingTop="@dimen/gap_hair"
+                android:paddingBottom="@dimen/gap_hair"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
 
-            <Button
-                android:id="@+id/install_step2"
-                style="@style/InstallStep"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="2 · 基础工具\n补齐 curl / git / Python" />
+                <TextView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip"
+                    android:text="1"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/primary"
+                    android:importantForAccessibility="no" />
 
-            <Button
-                android:id="@+id/install_step3"
-                style="@style/InstallStep"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="3 · Node.js" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginEnd="@dimen/gap_tight">
 
-            <Button
-                android:id="@+id/install_step4"
-                style="@style/InstallStep"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="4 · pnpm 包管理器" />
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_linux"
+                        android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/install_step5"
-                style="@style/InstallStep"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="5 · deepseek-harness" />
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_ubuntu_rootfs" />
+                </LinearLayout>
 
-            <Button
-                android:id="@+id/install_step6"
-                style="@style/InstallStep"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="6 · 运行补丁" />
+                <TextView
+                    android:id="@+id/install_state1"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:maxWidth="92dp"
+                    android:text="@string/common_not_checked" />
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:gravity="end"
+                    android:textSize="23sp"
+                    android:textColor="@color/text_muted"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/stroke"
-                android:layout_marginTop="@dimen/gap_control"
+                android:layout_marginStart="44dp"
                 android:background="@color/line" />
 
-            <TextView
-                android:id="@+id/install_steps"
-                style="@style/DeepSeekHarnessText.Body"
+            <!-- 2 · 基础工具 -->
+            <LinearLayout
+                android:id="@+id/install_step2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:textIsSelectable="true" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:paddingTop="@dimen/gap_hair"
+                android:paddingBottom="@dimen/gap_hair"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip"
+                    android:text="2"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/primary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginEnd="@dimen/gap_tight">
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_base_tools"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="curl · git · Python" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/install_state2"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:maxWidth="92dp"
+                    android:text="@string/common_not_checked" />
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:gravity="end"
+                    android:textSize="23sp"
+                    android:textColor="@color/text_muted"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/stroke"
+                android:layout_marginStart="44dp"
+                android:background="@color/line" />
+
+            <!-- 3 · Node.js -->
+            <LinearLayout
+                android:id="@+id/install_step3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:paddingTop="@dimen/gap_hair"
+                android:paddingBottom="@dimen/gap_hair"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip"
+                    android:text="3"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/primary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginEnd="@dimen/gap_tight">
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Node.js"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_js" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/install_state3"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:maxWidth="92dp"
+                    android:text="@string/common_not_checked" />
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:gravity="end"
+                    android:textSize="23sp"
+                    android:textColor="@color/text_muted"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/stroke"
+                android:layout_marginStart="44dp"
+                android:background="@color/line" />
+
+            <!-- 4 · pnpm -->
+            <LinearLayout
+                android:id="@+id/install_step4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:paddingTop="@dimen/gap_hair"
+                android:paddingBottom="@dimen/gap_hair"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip"
+                    android:text="4"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/primary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginEnd="@dimen/gap_tight">
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="pnpm"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_pkg_manager" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/install_state4"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:maxWidth="92dp"
+                    android:text="@string/common_not_checked" />
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:gravity="end"
+                    android:textSize="23sp"
+                    android:textColor="@color/text_muted"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/stroke"
+                android:layout_marginStart="44dp"
+                android:background="@color/line" />
+
+            <!-- 5 · deepseek-harness -->
+            <LinearLayout
+                android:id="@+id/install_step5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:paddingTop="@dimen/gap_hair"
+                android:paddingBottom="@dimen/gap_hair"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip"
+                    android:text="5"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/primary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginEnd="@dimen/gap_tight">
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="deepseek-harness"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_dsh" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/install_state5"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:maxWidth="92dp"
+                    android:text="@string/common_not_checked" />
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:gravity="end"
+                    android:textSize="23sp"
+                    android:textColor="@color/text_muted"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/stroke"
+                android:layout_marginStart="44dp"
+                android:background="@color/line" />
+
+            <!-- 6 · 运行补丁 -->
+            <LinearLayout
+                android:id="@+id/install_step6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:paddingTop="@dimen/gap_hair"
+                android:paddingBottom="@dimen/gap_hair"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip"
+                    android:text="6"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/primary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/gap_tight"
+                    android:layout_marginEnd="@dimen/gap_tight">
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_patch"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        style="@style/DeepSeekHarnessText.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/env_install_patch_desc" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/install_state6"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:maxWidth="92dp"
+                    android:text="@string/common_not_checked" />
+
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:gravity="end"
+                    android:textSize="23sp"
+                    android:textColor="@color/text_muted"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- ================= 日志与诊断 ================= -->
+        <!-- ================= 日志与诊断：固定高度滚动日志 ================= -->
         <TextView
             style="@style/DeepSeekHarnessText.Caption"
             android:layout_width="match_parent"
@@ -192,31 +554,44 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="日志与诊断"
+            android:text="@string/env_install_logs"
             android:textStyle="bold" />
 
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <TextView
-                style="@style/DeepSeekHarnessText.Label"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="详细输出"
-                android:textStyle="bold" />
+                android:gravity="center_vertical">
 
-            <androidx.core.widget.NestedScrollView
+                <TextView
+                    style="@style/DeepSeekHarnessText.Title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/env_install_verbose" />
+
+                <Button
+                    android:id="@+id/install_copy"
+                    style="@style/Widget.DeepSeekHarness.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/common_copy"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <com.deepseekharness.app.ui.LogScrollView
                 android:id="@+id/install_log_scroll"
                 android:layout_width="match_parent"
                 android:layout_height="220dp"
                 android:layout_marginTop="@dimen/gap_tight"
                 android:background="@drawable/bg_preview"
-                android:fillViewport="true">
+                android:fillViewport="true"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="false">
 
                 <TextView
                     android:id="@+id/install_log"
@@ -227,7 +602,7 @@
                     android:padding="@dimen/card_pad"
                     android:textColor="@color/text_secondary"
                     android:textIsSelectable="true" />
-            </androidx.core.widget.NestedScrollView>
+            </com.deepseekharness.app.ui.LogScrollView>
 
             <TextView
                 android:id="@+id/install_error"
@@ -242,21 +617,12 @@
                 android:visibility="gone" />
 
             <Button
-                android:id="@+id/install_copy"
-                style="@style/Widget.DeepSeekHarness.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:text="复制脱敏日志"
-                android:visibility="gone" />
-
-            <Button
                 android:id="@+id/install_crash"
                 style="@style/Widget.DeepSeekHarness.Button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
-                android:text="查看崩溃日志"
+                android:text="@string/env_install_crash_logs"
                 android:visibility="gone" />
         </LinearLayout>
 
@@ -268,24 +634,28 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="环境维护"
+            android:text="@string/env_maintenance"
             android:textStyle="bold" />
 
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
+
+            <TextView
+                style="@style/DeepSeekHarnessText.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/env_install_maintenance_desc" />
 
             <Button
                 android:id="@+id/install_uninstall"
                 style="@style/Widget.DeepSeekHarness.DangerButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gap_control"
                 android:minHeight="@dimen/btn_height"
-                android:text="备份并重建环境" />
+                android:text="@string/env_install_backup_rebuild" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -44,6 +44,7 @@ public final class PluginRepository extends AndroidViewModel {
     /** 最近一次插件操作类型（检测/安装/删除/回退/更新/状态…），供结果弹窗标题用。 */
     private volatile String lastOperation = "";
     private volatile PluginTask activeTask;
+    private volatile long lastRefreshAtMs;
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
     private String installedDescription = "";
     private final MutableLiveData<Preview> preview = new MutableLiveData<>();
@@ -295,6 +296,13 @@ public final class PluginRepository extends AndroidViewModel {
     }
 
     public void refresh() {
+        // 防抖：60 秒内重复点「检测/同步」直接复用上次结果，避免反复启动 proot 扫描拖慢页面
+        if (!working.get() && System.currentTimeMillis() - lastRefreshAtMs < 60_000) {
+            lastOperation = "检测";
+            state.setValue(new State(items, false, "刚刚检测过（60 秒内防抖），未重复扫描"));
+            return;
+        }
+        lastRefreshAtMs = System.currentTimeMillis();
         lastOperation = "检测";
         submit("正在检测 Web、终端和本地安装的插件…", proot -> {
             String output = proot.registerBuiltinPlugins();

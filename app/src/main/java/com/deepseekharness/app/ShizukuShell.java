@@ -71,6 +71,13 @@ public final class ShizukuShell {
         return shellService != null;
     }
 
+    /** 用户态状态文案（设备能力授权页用）。 */
+    public static String userStatus(Context ctx) {
+        if (!isAvailable()) return "Shizuku 未运行。请先安装并启动 Shizuku（https://shizuku.rikka.app），再回来授权。";
+        if (!hasPermission()) return "Shizuku 服务已运行，尚未授权 → 点「授权 Shizuku」弹出授权即可。";
+        return "Shizuku 已授权 ✓ 设备命令走 Shizuku（shell 权限）。";
+    }
+
     /** 供 3090 /status 端点的诊断字符串 */
     public static String status() {
         String perm;

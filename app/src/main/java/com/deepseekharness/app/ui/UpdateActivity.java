@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,12 +31,12 @@ public final class UpdateActivity extends AppCompatActivity {
             if (state != null && state.needsRestart && !restartPromptShown) {
                 restartPromptShown = true;
                 final int[] seconds = {3};
-                final String base = "DeepSeek Harness 已更新到 " + state.currentVersion
-                        + "，需要重启应用以完成更新。\n\n";
+                final String base = UiText.text("DeepSeek Harness 已更新到 ") + state.currentVersion
+                        + UiText.text("，需要重启应用以完成更新。\n\n");
                 final AlertDialog dialog = AppDialogs.show(UpdateActivity.this,
-                        android.R.drawable.ic_menu_upload, "更新完成",
-                        base + seconds[0] + " 秒后自动重启…",
-                        "立即重启", "稍后",
+                        android.R.drawable.ic_menu_upload, UiText.text("更新完成"),
+                        base + seconds[0] + UiText.text(" 秒后自动重启…"),
+                        UiText.text("立即重启"), UiText.text("稍后"),
                         () -> updater.stopWebAndRestart(0));   // 点「立即重启」→ 立刻重启
                 final Handler handler = new Handler(Looper.getMainLooper());
                 final TextView msgView = dialog.findViewById(R.id.app_dialog_message);
@@ -44,10 +45,10 @@ public final class UpdateActivity extends AppCompatActivity {
                         seconds[0]--;
                         if (seconds[0] <= 0) {
                             // 3 秒未点击 → 自动重启
-                            if (msgView != null) msgView.setText(base + "正在重启…");
+                            if (msgView != null) msgView.setText(base + UiText.text("正在重启…"));
                             updater.stopWebAndRestart(0);
                         } else {
-                            if (msgView != null) msgView.setText(base + seconds[0] + " 秒后自动重启…");
+                            if (msgView != null) msgView.setText(base + seconds[0] + UiText.text(" 秒后自动重启…"));
                             handler.postDelayed(this, 1000);
                         }
                     }

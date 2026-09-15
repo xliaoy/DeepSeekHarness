@@ -43,6 +43,6 @@
 
         <TextView android:id="@+id/pluginActions" style="@style/PluginAction"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_tight" android:text="更多" />
+            android:layout_marginTop="@dimen/gap_tight" android:text="@string/plugin_item_more" />
     </LinearLayout>
 </LinearLayout>

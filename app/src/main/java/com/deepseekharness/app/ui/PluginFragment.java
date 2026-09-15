@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -29,6 +30,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepseekharness.app.R;
 import com.deepseekharness.app.core.PluginRepository;
+import com.deepseekharness.app.util.PluginSort;
 import com.deepseekharness.app.util.PluginSource;
 
 import java.util.ArrayList;
@@ -41,10 +43,9 @@ public class PluginFragment extends Fragment {
     private PluginRepository repository;
     private PluginRepository.State current;
     private View root;
-    private EditText linkInput, search, commandInput;
-    private TextView linkHint;
-    private CheckBox hideBuiltin;
-    private boolean market = true, enabledFirst;
+    private EditText search;
+    private int sortMode;
+    private boolean hideBuiltinOnly;
     private boolean lastBusy;
     private String lastResultShown;
     private androidx.appcompat.app.AlertDialog progressDialog;
@@ -92,7 +93,7 @@ public class PluginFragment extends Fragment {
         if (environmentNotice != null) {
             PluginRepository.State shown = repository.state().getValue();
             if (!repository.isBusy() && shown != null && environmentNotice.equals(shown.message))
-                repository.selectionMessage("环境任务已结束；当前显示缓存列表，可点「刷新」同步插件状态");
+                repository.selectionMessage(UiText.text("环境任务已结束；当前显示缓存列表，可点「刷新」同步插件状态"));
             environmentNotice = null;
         }
         com.deepseekharness.app.core.HarnessController controller =
@@ -109,11 +110,11 @@ public class PluginFragment extends Fragment {
                 if (uri == null && data != null && data.getClipData() != null && data.getClipData().getItemCount() > 0)
                     uri = data.getClipData().getItemAt(0).getUri();
                 if (result.getResultCode() != android.app.Activity.RESULT_OK || uri == null) {
-                    repository.selectionMessage("未选择文件或文件管理器未返回文件。可点「其他文件选择器」重试，选择 ZIP / TAR.GZ 插件包。");
+                    repository.selectionMessage(UiText.text("未选择文件或文件管理器未返回文件。可点「其他文件选择器」重试，选择 ZIP / TAR.GZ 插件包。"));
                     return;
                 }
                 if (!"content".equals(uri.getScheme()) && !"file".equals(uri.getScheme())) {
-                    repository.selectionMessage("文件管理器返回的地址无法读取，请改用系统文件选择器。");
+                    repository.selectionMessage(UiText.text("文件管理器返回的地址无法读取，请改用系统文件选择器。"));
                     return;
                 }
                 if ("file".equals(uri.getScheme()) && android.os.Build.VERSION.SDK_INT < 30
@@ -130,7 +131,7 @@ public class PluginFragment extends Fragment {
                 android.net.Uri selected = pendingImport;
                 pendingImport = null;
                 if (allowed && selected != null) repository.importArchive(selected);
-                else repository.selectionMessage("未获得文件读取权限，请改用系统文件选择器导入。");
+                else repository.selectionMessage(UiText.text("未获得文件读取权限，请改用系统文件选择器导入。"));
             });
     private final ActivityResultLauncher<String> exportPicker = registerForActivityResult(
             new ActivityResultContracts.CreateDocument("application/gzip"), uri -> {
@@ -148,70 +149,40 @@ public class PluginFragment extends Fragment {
     @Override public void onViewCreated(@NonNull View view, @Nullable Bundle saved) {
         root = view;
         repository = new ViewModelProvider(requireActivity()).get(PluginRepository.class);
-        if (getArguments() != null && getArguments().getBoolean("show_installed", false)) market = false;
         if (saved != null) {
-            market = saved.getBoolean("market", true);
-            enabledFirst = saved.getBoolean("enabledFirst");
+            sortMode = saved.getInt("sortMode");
             ArrayList<String> names = saved.getStringArrayList("pendingExports");
             if (names != null) pendingExports = names;
             String imported = saved.getString("pendingImport");
             if (imported != null) pendingImport = android.net.Uri.parse(imported);
         }
-        linkInput = view.findViewById(R.id.appbar_github_input);
-        linkHint = view.findViewById(R.id.pluginLinkHint);
-        commandInput = view.findViewById(R.id.commandInput);
-        final View btnCommandInstall = view.findViewById(R.id.btnPluginCommandInstall);
-        btnCommandInstall.setOnClickListener(v -> installCommand());
-        // DeepSeekHarness：命令输入为空时禁用安装按钮（与在线安装一致）
-        final Runnable syncCommandState = () -> btnCommandInstall.setEnabled(
-                !commandInput.getText().toString().trim().isEmpty() && !repository.isBusy());
-        commandInput.addTextChangedListener(new android.text.TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { syncCommandState.run(); }
-            @Override public void afterTextChanged(android.text.Editable s) { }
-        });
-        syncCommandState.run();
-        view.findViewById(R.id.btnPluginCommandPaste).setOnClickListener(v -> pasteCommand());
-        commandInput.setOnEditorActionListener((v, action, event) -> {
-            if (action == android.view.inputmethod.EditorInfo.IME_ACTION_GO
-                    || action == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-                    || (event != null && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER
-                    && event.getAction() == android.view.KeyEvent.ACTION_UP)) {
-                installCommand();
-                return true;
-            }
-            return false;
-        });
         search = view.findViewById(R.id.pluginSearch);
-        hideBuiltin = view.findViewById(R.id.chkHideBuiltin);
         RecyclerView list = view.findViewById(R.id.pluginList);
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
         list.setNestedScrollingEnabled(false);
         list.setItemAnimator(null);
         list.setAdapter(adapter);
-        view.findViewById(R.id.btnMarket).setOnClickListener(v -> selectTab(true));
-        view.findViewById(R.id.btnInstalled).setOnClickListener(v -> selectTab(false));
         view.findViewById(R.id.btnRefresh).setOnClickListener(v -> repository.refresh());
         view.findViewById(R.id.btnPluginUpdates).setOnClickListener(v -> repository.checkUpdates(null));
         view.findViewById(R.id.btnPluginRestore).setOnClickListener(v -> AppDialogs.show(requireContext(),
-                android.R.drawable.ic_menu_revert, "恢复第三方插件？",
-                "恢复安全启动前已启用的插件；之后手动禁用的插件保持禁用。恢复后重启 Web 生效。",
-                "恢复", "取消", () -> repository.safeMode(false, null)));
-        view.findViewById(R.id.btnPluginInstall).setOnClickListener(v -> installLink());
-        view.findViewById(R.id.btnPluginPaste).setOnClickListener(v -> pasteLink());
+                android.R.drawable.ic_menu_revert, UiText.text("恢复第三方插件？"),
+                UiText.text("恢复安全启动前已启用的插件；之后手动禁用的插件保持禁用。恢复后重启 Web 生效。"),
+                UiText.text("恢复"), UiText.text("取消"), () -> repository.safeMode(false, null)));
+        view.findViewById(R.id.btnOnlineInstall).setOnClickListener(v -> showInstallDialog(false));
+        view.findViewById(R.id.btnCommandInstallBtn).setOnClickListener(v -> showInstallDialog(true));
+        view.findViewById(R.id.btnPluginHelp).setOnClickListener(v -> AppDialogs.show(requireContext(),
+                android.R.drawable.ic_menu_help, UiText.text("使用提示"),
+                UiText.text("支持通过链接、npm 包名安装插件，也支持 GitHub、npm 和 ZIP / TAR / TAR.GZ / TGZ 的已构建插件包；也可以粘贴 dsh 插件安装命令。安装或修改插件后，重启 Web 生效。导出包可在其他 DeepSeek Harness 中导入。"),
+                UiText.text("知道了"), null, null));
         view.findViewById(R.id.btnImport).setOnClickListener(v -> chooseImport(false));
-        view.findViewById(R.id.btnImportFallback).setOnClickListener(v -> chooseImport(true));
         view.findViewById(R.id.btnExport).setOnClickListener(v -> chooseExport());
-        view.findViewById(R.id.btnSort).setOnClickListener(v -> { enabledFirst = !enabledFirst; render(); });
-        hideBuiltin.setOnCheckedChangeListener((v, checked) -> render());
+        view.findViewById(R.id.btnSort).setOnClickListener(v -> showSortDialog());
         search.addTextChangedListener(watcher(this::render));
-        linkInput.addTextChangedListener(watcher(this::recognizeLink));
-        linkInput.setOnEditorActionListener((v, action, event) -> {
-            if (action == EditorInfo.IME_ACTION_GO || action == EditorInfo.IME_ACTION_DONE
-                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
-                    && event.getAction() == KeyEvent.ACTION_UP)) {
-                installLink();
-                return true;
+        search.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_menu_search, 0, 0, 0);
+        search.setOnTouchListener((v, ev) -> {
+            if (ev.getAction() == android.view.MotionEvent.ACTION_UP) {
+                int x = Math.round(ev.getX());
+                if (x < search.getCompoundPaddingLeft()) { search.requestFocus(); return true; }
             }
             return false;
         });
@@ -222,7 +193,6 @@ public class PluginFragment extends Fragment {
             syncProgressDialog(state);
         });
         repository.preview().observe(getViewLifecycleOwner(), ignored -> showInstallPreview());
-        recognizeLink();
     }
 
     @Override public void onResume() {
@@ -237,8 +207,7 @@ public class PluginFragment extends Fragment {
 
     @Override public void onSaveInstanceState(@NonNull Bundle state) {
         super.onSaveInstanceState(state);
-        state.putBoolean("market", market);
-        state.putBoolean("enabledFirst", enabledFirst);
+        state.putInt("sortMode", sortMode);
         state.putStringArrayList("pendingExports", pendingExports);
         if (pendingImport != null) state.putString("pendingImport", pendingImport.toString());
     }
@@ -248,10 +217,7 @@ public class PluginFragment extends Fragment {
         if (previewDialog != null) { previewDialog.dismiss(); previewDialog = null; }
         ((RecyclerView) root.findViewById(R.id.pluginList)).setAdapter(null);
         root = null;
-        linkInput = null;
         search = null;
-        linkHint = null;
-        hideBuiltin = null;
         super.onDestroyView();
     }
 
@@ -268,75 +234,175 @@ public class PluginFragment extends Fragment {
         PluginRepository.Preview preview = repository.preview().getValue();
         if (preview == null) return;
         previewDialog = AppDialogs.show(requireContext(), android.R.drawable.ic_menu_add,
-                "确认安装插件", preview.description, "确认安装", "取消",
+                UiText.text("确认安装插件"), preview.description, UiText.text("确认安装"), UiText.text("取消"),
                 () -> repository.confirmPreview());
         previewDialog.setOnCancelListener(d -> { repository.discardPreview(); previewDialog = null; });
         previewDialog.setOnDismissListener(d -> previewDialog = null);
     }
 
-    private void recognizeLink() {
-        if (root == null) return;
-        String input = linkInput.getText().toString();
-        boolean valid = false;
+    /** 安装弹窗：在线安装（链接/npm 包名）或命令行安装（dsh plugin 命令）。 */
+    private void showInstallDialog(boolean commandMode) {
+        if (repository.isBusy()) { toast(UiText.text("请等待当前插件操作完成后再安装")); return; }
+        final android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setSingleLine(true);
+        input.setTextSize(14);
+        input.setHint(commandMode ? UiText.text("dsh plugin --profile web add 插件包名") : UiText.text("插件链接或 npm 包名"));
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        android.widget.LinearLayout body = new android.widget.LinearLayout(requireContext());
+        body.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+        // 说明行
+        final TextView desc = new TextView(requireContext());
+        desc.setTextSize(12);
+        desc.setTextColor(requireContext().getColor(R.color.text_muted));
+        desc.setPadding(dp(4), 0, dp(4), dp(8));
+        desc.setText(commandMode
+                ? UiText.text("粘贴 dsh 插件安装命令，将自动提取包名安装。\n例如：dsh plugin --profile web add 插件包名")
+                : UiText.text("支持 GitHub 仓库、npm 包名、Release 下载链接和压缩包直链。"));
+        body.addView(desc);
+
+        // 输入行（带粘贴）
+        final TextView[] realtime = new TextView[1];
+        android.widget.ProgressBar spinner = new android.widget.ProgressBar(requireContext(), null,
+                android.R.attr.progressBarStyleSmall);
+        // 输入端：标签+输入+粘贴
+        android.widget.LinearLayout tagRow = new android.widget.LinearLayout(requireContext());
+        tagRow.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        tagRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        TextView tag = new TextView(requireContext());
+        tag.setText(commandMode ? UiText.text("命令") : UiText.text("地址"));
+        tag.setTextSize(13);
+        tag.setTextColor(requireContext().getColor(R.color.text_muted));
+        tag.setPadding(0, 0, dp(8), 0);
+        tagRow.addView(tag);
+        input.setLayoutParams(new android.widget.LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        input.setBackgroundResource(R.drawable.bg_input);
+        input.setPadding(dp(10), dp(8), dp(10), dp(8));
+        tagRow.addView(input);
+        TextView paste = new TextView(requireContext());
+        paste.setText(UiText.text("粘贴"));
+        paste.setTextColor(requireContext().getColor(R.color.primary));
+        paste.setPadding(dp(10), dp(8), dp(6), dp(8));
+        paste.setOnClickListener(v -> {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                    requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = cm == null ? null : cm.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) { toast(UiText.text("剪贴板没有内容")); return; }
+            input.setText(clip.getItemAt(0).coerceToText(requireContext()));
+        });
+        tagRow.addView(paste);
+        body.addView(tagRow);
+
+        // 实时识别提示
+        final TextView hint = new TextView(requireContext());
+        hint.setTextSize(12);
+        hint.setTextColor(requireContext().getColor(R.color.text_secondary));
+        hint.setPadding(dp(4), dp(6), dp(4), 0);
+        body.addView(hint);
+        android.text.TextWatcher watcher = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {
+                String raw = s.toString().trim();
+                if (raw.isEmpty()) { hint.setText(""); return; }
+                try {
+                    String spec = commandMode ? extractPackageFromCommand(raw) : raw;
+                    PluginSource source = PluginSource.parse(spec);
+                    hint.setText(UiText.text("已识别：") + source.description());
+                    hint.setTextColor(requireContext().getColor(R.color.primary));
+                } catch (IllegalArgumentException e) {
+                    hint.setText(e.getMessage());
+                    hint.setTextColor(requireContext().getColor(R.color.err));
+                }
+            }
+            @Override public void afterTextChanged(android.text.Editable s) { }
+        };
+        input.addTextChangedListener(watcher);
+        input.setOnEditorActionListener((v, action, event) -> {
+            if (action == android.view.inputmethod.EditorInfo.IME_ACTION_GO) {
+                String raw = input.getText().toString().trim();
+                if (!raw.isEmpty()) doInstall(commandMode, raw);
+                return true;
+            }
+            return false;
+        });
+
+        AppDialogs.showCustom(requireContext(),
+                commandMode ? android.R.drawable.ic_menu_edit : android.R.drawable.ic_menu_add,
+                commandMode ? UiText.text("命令行安装") : UiText.text("在线安装"), body,
+                UiText.text("安装"), UiText.text("取消"), () -> doInstall(commandMode, input.getText().toString().trim()));
+    }
+
+    private void doInstall(boolean commandMode, String raw) {
+        if (raw.isEmpty()) { toast(UiText.text("请输入内容")); return; }
         try {
-            PluginSource source = PluginSource.parse(input);
-            linkHint.setText("已识别：" + source.description());
-            valid = true;
-        } catch (IllegalArgumentException error) {
-            linkHint.setText(input.trim().isEmpty() ? "支持仓库、分支/子目录、Release 下载和压缩包直链"
-                    : error.getMessage());
+            String spec = commandMode ? extractPackageFromCommand(raw) : raw;
+            repository.install(PluginSource.parse(spec));
+        } catch (IllegalArgumentException error) { toast(error.getMessage()); }
+    }
+
+    private int dp(int v) {
+        return Math.round(v * requireContext().getResources().getDisplayMetrics().density);
+    }
+
+    /** 排序方式：0=名称A-Z 1=名称Z-A 2=已启用优先 3=可更新优先。 */
+    private String sortLabel() {
+        switch (sortMode) {
+            case 1: return UiText.text("名称 Z-A");
+            case 2: return UiText.text("已启用优先");
+            case 3: return UiText.text("可更新优先");
+            default: return UiText.text("名称 A-Z");
         }
-        root.findViewById(R.id.btnPluginInstall).setEnabled(valid && !repository.isBusy());
     }
 
-    private void selectTab(boolean showMarket) {
-        market = showMarket;
-        linkInput.clearFocus();
-        search.clearFocus();
-        android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
-                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (keyboard != null) keyboard.hideSoftInputFromWindow(root.getWindowToken(), 0);
-        render();
-        androidx.core.widget.NestedScrollView scroll = root.findViewById(R.id.pluginScroll);
-        scroll.post(() -> scroll.scrollTo(0, 0));
-    }
-
-    private void installLink() {
-        if (repository.isBusy()) return;
-        try {
-            PluginSource source = PluginSource.parse(linkInput.getText().toString());
-            android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
-                    requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
-            if (keyboard != null) keyboard.hideSoftInputFromWindow(linkInput.getWindowToken(),0);
-            linkInput.clearFocus();
-            repository.install(source);
+    private void showSortDialog() {
+        android.widget.LinearLayout body = new android.widget.LinearLayout(requireContext());
+        body.setOrientation(android.widget.LinearLayout.VERTICAL);
+        String[] labels = {UiText.text("名称 A-Z"), UiText.text("名称 Z-A"), UiText.text("已启用优先"), UiText.text("可更新优先")};
+        for (int i = 0; i < labels.length; i++) {
+            final int idx = i;
+            TextView row = new TextView(requireContext());
+            row.setText(labels[i]);
+            row.setTextSize(15);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(16), dp(12), dp(16), dp(12));
+            row.setBackgroundResource(R.drawable.bg_drawer_item);
+            row.setMinHeight(dp(48));
+            if (sortMode == i) {
+                row.setTextColor(requireContext().getColor(R.color.primary));
+                row.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_plugin_scan, 0);
+                row.setCompoundDrawablePadding(dp(8));
+            } else {
+                row.setTextColor(requireContext().getColor(R.color.text));
+            }
+            android.widget.LinearLayout.LayoutParams rlp = new android.widget.LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rlp.topMargin = i == 0 ? 0 : dp(4);
+            row.setLayoutParams(rlp);
+            row.setOnClickListener(v -> {
+                sortMode = idx;
+                render();
+            });
+            body.addView(row);
         }
-        catch (IllegalArgumentException error) { toast(error.getMessage()); }
-    }
-
-    /** DeepSeekHarness：从 dsh plugin --profile web add <包名> 命令中提取包名并安装。 */
-    private void installCommand() {
-        if (repository.isBusy()) return;
-        try {
-            String raw = commandInput.getText().toString().trim();
-            String spec = extractPackageFromCommand(raw);
-            PluginSource source = PluginSource.parse(spec);
-            android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
-                    requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
-            if (keyboard != null) keyboard.hideSoftInputFromWindow(commandInput.getWindowToken(), 0);
-            commandInput.clearFocus();
-            repository.install(source);
-        }
-        catch (IllegalArgumentException error) { toast(error.getMessage()); }
-    }
-
-    private void pasteCommand() {
-        android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-                requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-        android.content.ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
-        if (clip == null || clip.getItemCount() == 0) { toast("剪贴板没有命令"); return; }
-        CharSequence text = clip.getItemAt(0).coerceToText(requireContext());
-        if (text != null) commandInput.setText(text);
+        // 只看自己装的（过滤内置/官方插件）
+        android.widget.CheckBox onlyMine = new android.widget.CheckBox(requireContext());
+        onlyMine.setText(UiText.text("只看自己装的"));
+        onlyMine.setTextColor(requireContext().getColor(R.color.text_secondary));
+        onlyMine.setButtonTintList(android.content.res.ColorStateList.valueOf(
+                requireContext().getColor(R.color.primary)));
+        onlyMine.setChecked(hideBuiltinOnly);
+        android.widget.LinearLayout.LayoutParams clp = new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        clp.topMargin = dp(12);
+        onlyMine.setLayoutParams(clp);
+        onlyMine.setOnCheckedChangeListener((b, checked) -> {
+            hideBuiltinOnly = checked;
+            render();
+        });
+        body.addView(onlyMine);
+        AppDialogs.showCustom(requireContext(), android.R.drawable.ic_menu_sort_by_size, UiText.text("插件排序"),
+                body, UiText.text("关闭"), null, null);
     }
 
     /** 从 dsh plugin [--profile xxx] add <spec> 提取安装目标；无法识别时原样返回（按包名/链接解析）。 */
@@ -356,7 +422,7 @@ public class PluginFragment extends Fragment {
     }
 
     private void chooseImport(boolean alternative) {
-        if (repository.isBusy()) { toast("请等待当前插件操作完成后再导入"); return; }
+        if (repository.isBusy()) { toast(UiText.text("请等待当前插件操作完成后再导入")); return; }
         View focus = requireActivity().getCurrentFocus();
         if (focus != null) {
             android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
@@ -364,24 +430,17 @@ public class PluginFragment extends Fragment {
             if (keyboard != null) keyboard.hideSoftInputFromWindow(focus.getWindowToken(), 0);
             focus.clearFocus();
         }
-        repository.selectionMessage("请选择插件压缩包；文件选择器无法返回时，可使用「其他文件选择器」。");
+        repository.selectionMessage(UiText.text("请选择插件压缩包；文件选择器无法返回时，可使用「其他文件选择器」。"));
         try { importPicker.launch(PluginFilePicker.intent(requireContext(), alternative)); }
         catch (android.content.ActivityNotFoundException error) {
             if (!alternative) { chooseImport(true); return; }
-            repository.selectionMessage("未找到可用的文件选择器，请启用系统「文件」应用后重试。");
-            toast("没有可用的文件选择器");
+            repository.selectionMessage(UiText.text("未找到可用的文件选择器，请启用系统「文件」应用后重试。"));
+            toast(UiText.text("没有可用的文件选择器"));
         } catch (RuntimeException error) {
-            repository.selectionMessage("无法打开文件选择器，请使用备用入口：" + error.getClass().getSimpleName());
+            repository.selectionMessage(UiText.text("无法打开文件选择器，请使用备用入口：") + error.getClass().getSimpleName());
         }
     }
 
-    private void pasteLink() {
-        ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
-        if (clip == null || clip.getItemCount() == 0) { toast("剪贴板没有链接"); return; }
-        CharSequence text = clip.getItemAt(0).coerceToText(requireContext());
-        if (text != null) linkInput.setText(text);
-    }
 
     /** DeepSeekHarness：耗时插件操作（下载/安装/更新）期间弹出带进度条的弹窗。 */
     private void syncProgressDialog(PluginRepository.State state) {
@@ -389,8 +448,8 @@ public class PluginFragment extends Fragment {
         if (state.busy) {
             if (progressDialog == null) {
                 progressDialog = AppDialogs.showProgress(requireContext(),
-                        android.R.drawable.ic_popup_sync, "正在处理插件", state.message,
-                        state.cancellable ? "取消" : null,
+                        android.R.drawable.ic_popup_sync, UiText.text("正在处理插件"), state.message,
+                        state.cancellable ? UiText.text("取消") : null,
                         () -> repository.cancelTask());
             } else {
                 TextView msg = progressDialog.findViewById(R.id.app_dialog_message);
@@ -412,60 +471,52 @@ public class PluginFragment extends Fragment {
         if (state.message.equals(lastResultShown)) return;
         lastResultShown = state.message;
         String op = repository.lastOperation();
-        String title = "插件操作结果";
+        String title = UiText.text("插件操作结果");
         int icon = android.R.drawable.ic_menu_info_details;
         if ("静默".equals(op)) {
            lastResultShown = state.message; // 静默同步不弹结果窗
             return;
         }
-        if ("安装".equals(op) && repository.installationSucceeded()) { title = "安装成功"; icon = android.R.drawable.ic_menu_save; }
-        else if ("检测".equals(op)) { title = "检测完成"; icon = android.R.drawable.ic_popup_sync; }
-        else if ("删除".equals(op)) { title = "插件已删除"; icon = android.R.drawable.ic_menu_delete; }
-        else if ("回退".equals(op)) { title = "插件已回退"; icon = android.R.drawable.ic_menu_revert; }
-        else if ("更新".equals(op)) { title = "插件已更新"; icon = android.R.drawable.ic_popup_sync; }
-        else if ("状态".equals(op)) { title = "插件状态已更新"; icon = android.R.drawable.ic_menu_info_details; }
-        else if (state.message.startsWith("已删除")) { title = "插件已删除"; icon = android.R.drawable.ic_menu_delete; }
-        else if (state.message.startsWith("已禁用") || state.message.startsWith("已启用")) title = "插件状态已更新";
-        else if (state.message.startsWith("已更新")) { title = "插件已更新"; icon = android.R.drawable.ic_popup_sync; }
-        AppDialogs.show(requireContext(), icon, title, state.message, "关闭", null, null);
+        if ("安装".equals(op) && repository.installationSucceeded()) { title = UiText.text("安装成功"); icon = android.R.drawable.ic_menu_save; }
+        else if ("检测".equals(op)) { title = UiText.text("检测完成"); icon = android.R.drawable.ic_popup_sync; }
+        else if ("删除".equals(op)) { title = UiText.text("插件已删除"); icon = android.R.drawable.ic_menu_delete; }
+        else if ("回退".equals(op)) { title = UiText.text("插件已回退"); icon = android.R.drawable.ic_menu_revert; }
+        else if ("更新".equals(op)) { title = UiText.text("插件已更新"); icon = android.R.drawable.ic_popup_sync; }
+        else if ("状态".equals(op)) { title = UiText.text("插件状态已更新"); icon = android.R.drawable.ic_menu_info_details; }
+        else if (state.message.startsWith("已删除")) { title = UiText.text("插件已删除"); icon = android.R.drawable.ic_menu_delete; }
+        else if (state.message.startsWith("已禁用") || state.message.startsWith("已启用")) title = UiText.text("插件状态已更新");
+        else if (state.message.startsWith("已更新")) { title = UiText.text("插件已更新"); icon = android.R.drawable.ic_popup_sync; }
+        AppDialogs.show(requireContext(), icon, title, state.message, UiText.text("关闭"), null, null);
     }
 
     private void render() {
         if (root == null || current == null) return;
-        root.findViewById(R.id.pluginMarketCard).setVisibility(market ? View.VISIBLE : View.GONE);
-        root.findViewById(R.id.marketHelp).setVisibility(market ? View.VISIBLE : View.GONE);
-        root.findViewById(R.id.pluginWebsiteSection).setVisibility(market ? View.VISIBLE : View.GONE);
-        root.findViewById(R.id.pluginCommandCard).setVisibility(market ? View.VISIBLE : View.GONE);
-        root.findViewById(R.id.pluginLinkSection).setVisibility(market ? View.VISIBLE : View.GONE);
         root.findViewById(R.id.btnPluginRestore).setVisibility(repository.isSafeMode() ? View.VISIBLE : View.GONE);
-        root.findViewById(R.id.installedControls).setVisibility(market ? View.GONE : View.VISIBLE);
-        root.findViewById(R.id.pluginList).setVisibility(market ? View.GONE : View.VISIBLE);
-        root.findViewById(R.id.btnMarket).setBackgroundResource(market ? R.drawable.bg_tab_on : R.drawable.bg_tab);
-        root.findViewById(R.id.btnInstalled).setBackgroundResource(market ? R.drawable.bg_tab : R.drawable.bg_tab_on);
-        ((TextView) root.findViewById(R.id.btnMarket)).setTextColor(requireContext().getColor(
-                market ? R.color.primary : R.color.text_secondary));
-        ((TextView) root.findViewById(R.id.btnInstalled)).setTextColor(requireContext().getColor(
-                market ? R.color.text_secondary : R.color.primary));
-        for (int id : new int[]{R.id.btnImport, R.id.btnImportFallback, R.id.btnExport, R.id.btnRefresh, R.id.btnPluginUpdates, R.id.btnPluginRestore})
+        for (int id : new int[]{R.id.btnImport, R.id.btnExport, R.id.btnRefresh, R.id.btnPluginUpdates, R.id.btnPluginRestore})
             root.findViewById(id).setEnabled(!current.busy);
-        ((TextView) root.findViewById(R.id.btnSort)).setText(enabledFirst ? "已启用优先" : "名称排序");
+        ((TextView) root.findViewById(R.id.btnSort)).setText(sortLabel());
         visibleItems.clear();
         String query = search.getText().toString().trim().toLowerCase(Locale.ROOT);
         for (PluginRepository.Item item : current.items) {
-            if (hideBuiltin.isChecked() && (item.builtin || item.official)) continue;
+            if (hideBuiltinOnly && (item.builtin || item.official)) continue;
             if (!(item.name + " " + item.description).toLowerCase(Locale.ROOT).contains(query)) continue;
             visibleItems.add(item);
         }
-        Comparator<PluginRepository.Item> comparator = Comparator.comparing(it -> it.name.toLowerCase(Locale.ROOT));
-        if (enabledFirst) comparator = Comparator.<PluginRepository.Item, Boolean>comparing(it -> !it.enabled)
-                .thenComparing(comparator);
+        PluginSort.Mode mode;
+        switch (sortMode) {
+            case 1: mode = PluginSort.Mode.NAME_DESC; break;
+            case 2: mode = PluginSort.Mode.ENABLED_FIRST; break;
+            case 3: mode = PluginSort.Mode.UPDATE_FIRST; break;
+            default: mode = PluginSort.Mode.NAME_ASC;
+        }
+        Comparator<PluginRepository.Item> comparator = PluginSort.comparator(
+                mode, it -> it.name, it -> it.enabled, it -> it.updateAvailable);
         visibleItems.sort(comparator);
-        ((TextView) root.findViewById(R.id.pluginCount)).setText("共 " + visibleItems.size() + " 个插件");
+        ((TextView) root.findViewById(R.id.pluginCount)).setText(UiText.text("共 ") + visibleItems.size() + UiText.text(" 个插件"));
         TextView empty = root.findViewById(R.id.pluginEmpty);
-        empty.setVisibility(!market && visibleItems.isEmpty() ? View.VISIBLE : View.GONE);
-        empty.setText(current.busy ? "正在读取插件…" : "没有符合条件的插件");
+        empty.setVisibility(visibleItems.isEmpty() ? View.VISIBLE : View.GONE);
+        empty.setText(current.busy ? UiText.text("正在读取插件…") : UiText.text("没有符合条件的插件"));
         adapter.notifyDataSetChanged();
-        recognizeLink();
         showInstallPreview();
     }
 
@@ -473,7 +524,7 @@ public class PluginFragment extends Fragment {
         if (current == null || repository.isBusy()) return;
         List<String> names = new ArrayList<>();
         for (PluginRepository.Item item : current.items) if (item.exportable) names.add(item.name);
-        if (names.isEmpty()) { toast("没有可导出的插件"); return; }
+        if (names.isEmpty()) { toast(UiText.text("没有可导出的插件")); return; }
         android.widget.LinearLayout list = new android.widget.LinearLayout(requireContext());
         list.setOrientation(android.widget.LinearLayout.VERTICAL);
         final CheckBox[] boxes = new CheckBox[names.size()];
@@ -485,11 +536,11 @@ public class PluginFragment extends Fragment {
             list.addView(box);
             boxes[i] = box;
         }
-        AppDialogs.showCustom(requireContext(), android.R.drawable.ic_menu_upload, "选择要导出的插件",
-                list, "选择保存位置", "取消", () -> {
+        AppDialogs.showCustom(requireContext(), android.R.drawable.ic_menu_upload, UiText.text("选择要导出的插件"),
+                list, UiText.text("选择保存位置"), UiText.text("取消"), () -> {
                     ArrayList<String> selected = new ArrayList<>();
                     for (int i = 0; i < boxes.length; i++) if (boxes[i].isChecked()) selected.add(names.get(i));
-                    if (selected.isEmpty()) { toast("请至少选择一个插件"); return; }
+                    if (selected.isEmpty()) { toast(UiText.text("请至少选择一个插件")); return; }
                     beginExport(selected);
                 });
     }
@@ -500,56 +551,56 @@ public class PluginFragment extends Fragment {
         String name = names.size() == 1 ? names.get(0).replaceAll("[^A-Za-z0-9._-]", "_") : "DeepSeekHarness-plugins";
         String stamp = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new java.util.Date());
         try { exportPicker.launch(name + "-" + stamp + ".tar.gz"); }
-        catch (Exception error) { pendingExports.clear(); toast("无法打开保存位置选择器"); }
+        catch (Exception error) { pendingExports.clear(); toast(UiText.text("无法打开保存位置选择器")); }
     }
 
     private void toggle(PluginRepository.Item item, boolean enabled) {
         if (repository.isBusy()) { adapter.notifyDataSetChanged(); return; }
         if (item.official && !enabled) {
-            AlertDialog dialog = AppDialogs.show(requireContext(), android.R.drawable.ic_dialog_alert, "禁用官方核心？",
-                    item.name + " 是 Web 运行所需的核心，禁用后页面可能无法启动。",
-                    "禁用", "取消", () -> repository.setEnabled(item, false));
+            AlertDialog dialog = AppDialogs.show(requireContext(), android.R.drawable.ic_dialog_alert, UiText.text("禁用官方核心？"),
+                    item.name + UiText.text(" 是 Web 运行所需的核心，禁用后页面可能无法启动。"),
+                    UiText.text("禁用"), UiText.text("取消"), () -> repository.setEnabled(item, false));
             dialog.setOnDismissListener(d -> adapter.notifyDataSetChanged());
         } else repository.setEnabled(item, enabled);
     }
 
     private void itemActions(PluginRepository.Item item) {
         List<String> actions = new ArrayList<>();
-        actions.add("复制插件名称");
-        if (!item.source.isEmpty()) actions.add("复制来源链接");
-        if (item.exportable) actions.add("导出插件包");
-        if (item.deletable) actions.add("检查插件更新");
-        if (item.updateAvailable) actions.add("更新至 " + item.latestVersion);
-        if (!item.rollbackVersion.isEmpty()) actions.add("回退至 " + item.rollbackVersion);
-        if (item.deletable) actions.add("删除插件");
+        actions.add(UiText.text("复制插件名称"));
+        if (!item.source.isEmpty()) actions.add(UiText.text("复制来源链接"));
+        if (item.exportable) actions.add(UiText.text("导出插件包"));
+        if (item.deletable) actions.add(UiText.text("检查插件更新"));
+        if (item.updateAvailable) actions.add(UiText.text("更新至 ") + item.latestVersion);
+        if (!item.rollbackVersion.isEmpty()) actions.add(UiText.text("回退至 ") + item.rollbackVersion);
+        if (item.deletable) actions.add(UiText.text("删除插件"));
         AppDialogs.showList(requireContext(), android.R.drawable.ic_menu_more, item.name,
                 actions.toArray(new String[0]), which -> {
                     String action = actions.get(which);
-                    if (action.equals("检查插件更新")) {
+                    if (action.equals(UiText.text("检查插件更新"))) {
                         repository.checkUpdates(item);
-                    } else if (action.startsWith("更新至 ")) {
+                    } else if (action.startsWith(UiText.text("更新至 "))) {
                         repository.prepareUpdate(item);
-                    } else if (action.startsWith("回退至 ")) {
-                        AppDialogs.show(requireContext(), android.R.drawable.ic_menu_revert, "回退插件？",
-                                item.name + "：" + item.version + " → " + item.rollbackVersion
-                                        + "\n只恢复插件文件，当前启用状态和对话数据保留；重启 Web 生效。",
-                                "回退", "取消", () -> repository.rollback(item));
-                    } else if (action.equals("导出插件包")) {
+                    } else if (action.startsWith(UiText.text("回退至 "))) {
+                        AppDialogs.show(requireContext(), android.R.drawable.ic_menu_revert, UiText.text("回退插件？"),
+                                item.name + UiText.text("：") + item.version + " → " + item.rollbackVersion
+                                        + UiText.text("\n只恢复插件文件，当前启用状态和对话数据保留；重启 Web 生效。"),
+                                UiText.text("回退"), UiText.text("取消"), () -> repository.rollback(item));
+                    } else if (action.equals(UiText.text("导出插件包"))) {
                         ArrayList<String> names = new ArrayList<>();
                         names.add(item.name);
                         beginExport(names);
-                    } else if (action.equals("删除插件")) {
-                        if (repository.isBusy()) { toast("请等待当前插件操作完成"); return; }
-                        AppDialogs.show(requireContext(), android.R.drawable.ic_menu_delete, "删除插件？",
-                                "将删除 " + item.name + " 的安装文件和启用记录。"
-                                        + "\n对话、其他插件及外部源码目录会保留。需要留存时可先导出。",
-                                "删除", "取消", () -> repository.delete(item));
+                    } else if (action.equals(UiText.text("删除插件"))) {
+                        if (repository.isBusy()) { toast(UiText.text("请等待当前插件操作完成")); return; }
+                        AppDialogs.show(requireContext(), android.R.drawable.ic_menu_delete, UiText.text("删除插件？"),
+                                UiText.text("将删除 ") + item.name + UiText.text(" 的安装文件和启用记录。")
+                                        + UiText.text("\n对话、其他插件及外部源码目录会保留。需要留存时可先导出。"),
+                                UiText.text("删除"), UiText.text("取消"), () -> repository.delete(item));
                     } else {
                         ClipboardManager clipboard = (ClipboardManager) requireContext()
                                 .getSystemService(Context.CLIPBOARD_SERVICE);
-                        if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("插件",
-                                action.equals("复制插件名称") ? item.name : item.source));
-                        toast("已复制");
+                        if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText(UiText.text("插件"),
+                                action.equals(UiText.text("复制插件名称")) ? item.name : item.source));
+                        toast(UiText.text("已复制"));
                     }
                 });
     }
@@ -576,24 +627,24 @@ public class PluginFragment extends Fragment {
         @Override public void onBindViewHolder(@NonNull Holder holder, int position) {
             PluginRepository.Item item = visibleItems.get(position);
             holder.name.setText(item.name);
-            holder.state.setText((item.dynamic ? (item.enabled ? "临时插件 · 已运行" : "临时插件 · 未运行")
-                    : item.available ? (item.enabled ? "已启用" : item.detected ? "已检测，可开启以加入 Web" : "已禁用") : "实体缺失，请重新导入")
+            holder.state.setText((item.dynamic ? (item.enabled ? UiText.text("临时插件 · 已运行") : UiText.text("临时插件 · 未运行"))
+                    : item.available ? (item.enabled ? UiText.text("已启用") : item.detected ? UiText.text("已检测，可开启以加入 Web") : UiText.text("已禁用")) : UiText.text("实体缺失，请重新导入"))
                     + (item.version.isEmpty() ? "" : " · " + item.version)
-                    + (item.location.isEmpty() ? "" : "\n位置：" + item.location)
-                    + (item.updateAvailable ? "\n可更新：" + item.latestVersion
-                            : (item.latestVersion.isEmpty() ? "" : "\n上次检查版本：" + item.latestVersion)
+                    + (item.location.isEmpty() ? "" : UiText.text("\n位置：") + item.location)
+                    + (item.updateAvailable ? UiText.text("\n可更新：") + item.latestVersion
+                            : (item.latestVersion.isEmpty() ? "" : UiText.text("\n上次检查版本：") + item.latestVersion)
                             + (item.updateMessage.isEmpty() ? "" : "\n" + item.updateMessage))
-                    + (item.rollbackVersion.isEmpty() ? "" : "\n可回退：" + item.rollbackVersion));
+                    + (item.rollbackVersion.isEmpty() ? "" : UiText.text("\n可回退：") + item.rollbackVersion));
             holder.state.setTextColor(requireContext().getColor(
                     !item.available ? R.color.warn : item.enabled ? R.color.primary : R.color.text_muted));
             holder.description.setText(item.description.isEmpty()
-                    ? (item.official ? "官方核心" : item.builtin ? "DeepSeek Harness 内置插件" : "第三方插件") : item.description);
+                    ? (item.official ? UiText.text("官方核心") : item.builtin ? UiText.text("DeepSeek Harness 内置插件") : UiText.text("第三方插件")) : item.description);
             holder.itemView.findViewById(R.id.pluginActions).setOnClickListener(v -> itemActions(item));
-            holder.itemView.findViewById(R.id.pluginActions).setContentDescription("更多操作：" + item.name);
+            holder.itemView.findViewById(R.id.pluginActions).setContentDescription(UiText.text("更多操作：") + item.name);
             holder.toggle.setVisibility(item.dynamic ? View.GONE : View.VISIBLE);
             holder.toggle.setOnCheckedChangeListener(null);
             holder.toggle.setChecked(item.enabled);
-            holder.toggle.setContentDescription((item.enabled ? "禁用 " : "启用 ") + item.name);
+            holder.toggle.setContentDescription((item.enabled ? UiText.text("禁用 ") : UiText.text("启用 ")) + item.name);
             holder.toggle.jumpDrawablesToCurrentState();
             holder.toggle.setEnabled(!repository.isBusy() && (item.available || item.enabled));
             holder.toggle.setOnCheckedChangeListener((v, checked) -> {

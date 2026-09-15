@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 终端标签选中态：iOS 分组灰底（raised）+ 控制圆角 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/raised" />
+    <corners android:radius="@dimen/radius_control" />
+</shape>

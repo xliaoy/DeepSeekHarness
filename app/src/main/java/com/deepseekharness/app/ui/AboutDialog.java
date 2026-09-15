@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.Context;
 import android.content.Intent;
@@ -23,10 +24,10 @@ public final class AboutDialog {
         } catch (Exception ignored) {
         }
         AppDialogs.show(ctx, android.R.drawable.ic_dialog_info, "DeepSeek Harness v" + version,
-                "DeepSeek Harness 安卓启动器\n" + ctx.getString(com.deepseekharness.app.R.string.edition_description) + "\n\n"
-                        + "🌟 GitHub：" + GITHUB_URL + "\n"
-                        + "🐧 QQ 交流群：" + QQ_GROUP,
-                "GitHub", "QQ 群", "关闭",
+                UiText.text("DeepSeek Harness 安卓启动器\n") + ctx.getString(com.deepseekharness.app.R.string.edition_description) + "\n\n"
+                        + UiText.text("🌟 GitHub：") + GITHUB_URL + "\n"
+                        + UiText.text("🐧 QQ 交流群：") + QQ_GROUP,
+                "GitHub", UiText.text("QQ 群"), UiText.text("关闭"),
                 () -> openBrowser(ctx, GITHUB_URL), () -> openQQGroup(ctx));
     }
 
@@ -35,7 +36,7 @@ public final class AboutDialog {
             ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (Exception e) {
-            Toast.makeText(ctx, "打不开，请手动访问：" + url, Toast.LENGTH_SHORT).show();
+            Toast.makeText(ctx, UiText.text("打不开，请手动访问：") + url, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -46,7 +47,7 @@ public final class AboutDialog {
                             + "&uin=" + QQ_GROUP + "&card_type=group"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (Exception e) {
-            Toast.makeText(ctx, "打不开 QQ，请手动搜索群号：" + QQ_GROUP, Toast.LENGTH_SHORT).show();
+            Toast.makeText(ctx, UiText.text("打不开 QQ，请手动搜索群号：") + QQ_GROUP, Toast.LENGTH_SHORT).show();
         }
     }
 }

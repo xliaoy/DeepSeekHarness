@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.Context;
 import android.content.Intent;
@@ -18,26 +19,26 @@ public final class WebUploads {
     public static ArrayList<File> copy(Context context, List<Uri> uris) throws IOException {
         ArrayList<File> files = new ArrayList<>();
         try (com.deepseekharness.app.core.RuntimeTasks ignored = com.deepseekharness.app.core.RuntimeTasks.begin()) {
-            if (uris.size() > WebTransferPolicy.UPLOAD_COUNT) throw new IOException("一次最多上传 20 个文件");
+            if (uris.size() > WebTransferPolicy.UPLOAD_COUNT) throw new IOException(UiText.text("一次最多上传 20 个文件"));
             long total = 0;
             File parent = new File(context.getCacheDir(), "web-uploads");
-            if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("无法创建上传缓存");
+            if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException(UiText.text("无法创建上传缓存"));
             for (Uri uri : uris) {
-                if (uri == null || !"content".equals(uri.getScheme())) throw new IOException("不支持的文件来源，请通过系统文件应用选择");
+                if (uri == null || !"content".equals(uri.getScheme())) throw new IOException(UiText.text("不支持的文件来源，请通过系统文件应用选择"));
                 String name = "upload.bin";
                 try (android.database.Cursor cursor = context.getContentResolver().query(uri,
                         new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)) {
                     if (cursor != null && cursor.moveToFirst()) name = WebTransferPolicy.fileName(cursor.getString(0));
                 }
                 File folder = new File(parent,UUID.randomUUID().toString());
-                if (!folder.mkdir()) throw new IOException("无法创建上传缓存");
+                if (!folder.mkdir()) throw new IOException(UiText.text("无法创建上传缓存"));
                 File file = new File(folder,name); files.add(file);
                 try (InputStream in = context.getContentResolver().openInputStream(uri); OutputStream out = new FileOutputStream(file)) {
-                    if (in == null) throw new IOException("没有文件读取权限，请重新选择");
+                    if (in == null) throw new IOException(UiText.text("没有文件读取权限，请重新选择"));
                     byte[] buffer = new byte[65536]; int n;
                     while ((n = in.read(buffer)) != -1) {
                         total += n;
-                        if (total > WebTransferPolicy.UPLOAD_LIMIT) throw new IOException("本次上传超过 256 MiB");
+                        if (total > WebTransferPolicy.UPLOAD_LIMIT) throw new IOException(UiText.text("本次上传超过 256 MiB"));
                         out.write(buffer,0,n);
                     }
                 }
@@ -45,7 +46,7 @@ public final class WebUploads {
             return files;
         } catch (Exception error) {
             clean(files);
-            throw error instanceof IOException ? (IOException) error : new IOException("无法读取文件，请检查授权后重新选择",error);
+            throw error instanceof IOException ? (IOException) error : new IOException(UiText.text("无法读取文件，请检查授权后重新选择"),error);
         }
     }
     public static void clean(List<File> files) {

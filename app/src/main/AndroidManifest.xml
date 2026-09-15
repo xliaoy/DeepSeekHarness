@@ -70,6 +70,7 @@
         </activity>
 
         <activity android:name=".ui.UpdateActivity" android:exported="false" />
+        <activity android:name=".ui.StartupRecoveryActivity" android:exported="false" />
         <activity android:name=".ui.SourceSettingsActivity" android:exported="false" />
         <activity android:name=".ui.DiagnosticActivity" android:exported="false" />
         <activity android:name=".ui.PluginInstallActivity" android:exported="true">

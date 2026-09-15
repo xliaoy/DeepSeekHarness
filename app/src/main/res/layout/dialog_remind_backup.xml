@@ -23,7 +23,7 @@
             android:gravity="center_vertical"
             android:paddingLeft="@dimen/gap_hair"
             android:paddingRight="@dimen/gap_hair"
-            android:text="少提醒我"
+            android:text="@string/dialog_remind_less"
             android:textColor="@color/text"
             android:textSize="@dimen/text_body" />
     </LinearLayout>

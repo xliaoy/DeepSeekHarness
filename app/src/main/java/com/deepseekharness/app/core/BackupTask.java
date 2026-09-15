@@ -147,5 +147,17 @@ public final class BackupTask {
             return result + "\n重置前安全备份：" + safety.archive();
         });
     }
+    /** 恢复页轮询用的维护忙碌判定：任务运行或正在恢复中。 */
+    public boolean maintenanceBusy() { return state.busy() || BackupManager.isRestoring(); }
+
+    /** 原生启动恢复：新建/回退配置（走离线 startup-checkpoints.py，不启动故障 Host）。 */
+    public boolean repairStartup(org.json.JSONObject request) {
+        return start("修复启动配置", false, true, id -> StartupRepairs.change(app, controller, request));
+    }
+
+    /** 原生启动恢复：卸载故障第三方插件。 */
+    public boolean removeStartupPlugin(String name) {
+        return start("卸载故障插件", false, true, id -> StartupRepairs.deletePlugin(controller, name));
+    }
     private static final class Cancelled extends Exception { }
 }

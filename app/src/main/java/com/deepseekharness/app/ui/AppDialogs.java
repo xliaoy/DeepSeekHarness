@@ -1,4 +1,5 @@
 package com.deepseekharness.app.ui;
+import com.deepseekharness.app.util.UiText;
 
 import android.content.Context;
 import androidx.appcompat.app.AlertDialog;
@@ -191,7 +192,7 @@ public final class AppDialogs {
         }
 
         neg.setVisibility(View.VISIBLE);
-        neg.setText("取消");
+        neg.setText(UiText.text("取消"));
         ViewGroup.LayoutParams lp = neg.getLayoutParams();
         lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
         neg.setLayoutParams(lp);

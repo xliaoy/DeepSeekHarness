@@ -27,14 +27,14 @@
                 android:layout_height="wrap_content"
                 android:text="‹"
                 android:textSize="24sp"
-                android:contentDescription="返回" />
+                android:contentDescription="@string/common_back" />
 
             <TextView
                 style="@style/DeepSeekHarnessText.NavTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="源设置" />
+                android:text="@string/source_title" />
         </LinearLayout>
 
         <TextView
@@ -42,7 +42,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_tight"
-            android:text="切换 npm / Ubuntu 软件包(APT) / pip 镜像源。选择或输入后点「应用」生效。" />
+            android:text="@string/source_desc" />
 
         <!-- ============ npm 源 ============ -->
         <TextView
@@ -52,7 +52,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="npm 源"
+            android:text="@string/source_npm"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -73,7 +73,7 @@
                     style="@style/DeepSeekHarnessText.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前"/>
+                    android:text="@string/common_current"/>
 
                 <TextView
                     android:id="@+id/npm_current"
@@ -83,7 +83,7 @@
                     android:layout_marginStart="@dimen/gap_control"
                     android:layout_weight="1"
                     android:fontFamily="monospace"
-                    android:text="官方默认"
+                    android:text="@string/common_official_default"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>
 
@@ -108,7 +108,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="@dimen/gap_control"
                 android:background="@drawable/bg_input"
-                android:hint="或自定义源地址（https://…）"
+                android:hint="@string/source_npm_hint"
                 android:gravity="center_vertical"
                 android:inputType="textUri"
                 android:maxLines="1"
@@ -126,7 +126,7 @@
                 android:layout_marginStart="@dimen/gap_control"
                 android:layout_marginEnd="@dimen/gap_control"
                 android:layout_marginBottom="@dimen/gap_control"
-                android:text="应用 npm 源" />
+                android:text="@string/source_apply_npm" />
         </LinearLayout>
 
         <!-- ============ Ubuntu 软件包(APT)源 ============ -->
@@ -137,7 +137,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="Ubuntu 软件包源（APT）"
+            android:text="@string/source_apt"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -158,7 +158,7 @@
                     style="@style/DeepSeekHarnessText.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前"/>
+                    android:text="@string/common_current"/>
 
                 <TextView
                     android:id="@+id/apt_current"
@@ -168,7 +168,7 @@
                     android:layout_marginStart="@dimen/gap_control"
                     android:layout_weight="1"
                     android:fontFamily="monospace"
-                    android:text="官方默认"
+                    android:text="@string/common_official_default"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>
 
@@ -193,7 +193,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="@dimen/gap_control"
                 android:background="@drawable/bg_input"
-                android:hint="或自定义镜像根地址（https://…/ubuntu-ports/）"
+                android:hint="@string/source_apt_hint"
                 android:gravity="center_vertical"
                 android:inputType="textUri"
                 android:maxLines="1"
@@ -211,7 +211,7 @@
                 android:layout_marginStart="@dimen/gap_control"
                 android:layout_marginEnd="@dimen/gap_control"
                 android:layout_marginBottom="@dimen/gap_control"
-                android:text="应用 Ubuntu 软件包源" />
+                android:text="@string/source_apply_apt" />
         </LinearLayout>
 
         <!-- ============ pip 源 ============ -->
@@ -222,7 +222,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="pip 源（Python）"
+            android:text="@string/source_pip"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -243,7 +243,7 @@
                     style="@style/DeepSeekHarnessText.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前"/>
+                    android:text="@string/common_current"/>
 
                 <TextView
                     android:id="@+id/pip_current"
@@ -253,7 +253,7 @@
                     android:layout_marginStart="@dimen/gap_control"
                     android:layout_weight="1"
                     android:fontFamily="monospace"
-                    android:text="官方默认"
+                    android:text="@string/common_official_default"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>
 
@@ -278,7 +278,7 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="@dimen/gap_control"
                 android:background="@drawable/bg_input"
-                android:hint="或自定义 pip 源地址（https://…/simple）"
+                android:hint="@string/source_pip_hint"
                 android:gravity="center_vertical"
                 android:inputType="textUri"
                 android:maxLines="1"
@@ -296,7 +296,7 @@
                 android:layout_marginStart="@dimen/gap_control"
                 android:layout_marginEnd="@dimen/gap_control"
                 android:layout_marginBottom="@dimen/gap_control"
-                android:text="应用 pip 源" />
+                android:text="@string/source_apply_pip" />
         </LinearLayout>
 
         <TextView
@@ -304,7 +304,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_block"
-            android:text="APT 源应用会自动刷新索引；npm / pip 源即时生效。"
+            android:text="@string/source_apply_note"
             android:textColor="@color/text_muted" />
     </LinearLayout>
 </ScrollView>

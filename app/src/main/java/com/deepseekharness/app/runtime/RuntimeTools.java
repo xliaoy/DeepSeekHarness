@@ -33,13 +33,18 @@ final class RuntimeTools {
                     && preparedStamp != null && preparedStamp.equals(stamp(rootfs))) return;
             preparedStamp = null;
             preparedFiles.clear();
+            // DNS 解析模式：随每次准备执行（stamp 检查之前），保证 resolv.conf/环境变量按设置更新。
+            try { prepareResolver(context, rootfs); }
+            catch (IOException error) { android.util.Log.w("DSHA", "DNS configuration unchanged", error); }
             install(context, rootfs, "ca-certificates.crt", CERT_PATH.substring(1), false);
+            install(context, rootfs, "dns-compat.cjs", "usr/local/share/dsha/dns-compat.cjs", false);
             install(context, rootfs, "plugin-manager.py", "root/.dsh/plugin-manager.py", false);
             install(context, rootfs, "plugin-lifecycle.py", "root/.dsh/plugin-lifecycle.py", false);
             install(context, rootfs, "plugin-semver.cjs", "root/.dsh/plugin-semver.cjs", false);
             install(context, rootfs, "register-builtin-plugins.py", "root/.dsh/register-builtin-plugins.py", false);
             install(context, rootfs, "startup-observer.cjs", "root/.dsh/startup-observer.cjs", false);
             install(context, rootfs, "startup-recovery.py", "root/.dsh/startup-recovery.py", false);
+            install(context, rootfs, "startup-checkpoints.py", "root/.dsh/startup-checkpoints.py", false);
             install(context, rootfs, "device-shell-policy.py", "root/.dsh/device-shell-policy.py", false);
             install(context, rootfs, "adb-shell.py", "root/.dsh/adb-shell.py", false);
             for (String file : new String[]{"package.json", "cordis.patch.yml", "index.js", "activity.js", "runtime-plugins.js", "client.js"})
@@ -84,6 +89,7 @@ final class RuntimeTools {
             patchComposerInput(context, rootfs);
             patchTooltips(context, rootfs);
             patchClientCombos(context, rootfs);
+            patchAgentPresets(context, rootfs);
             preparedRoot = root;
             preparedApk = identity;
             preparedStamp = stamp(rootfs);
@@ -137,7 +143,25 @@ final class RuntimeTools {
         }
     }
 
-    static void applyEnvironment(Map<String, String> environment) {
+    /** 按 DNS 解析模式重写 rootfs 的 resolv.conf（特殊文件/软链接保持原位，不跟随 guest 绝对链接）。 */
+    static void prepareResolver(Context context, File rootfs) throws IOException {
+        File target = new File(rootfs, "etc/resolv.conf");
+        if (!target.getParentFile().isDirectory()) return;
+        if (Compat.isSymbolicLink(target) || target.exists() && !target.isFile()) return;
+        String old = target.isFile() ? Compat.readAll(target) : "";
+        String updated = com.deepseekharness.app.util.ResolverConfig.reconcile(old,
+                new com.deepseekharness.app.core.ConfigStore(context).getDnsMode());
+        if (!old.equals(updated)) writeIfChanged(target, updated.getBytes(java.nio.charset.StandardCharsets.UTF_8), false);
+    }
+
+    static void applyEnvironment(Context context, File rootfs, Map<String, String> environment) {
+        environment.put("DSHA_DNS_MODE", new com.deepseekharness.app.core.ConfigStore(context).getDnsMode());
+        String preload = "--require=/usr/local/share/dsha/dns-compat.cjs";
+        if (new File(rootfs, "usr/local/share/dsha/dns-compat.cjs").isFile()) {
+            String previous = environment.getOrDefault("NODE_OPTIONS", "");
+            if (!java.util.Arrays.asList(previous.split("\\s+")).contains(preload))
+                environment.put("NODE_OPTIONS", preload + (previous.isEmpty() ? "" : " " + previous));
+        }
         // 原生扩展已在私有运行时中；复制缓存使用 link+unlink，在 link2symlink 下首次变成悬链。
         environment.putIfAbsent("NARB_DISABLE_NATIVE_CACHE", "1");
         // 原生扩展已在私有运行时中；复制缓存使用 link+unlink，在 link2symlink 下首次变成悬链。
@@ -209,6 +233,37 @@ final class RuntimeTools {
             if (!source.equals(patched)) writeIfChanged(module, patched.getBytes(java.nio.charset.StandardCharsets.UTF_8), false);
         } catch (org.json.JSONException | IllegalArgumentException error) {
             throw new IOException("网页脚本拼接优化未应用，原文件保留：" + error.getMessage(), error);
+        }
+    }
+
+    /** Agent 预设增强：运行中切换预设走「同工作区新建会话」而非丢弃（官方 0.1.5-rc2 补丁，适配 0.1.6-alpha.1）。 */
+    private static void patchAgentPresets(Context context, File rootfs) throws IOException {
+        patchClientModule(context, rootfs, "agent-preset-patch.json", "Agent 预设");
+    }
+
+    /** 通用客户端模块补丁：版本门控 + 路径安全 + ExactTextPatch + writeIfChanged。 */
+    private static void patchClientModule(Context context, File rootfs, String asset, String description) throws IOException {
+        File pkg = new File(rootfs, "usr/local/lib/node_modules/@deepseek-ai/dsh/package.json");
+        if (!pkg.isFile()) return;
+        try {
+            org.json.JSONObject spec = new org.json.JSONObject(assetText(context, asset));
+            if (!spec.getString("dshVersion").equals(new org.json.JSONObject(Compat.readAll(pkg)).optString("version"))) return;
+            File client = new File(rootfs, "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/" + spec.getString("module"));
+            if (!client.isFile() || Compat.isSymbolicLink(client)
+                    || !client.getCanonicalPath().startsWith(rootfs.getCanonicalPath() + File.separator))
+                throw new IOException(description + "适配的模块路径不安全或缺失");
+            preparedFiles.add(client);
+            String source = Compat.readAll(client), updated = source;
+            org.json.JSONArray patches = spec.getJSONArray("patches");
+            for (int i = 0; i < patches.length(); i++) {
+                org.json.JSONObject patch = patches.getJSONObject(i);
+                String after = patch.getString("after");
+                if (patch.has("prependAsset")) after = assetText(context, patch.getString("prependAsset")) + "\n" + after;
+                updated = com.deepseekharness.app.util.ExactTextPatch.apply(updated, patch.getString("before"), after);
+            }
+            if (!updated.equals(source)) writeIfChanged(client, updated.getBytes(java.nio.charset.StandardCharsets.UTF_8), false);
+        } catch (org.json.JSONException | IllegalArgumentException error) {
+            throw new IOException(description + "适配未应用，原文件保留：" + error.getMessage(), error);
         }
     }
 

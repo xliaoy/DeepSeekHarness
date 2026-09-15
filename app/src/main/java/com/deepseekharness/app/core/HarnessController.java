@@ -68,6 +68,7 @@ public class HarnessController {
         synchronized (lifecycle) {
             if (recovery == null) recovery = new WebRecovery(config);
             if (startupDiagnostics == null) startupDiagnostics = new StartupDiagnostics(this.ctx);
+            startupDiagnostics.onHealthy = generation -> StartupRepairs.healthy(this.ctx, this, generation);
         }
     }
 
@@ -152,12 +153,18 @@ public class HarnessController {
         return webAuthUrl;
     }
 
+    /** 实际监听端口：动态分配时为 0，鉴权链接解析后更新为真实端口。 */
+    private static volatile int activeWebPort;
+
+    /** 对外暴露实际 Web 端口（含动态分配后的真实端口）。 */
+    public int getWebPort() { return activeWebPort > 0 ? activeWebPort : config.getPortInt(); }
+
     /** dsh 实际启动命令（写 pid 文件要在 exec 之前，exec 不换 pid）。 */
     public String runCoreCommand() {
-        return runCoreCommand("web");
+        return runCoreCommand("web", config.getPortInt());
     }
 
-    private String runCoreCommand(String profile) {
+    private String runCoreCommand(String profile, int listenPort) {
         String apiKey = config.getApiKey();
         String apiExport = apiKey.isEmpty()
                 ? ""
@@ -177,7 +184,7 @@ public class HarnessController {
                 + "[ ! -e " + WebProcSel.STOP_SENTINEL + " ] || exit 0; "
                 + "exec dsh " + ("web".equals(profile) ? "web" : "--profile " + ShellQuote.arg(profile))
                 + " --no-open --host 127.0.0.1 --port "
-                + config.getPortInt();
+                + listenPort;
     }
 
     /**
@@ -204,6 +211,10 @@ public class HarnessController {
 
     private boolean requestStart(Consumer<String> onStatus, boolean automatic, long expectedGeneration, boolean safeMode) {
         synchronized (lifecycle) {
+            if (StartupRepairs.pending(ctx)) {
+                if (onStatus != null) onStatus.accept("配置修复尚未完成，请先进入启动恢复。");
+                return false;
+            }
             if (com.deepseekharness.app.BackupManager.hasPendingMaintenance(this)) {
                 if (onStatus != null) onStatus.accept("上次环境维护未完成，请先到安装与修复页恢复中断维护");
                 return false;
@@ -228,7 +239,7 @@ public class HarnessController {
                 startedGeneration = generation;
                 recovery.begin(generation, !automatic);
                 startupDiagnostics.begin(generation, safeMode);
-                startupDiagnostics.output(generation, "运行方式：" + (config.isProroot() && android.os.Build.VERSION.SDK_INT >= 26 ? "proroot" : "proot"));
+                startupDiagnostics.message(generation, "运行方式：" + (config.isProroot() && android.os.Build.VERSION.SDK_INT >= 26 ? "proroot" : "proot"));
                 new File(proot.getRootfsDir(), "root/.deepseekharness-web-activity.json").delete();
                 webAuthUrl = "";
                 io.execute(() -> {
@@ -298,7 +309,7 @@ public class HarnessController {
             // 失败不阻塞启动（插件页打开时会再触发一次，dsh 下次重启生效）。
             try {
                 String r = boot.registerBuiltinPlugins();
-                startupDiagnostics.output(generation, r);
+                startupDiagnostics.message(generation, r);
                 if (r != null && (r.contains("BUILTIN_REGISTER_OK")
                         || r.contains("BUILTIN_REGISTER_PARTIAL")
                         || r.contains("FAIL"))) {
@@ -331,9 +342,23 @@ public class HarnessController {
                 }
             }
             setWebStage(generation, "创建 Web 进程");
+            if (!safeMode) try {
+                StartupRepairs.checkpoint(this, new org.json.JSONObject().put("command", "prepare")
+                        .put("startupId", startupDiagnostics.recordId()));
+            } catch (Exception error) {
+                startupDiagnostics.message(generation, "本次配置快照暂不可用：" + error.getClass().getSimpleName());
+            }
             String runtimeName = boot.runtime().id();
             webCompatibilityFallback = compatible;
-            Process p = boot.execRootfs(runCoreCommand(startupProfile));
+            // 端口冲突自动选备用端口：保留配置，尝试备用或由 dsh 动态分配；鉴权/局域网用实际端口。
+            int preferred = config.getPortInt();
+            com.deepseekharness.app.util.WebPortPolicy.Choice ports =
+                    com.deepseekharness.app.util.WebPortPolicy.choose(preferred, config.fallbackWebPort(preferred),
+                            com.deepseekharness.app.util.WebPortPolicy::available);
+            activeWebPort = ports.listen;
+            if (ports.fallback()) reportStatus(generation, onStatus,
+                    "首选端口 " + preferred + " 被占用，自动使用备用端口 " + ports.listen);
+            Process p = boot.execRootfs(runCoreCommand(startupProfile, ports.listen));
             webLaunches.put(p, Boolean.TRUE);
             setWebStage(generation, "等待鉴权链接");
             // 3090 桥就绪：agent 在容器里调设备能力（/exec /confirm /status）走这条通道。
@@ -346,9 +371,9 @@ public class HarnessController {
                 Log.w("DeepSeekHarness", "3090 桥启动失败: "
                         + com.deepseekharness.app.util.SensitiveData.redact(String.valueOf(e)));
             }
-            reportStatus(generation, onStatus, "dsh web 进程已创建 → 127.0.0.1:" + config.getPortInt()
-                    + "（等待鉴权链接…）");
-            Thread drainer = new Thread(() -> drainWebOutput(p, generation, onStatus, runtimeName, compatible, safeMode), "dsh-drain");
+            reportStatus(generation, onStatus, "dsh web 进程已创建 → "
+                    + (ports.listen == 0 ? "等待系统分配端口（等待鉴权链接…）" : "127.0.0.1:" + ports.listen + "（等待鉴权链接…）"));
+            Thread drainer = new Thread(() -> drainWebOutput(p, generation, onStatus, runtimeName, compatible, safeMode, ports), "dsh-drain");
             drainer.setDaemon(true);
             drainer.start();
             // 启动慢只提示；保持启动状态，看门狗不会因此重启，用户仍可随时手动停止。
@@ -366,7 +391,8 @@ public class HarnessController {
 
     /** 读 dsh 进程输出：抓鉴权链接（宽松）、并把脱敏后的输出落到容器日志方便排查。 */
     private void drainWebOutput(Process p, long generation, Consumer<String> onStatus,
-                                String runtimeName, boolean compatible, boolean safeMode) {
+                                String runtimeName, boolean compatible, boolean safeMode,
+                                com.deepseekharness.app.util.WebPortPolicy.Choice ports) {
         StringBuilder scan = new StringBuilder();
         com.deepseekharness.app.util.DshAuthLog safeLog = new com.deepseekharness.app.util.DshAuthLog();
         try (java.io.Reader in = new java.io.InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8)) {
@@ -382,9 +408,20 @@ public class HarnessController {
                     String lines = safeLog.append(chunk);
                     appendHostLog(lines);
                     startupDiagnostics.output(generation, lines);
-                    if (webAuthUrl.isEmpty()) url = extractAuthUrl(scan.toString());
+                    if (startupDiagnostics.hasExplicitStartupFailure(generation)) {
+                        recordWebFailure(generation, startupDiagnostics.failureReason());
+                        continue;
+                    }
+                    if (webAuthUrl.isEmpty()) url = com.deepseekharness.app.util.WebPortPolicy.authentication(scan.toString(), ports.listen);
                     if (url != null && !recovery.failed(generation)) {
                         webAuthUrl = url;
+                        try {
+                            int actual = java.net.URI.create(url).getPort();
+                            if (actual > 0) {
+                                activeWebPort = actual;
+                                if (ports.fallback()) config.rememberFallbackWebPort(config.getPortInt(), actual);
+                            }
+                        } catch (Throwable ignored) { }
                         webProc.recordIdentity();
                         setWebStage(generation, "服务已就绪，等待进入网页");
                         lifecycle.finishStart(generation);
@@ -444,9 +481,10 @@ public class HarnessController {
             boolean hadAuth = !webAuthUrl.isEmpty();
             String exitReason = runtimeName + " 进程退出，退出码 " + exitCode
                     + (hadAuth ? "（鉴权后）" : "（鉴权前）");
-            startupDiagnostics.output(generation, exitReason);
+            startupDiagnostics.message(generation, exitReason);
             startupDiagnostics.preserveFailure(new File(proot.getRootfsDir(), "root/dsh-web.log"), exitReason);
-            boolean namedFailure = startupDiagnostics.snapshot().issues.keySet().stream().anyMatch(name -> !name.isEmpty());
+            boolean namedFailure = startupDiagnostics.hasExplicitStartupFailure(generation)
+                    || startupDiagnostics.snapshot().issues.keySet().stream().anyMatch(name -> !name.isEmpty());
             if (com.deepseekharness.app.util.WebRuntimeFallback.shouldRetry(runtimeName, compatible, hadAuth,
                     namedFailure, lifecycle.isCurrent(generation), exitCode)) {
                 reportStatus(generation, onStatus, "proroot 已退出，正在自动使用 proot 兼容重试；本轮只重试一次。");
@@ -522,7 +560,7 @@ public class HarnessController {
             if (url.isEmpty()) return null;
         }
         com.deepseekharness.app.util.DshAuthSession.Result result =
-                com.deepseekharness.app.util.DshAuthSession.exchange(url, config.getPortInt(),
+                com.deepseekharness.app.util.DshAuthSession.exchange(url, getWebPort(),
                         () -> lifecycle.isCurrent(generation) && url.equals(webAuthUrl));
             synchronized (lifecycle) {
                 if (!lifecycle.isCurrent(generation) || !url.equals(webAuthUrl)) return null;
@@ -568,6 +606,7 @@ public class HarnessController {
         synchronized (lifecycle) {
             if (lifecycle.isStopping()) return stopTask;
             long previous = lifecycle.generation();
+            startupDiagnostics.completed(previous, "stopped", "");
             long generation = lifecycle.beginStop();
             webAuthUrl = "";
             // 宿主直接写小标记，不等可能仍在解压/注册插件的串行任务。
@@ -649,6 +688,7 @@ public class HarnessController {
         synchronized (lifecycle) {
             if (lifecycle.isCurrent(generation)) recovery.stage(generation, startupDiagnostics.snapshot().stage);
             if (!lifecycle.isCurrent(generation) || !recovery.fail(generation, reason)) return;
+            startupDiagnostics.completed(generation, "failed", reason);
             DiagnosticLog.record(ctx, "WEB_FAILURE", config.getWebFailureStage() + "：" + reason);
             if (recovery.blocked()) {
                 // 立即撤销失败代次；停止仍只使用哨兵和 Web PID，不杀容器启动器。
@@ -670,7 +710,7 @@ public class HarnessController {
         synchronized (lifecycle) {
             if (!lifecycle.isCurrent(generation)) return;
             DiagnosticLog.record(ctx, "WEB_START_STOP", message);
-            startupDiagnostics.output(generation, message);
+            startupDiagnostics.message(generation, message);
             if (onStatus == null) return;
             try {
                 onStatus.accept(message);

@@ -20,6 +20,8 @@ import androidx.drawerlayout.widget.DrawerLayout;
 public final class EdgeSwipeLayout extends FrameLayout {
 
     private DrawerLayout drawer;
+    /** 抽屉所在侧：手机靠左(START)，宽屏靠右(END)；决定横向滑动的判定方向。 */
+    private int drawerGravity = GravityCompat.START;
     private final int touchSlop;
     private float downX, downY;
     private boolean maybeSwipe;
@@ -29,16 +31,18 @@ public final class EdgeSwipeLayout extends FrameLayout {
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
     }
 
-    /** 由 MainActivity 在 buildDrawer 时挂接抽屉。 */
-    public void attachDrawer(DrawerLayout d) {
+    /** 由 MainActivity 在 buildDrawer 时挂接抽屉。宽屏靠右时传 GravityCompat.END。 */
+    public void attachDrawer(DrawerLayout d, int gravity) {
         drawer = d;
+        drawerGravity = gravity;
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent e) {
-        if (drawer == null || drawer.isDrawerOpen(GravityCompat.START)) {
+        if (drawer == null || drawer.isDrawerOpen(drawerGravity)) {
             return super.onInterceptTouchEvent(e);
         }
+        boolean rightSide = drawerGravity == GravityCompat.END;
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 downX = e.getX();
@@ -49,14 +53,14 @@ public final class EdgeSwipeLayout extends FrameLayout {
                 if (maybeSwipe) {
                     float dx = e.getX() - downX;
                     float dy = e.getY() - downY;
-                    // 明显向右的水平滑动 → 展开侧边栏
-                    if (dx > touchSlop && dx > Math.abs(dy)) {
+                    // 明显水平滑动 → 展开侧边栏（左抽屉向右滑，右抽屉向左滑）
+                    if ((rightSide ? -dx : dx) > touchSlop && Math.abs(dx) > Math.abs(dy)) {
                         maybeSwipe = false;
-                        drawer.openDrawer(GravityCompat.START);
+                        drawer.openDrawer(drawerGravity);
                         return true;
                     }
-                    // 纵向滚动 / 明显向左 / 原地不动：放弃本次拦截
-                    if (Math.abs(dy) > touchSlop * 2 || dx < -touchSlop) {
+                    // 纵向滚动 / 反方向 / 原地不动：放弃本次拦截
+                    if (Math.abs(dy) > touchSlop * 2 || (rightSide ? dx : -dx) < -touchSlop) {
                         maybeSwipe = false;
                     }
                 }

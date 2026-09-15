@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 侧边栏行背景：Material ripple（按下反馈）+ 自绘聚焦态（键盘导航可感知，
+     代替系统默认焦点黑框；触屏平板上不出现难看的黑框，接键盘时仍可见焦点位置） -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/ripple">
+    <item>
+        <selector>
+            <item android:state_focused="true" android:drawable="@color/drawer_row_focused" />
+            <item android:drawable="@android:color/transparent" />
+        </selector>
+    </item>
+</ripple>

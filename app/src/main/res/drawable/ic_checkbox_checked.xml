@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp" android:height="22dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- 实心主色圆角方框 -->
+    <path
+        android:pathData="M4,2.5h16a1.5,1.5 0 0 1 1.5,1.5v16a1.5,1.5 0 0 1 -1.5,1.5H4A1.5,1.5 0 0 1 2.5,20V4A1.5,1.5 0 0 1 4,2.5z"
+        android:fillColor="@color/primary" />
+    <!-- 白色对勾（纯 fill 路径，最兼容：所有 Android 版本都能渲染） -->
+    <path
+        android:pathData="M9.55,16.48 L5.68,12.53 C5.36,12.2 5.36,11.67 5.68,11.34 C6.0,11.02 6.54,11.02 6.86,11.34 L9.79,14.34 L17.35,6.75 C17.67,6.42 18.21,6.42 18.53,6.75 C18.85,7.07 18.85,7.6 18.53,7.92 L10.53,15.96 C10.42,16.08 10.18,16.16 10.03,16.2 C9.88,16.24 9.71,16.24 9.55,16.16 Z"
+        android:fillColor="#FFFFFF" />
+</vector>

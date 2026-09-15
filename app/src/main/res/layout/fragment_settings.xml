@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="模块"
+            android:text="@string/settings_section_modules"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -42,7 +42,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="后台运行"
+            android:text="@string/settings_section_background"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -62,7 +62,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="其他"
+            android:text="@string/settings_section_other"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -107,7 +107,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="更新 DeepSeek Harness"
+                        android:text="@string/update_title"
                         android:textColor="@color/text"
                         android:textSize="@dimen/text_body"
                         android:textStyle="bold" />
@@ -117,7 +117,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/gap_hair"
-                        android:text="从 GitHub Releases 获取最新版本"
+                        android:text="@string/settings_update_desc"
                         android:textColor="@color/text_muted"
                         android:textSize="@dimen/text_label" />
                 </LinearLayout>
@@ -172,7 +172,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="诊断与日志"
+                        android:text="@string/diag_title"
                         android:textColor="@color/text"
                         android:textSize="@dimen/text_body"
                         android:textStyle="bold" />
@@ -181,7 +181,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/gap_hair"
-                        android:text="下载错误日志 · 环境检查 · 故障修复"
+                        android:text="@string/settings_diag_desc"
                         android:textColor="@color/text_muted"
                         android:textSize="@dimen/text_label" />
                 </LinearLayout>
@@ -236,7 +236,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="重新解压内置环境"
+                        android:text="@string/settings_reinstall_env"
                         android:textColor="@color/text"
                         android:textSize="@dimen/text_body"
                         android:textStyle="bold" />
@@ -245,7 +245,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/gap_hair"
-                        android:text="dsh / npm 损坏时用；配置与对话记录会保留"
+                        android:text="@string/settings_reinstall_env_desc"
                         android:textColor="@color/text_muted"
                         android:textSize="@dimen/text_label" />
                 </LinearLayout>
@@ -267,7 +267,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginTop="@dimen/gap_section"
             android:layout_marginBottom="@dimen/gap_tight"
-            android:text="镜像与源"
+            android:text="@string/settings_mirrors"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -306,7 +306,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="源设置"
+                    android:text="@string/source_title"
                     android:textColor="@color/text"
                     android:textSize="@dimen/text_body"
                     android:textStyle="bold" />
@@ -315,7 +315,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/gap_hair"
-                    android:text="npm · Ubuntu 软件包(APT) · pip 镜像切换"
+                    android:text="@string/settings_mirrors_desc"
                     android:textColor="@color/text_muted"
                     android:textSize="@dimen/text_label" />
             </LinearLayout>

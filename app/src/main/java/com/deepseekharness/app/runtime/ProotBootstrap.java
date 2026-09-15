@@ -815,7 +815,7 @@ public class ProotBootstrap {
                 "/root/dsh-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
         pb.environment().put("TMPDIR", "/tmp");
         pb.environment().put("DEBIAN_FRONTEND", "noninteractive");
-        RuntimeTools.applyEnvironment(pb.environment());
+        RuntimeTools.applyEnvironment(ctx, getRootfsDir(), pb.environment());
     }
 
     // ================= 执行 =================
