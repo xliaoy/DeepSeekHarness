@@ -132,7 +132,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
-                    android:text="@string/config_check_updates"  android:buttonTint="@color/checkbox_tint" />
+                    android:text="@string/config_check_updates"  />
 
                 <TextView style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -151,7 +151,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
-                    android:text="@string/config_desktop_layout"  android:buttonTint="@color/checkbox_tint" />
+                    android:text="@string/config_desktop_layout"  />
 
                 <TextView style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -182,7 +182,7 @@
                     android:visibility="gone"
                     android:text="@string/config_compat_webview"
                     android:textColor="@color/text_secondary"
- android:buttonTint="@color/checkbox_tint" />
+ />
 
                 <TextView android:id="@+id/config_gecko_hint" style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -201,7 +201,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
-                    android:text="@string/config_proroot"  android:buttonTint="@color/checkbox_tint" />
+                    android:text="@string/config_proroot"  />
 
                 <TextView style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -220,7 +220,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
-                    android:text="@string/config_lan_access"  android:buttonTint="@color/checkbox_tint" />
+                    android:text="@string/config_lan_access"  />
 
                 <TextView style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -239,7 +239,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
-                    android:text="@string/config_overlay_output"  android:buttonTint="@color/checkbox_tint" />
+                    android:text="@string/config_overlay_output"  />
 
                 <TextView style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -285,7 +285,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
-                    android:text="@string/config_confirm_dangerous"  android:buttonTint="@color/checkbox_tint" />
+                    android:text="@string/config_confirm_dangerous"  />
 
                 <TextView style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="match_parent"
@@ -300,7 +300,7 @@
                     android:minHeight="@dimen/touch_min"
                     android:paddingStart="@dimen/gap_tight"
                     android:text="@string/config_harness_channel"
-                    android:visibility="gone"  android:buttonTint="@color/checkbox_tint" />
+                    android:visibility="gone"  />
             </LinearLayout>
 
             <TextView android:id="@+id/config_workspace_entry" style="@style/Widget.DeepSeekHarness.TextButton"

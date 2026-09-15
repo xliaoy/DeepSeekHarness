@@ -76,7 +76,7 @@
                 android:layout_marginTop="@dimen/gap_tight"
                 android:minHeight="@dimen/touch_min"
                 android:text="@string/grants_location_allow"
-android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+android:textColor="@color/text_secondary"  />
 
             <CheckBox
                 android:id="@+id/config_cap_sensors"
@@ -85,7 +85,7 @@ android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_t
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/touch_min"
                 android:text="@string/grants_sensors_allow"
-android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+android:textColor="@color/text_secondary"  />
         </LinearLayout>
 
         <!-- 屏幕操作与后台 -->
@@ -202,7 +202,7 @@ android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_t
                 android:layout_marginTop="@dimen/gap_tight"
                 android:minHeight="@dimen/touch_min"
                 android:text="@string/grants_allow_root"
-android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+android:textColor="@color/text_secondary"  />
 
             <TextView
                 style="@style/DeepSeekHarnessText.Caption"
@@ -338,7 +338,7 @@ android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_t
                 android:layout_marginTop="@dimen/gap_tight"
                 android:minHeight="@dimen/touch_min"
                 android:text="@string/grants_adb_enable"
-android:textColor="@color/text_secondary"  android:buttonTint="@color/checkbox_tint" />
+android:textColor="@color/text_secondary"  />
 
             <TextView
                 style="@style/DeepSeekHarnessText.Caption"

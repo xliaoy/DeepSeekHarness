@@ -186,7 +186,7 @@
     </style>
     <style name="Widget.DeepSeekHarness.CheckBox" parent="Widget.Material3.CompoundButton.CheckBox">
         <item name="android:textColor">@color/button_text</item>
-        <item name="android:buttonTint">@color/checkbox_tint</item>
+        <item name="android:button">@drawable/checkbox_custom</item>
     </style>
     <style name="Widget.DeepSeekHarness.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
         <item name="android:textColor">@color/button_text</item>

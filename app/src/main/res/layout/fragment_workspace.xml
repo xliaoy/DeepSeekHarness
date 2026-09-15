@@ -41,7 +41,7 @@
                 android:minHeight="@dimen/touch_min"
                 android:layout_marginTop="@dimen/gap_control"
                 android:saveEnabled="false"
-                android:text="@string/workspace_backup_api_key"  android:buttonTint="@color/checkbox_tint" />
+                android:text="@string/workspace_backup_api_key"  />
 
             <TextView style="@style/DeepSeekHarnessText.Caption"
                 android:layout_width="match_parent"
