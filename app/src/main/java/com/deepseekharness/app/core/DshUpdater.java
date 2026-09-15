@@ -254,9 +254,17 @@ public final class DshUpdater {
         } catch (Throwable ignored) { }
     }
 
-    /** 从 npmmirror registry 获取指定版本 dsh 包的 tarball 地址与真实包大小（unpackedSize 字节）。 */
+    /** 更新源跟随 App「镜像与源」的 npm 设置；未设置时回退 npmmirror（国内访问快）。 */
+    private String npmRegistry() {
+        String src = new com.deepseekharness.app.core.ConfigStore(context).getNpmSource().trim();
+        if (src.isEmpty()) return "https://registry.npmmirror.com";
+        while (src.endsWith("/")) src = src.substring(0, src.length() - 1);
+        return src;
+    }
+
+    /** 从配置的 npm registry 获取指定版本 dsh 包的 tarball 地址与真实包大小（unpackedSize 字节）。 */
     private String[] fetchTarballMeta(String version) throws Exception {
-        String api = "https://registry.npmmirror.com/@deepseek-ai%2Fdsh/" + version;
+        String api = npmRegistry() + "/@deepseek-ai%2Fdsh/" + version;
         HttpURLConnection conn = (HttpURLConnection) new URL(api).openConnection();
         try {
             conn.setConnectTimeout(15000);
@@ -323,11 +331,11 @@ public final class DshUpdater {
     /** 容器内离线安装本地 tarball（npm 不再访问网络下载，进度由下载阶段已体现）。 */
     private String installLocalTarballCommand(String version) {
         // 本地 tgz 的 dependencies 仍会联网解析下载（dsh 有数十个直接依赖）；
-        // 必须指定 npmmirror 镜像，否则走默认官方源在国内极慢；prefer-offline 复用缓存进一步加速。
+        // registry 跟随 App「镜像与源」设置（未设置时 npmmirror），prefer-offline 复用缓存进一步加速。
         return "set -e; export npm_config_prefix=/usr/local; "
                 + "echo '==> 安装 dsh-" + version + " 及其依赖…'; "
                 + "npm install -g /root/.dsh-update/dsh-" + ShellQuote.arg(version) + ".tgz "
-                + "--registry=https://registry.npmmirror.com --prefer-offline --no-audit --no-fund "
+                + "--registry=" + npmRegistry() + " --prefer-offline --no-audit --no-fund "
                 + "--loglevel=error --jobs=4 --fetch-retries=3 --fetch-retry-mintimeout=20000 2>&1";
     }
 
@@ -335,7 +343,7 @@ public final class DshUpdater {
         return "set -e; export npm_config_prefix=/usr/local; "
                 + "echo '==> 安装 @deepseek-ai/dsh@" + version + "'; "
                 + "npm install -g @deepseek-ai/dsh@" + ShellQuote.arg(version)
-                + " --registry=https://registry.npmmirror.com --no-audit --no-fund 2>&1";
+                + " --registry=" + npmRegistry() + " --no-audit --no-fund 2>&1";
     }
 
     /** 更新后补齐上游模块缺失的补丁（幂等）：会话写入 link→rename、局域网设置、

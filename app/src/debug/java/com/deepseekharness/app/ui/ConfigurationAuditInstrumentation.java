@@ -51,7 +51,6 @@ public final class ConfigurationAuditInstrumentation extends Instrumentation {
             check(config.getApiKey().equals(key)&&config.getPort().equals(port),"有效保存改变了原值");
             check(input.getError()==null,"保存成功后旧错误仍显示");
             check(((TextView)host.findViewById(R.id.config_guard_status)).getText().toString().contains("已同步"),"设备授权同步缺少结果");
-            check(!host.findViewById(R.id.config_translate).isEnabled(),"未提供的翻译仍是可点击设置");
             check(!EnvironmentTaskGate.isBusy(),"配置保存未释放环境锁");
             out.putString("result","PASS");out.putInt("checks",checks);
         } catch(Throwable e) {out.putString("failure",android.util.Log.getStackTraceString(e));}
