@@ -58,7 +58,13 @@ public final class UiText {
         EN.put("名称 A-Z", "Name A-Z");
         EN.put("名称 Z-A", "Name Z-A");
         EN.put("已启用优先", "Enabled first");
-        EN.put("可更新优先", "Update first");
+        EN.put("同步本机安装状态", "Sync status");
+        EN.put("名称排序", "Sort");
+        EN.put("名称 A-Z", "A-Z");
+        EN.put("名称 Z-A", "Z-A");
+        EN.put("已启用优先", "Enabled first");
+        EN.put("可更新优先", "Updates first");
+        EN.put("插件列表", "Plugins");
         EN.put("模块", "Modules");
         EN.put("其他", "More");
         EN.put("当前：", "Current: ");
@@ -553,7 +559,7 @@ public final class UiText {
         EN.put("正在重启…", "Restarting…");
         EN.put("更新完成，等待重启应用", "Update complete; restart the app");
         EN.put("未检测到（环境未安装）", "Not detected (environment not installed)");
-        EN.put("检查更新", "Check for updates");
+        EN.put("检查更新", "Updates");
         EN.put("更新到 ", "Update to ");
         EN.put("下载未启动", "Download not started");
         EN.put("网页已离开", "Page left");

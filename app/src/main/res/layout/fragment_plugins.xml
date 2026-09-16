@@ -72,6 +72,9 @@
                     style="@style/Widget.DeepSeekHarness.ToolbarAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:maxWidth="140dp"
                     android:text="@string/plugins_sort_name" />
 
                 <TextView
@@ -79,6 +82,9 @@
                     style="@style/Widget.DeepSeekHarness.ToolbarAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:maxWidth="140dp"
                     android:layout_marginStart="@dimen/gap_tight"
                     android:text="@string/plugins_sync_status" />
 

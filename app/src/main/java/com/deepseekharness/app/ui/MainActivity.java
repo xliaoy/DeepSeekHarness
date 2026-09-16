@@ -517,7 +517,8 @@ public class MainActivity extends AppCompatActivity {
                     String language = index == 0 ? "zh" : "en";
                     if (!language.equals(current)) {
                         com.deepseekharness.app.ui.LanguageController.select(this, language);
-                        recreate();
+                        // 延迟重建：等 setApplicationLocales 应用后再重建，保证菜单/底栏全部刷新
+                        getWindow().getDecorView().postDelayed(() -> { if (!isFinishing()) recreate(); }, 200);
                     }
                 });
     }
