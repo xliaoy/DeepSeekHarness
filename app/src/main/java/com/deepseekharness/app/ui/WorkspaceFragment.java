@@ -38,7 +38,7 @@ public class WorkspaceFragment extends Fragment {
         View v = inflater.inflate(R.layout.fragment_workspace, container, false);
         controller = HarnessController.get(requireContext());
         task = com.deepseekharness.app.core.BackupTask.get(requireContext());
-        android.widget.CheckBox backupKey = v.findViewById(R.id.config_backup_key);
+        android.widget.CompoundButton backupKey = v.findViewById(R.id.config_backup_key);
         backupKey.setChecked(controller.config().isBackupKey());
         backupKey.setOnClickListener(button -> {
             com.deepseekharness.app.util.EnvironmentTaskGate.Lease saving =
@@ -177,7 +177,7 @@ public class WorkspaceFragment extends Fragment {
         String failure = controller.config().getLastBackupError();
         com.deepseekharness.app.util.BackupTaskState.Snapshot s = task.snapshot();
         boolean busy = task.busy(), pending = task.pendingMaintenance();
-        android.widget.CheckBox backupKey = view.findViewById(R.id.config_backup_key);
+        android.widget.CompoundButton backupKey = view.findViewById(R.id.config_backup_key);
         backupKey.setChecked(controller.config().isBackupKey());
         backupKey.setEnabled(!busy && !com.deepseekharness.app.util.EnvironmentTaskGate.isBusy());
         ((TextView) view.findViewById(R.id.workspace_backup_status)).setText(success

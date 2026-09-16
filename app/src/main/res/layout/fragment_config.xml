@@ -51,7 +51,7 @@
                     android:layout_marginTop="@dimen/gap_hair"
                     android:text="@string/config_api_key_desc" />
 
-                <EditText android:id="@+id/config_api_key" style="@style/DeepSeekHarnessText.Body"
+                <EditText android:id="@+id/config_api_key"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/input_height"
@@ -89,7 +89,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/config_port" />
 
-                    <EditText android:id="@+id/config_port" style="@style/DeepSeekHarnessText.Body"
+                    <EditText android:id="@+id/config_port"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:minHeight="@dimen/input_height"
@@ -127,7 +127,7 @@
                     android:layout_marginBottom="@dimen/gap_tight"
                     android:background="@color/line" />
 
-                <CheckBox android:id="@+id/config_check_update" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_check_update"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -146,7 +146,7 @@
                     android:layout_height="@dimen/hairline"
                     android:background="@color/line" />
 
-                <CheckBox android:id="@+id/config_desktop_mode" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_desktop_mode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -175,7 +175,7 @@
                     android:gravity="center_vertical"
                     android:text="@string/browser_description" />
 
-                <CheckBox android:id="@+id/config_gecko_core"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_gecko_core"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -196,7 +196,7 @@
                     android:layout_height="@dimen/hairline"
                     android:background="@color/line" />
 
-                <CheckBox android:id="@+id/config_proroot" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_proroot"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -215,7 +215,7 @@
                     android:layout_height="@dimen/hairline"
                     android:background="@color/line" />
 
-                <CheckBox android:id="@+id/config_lan_mode" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_lan_mode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -234,7 +234,7 @@
                     android:layout_height="@dimen/hairline"
                     android:background="@color/line" />
 
-                <CheckBox android:id="@+id/config_overlay_stream" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_overlay_stream"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -254,7 +254,7 @@
                     android:layout_marginBottom="@dimen/gap_tight"
                     android:background="@color/line" />
 
-                <TextView android:id="@+id/config_overlay_style" style="@style/DeepSeekHarnessText.Body"
+                <TextView android:id="@+id/config_overlay_style"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -280,7 +280,7 @@
                     android:layout_height="@dimen/hairline"
                     android:background="@color/line" />
 
-                <CheckBox android:id="@+id/config_confirm_shell" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_confirm_shell"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -294,7 +294,7 @@
                     android:layout_marginBottom="@dimen/gap_tight"
                     android:text="@string/config_confirm_dangerous_desc" />
 
-                <CheckBox android:id="@+id/config_rc6" style="@style/DeepSeekHarnessText.Body"
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_rc6"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="@dimen/touch_min"
@@ -360,40 +360,6 @@
                     android:layout_marginTop="@dimen/gap_control"
                     android:text="@string/dns_desc" />
 
-                <TextView style="@style/DeepSeekHarnessText.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_section"
-                    android:layout_marginStart="@dimen/gap_hair"
-                    android:text="@string/config_ui_language"
-                    android:textStyle="bold" />
-
-                <RadioGroup android:id="@+id/config_ui_language"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_control"
-                    android:orientation="horizontal">
-
-                    <RadioButton android:id="@+id/lang_zh" style="@style/Widget.DeepSeekHarness.RadioButton"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:minHeight="@dimen/touch_min"
-                        android:text="@string/config_lang_zh" />
-
-                    <RadioButton android:id="@+id/lang_en" style="@style/Widget.DeepSeekHarness.RadioButton"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:minHeight="@dimen/touch_min"
-                        android:text="English" />
-                </RadioGroup>
-
-                <TextView style="@style/DeepSeekHarnessText.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/gap_hair"
-                    android:text="@string/config_lang_desc" />
             </LinearLayout>
 
             <TextView android:id="@+id/config_repo_link" style="@style/DeepSeekHarnessText.Caption"

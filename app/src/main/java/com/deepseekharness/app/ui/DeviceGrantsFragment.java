@@ -11,7 +11,7 @@ import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -55,7 +55,7 @@ public final class DeviceGrantsFragment extends Fragment {
         final Context ctx = requireContext();
 
         // ===== Root Shell =====
-        CheckBox root = view.findViewById(R.id.config_root_shell);
+        android.widget.CompoundButton root = view.findViewById(R.id.config_root_shell);
         root.setChecked(RootShell.enabled(ctx));
         root.setOnCheckedChangeListener((button, enabled) -> {
             new ConfigStore(ctx).setRootShellAllowed(enabled);
@@ -90,10 +90,10 @@ public final class DeviceGrantsFragment extends Fragment {
         });
 
         // ===== 定位 / 传感器 =====
-        CheckBox sensors = view.findViewById(R.id.config_cap_sensors);
+        android.widget.CompoundButton sensors = view.findViewById(R.id.config_cap_sensors);
         sensors.setChecked(pref(ctx, "cap_sensors", false));
         sensors.setOnCheckedChangeListener((button, enabled) -> savePreference("cap_sensors", enabled));
-        CheckBox location = view.findViewById(R.id.config_cap_location);
+        android.widget.CompoundButton location = view.findViewById(R.id.config_cap_location);
         location.setChecked(pref(ctx, "cap_location", false));
         location.setOnCheckedChangeListener((button, enabled) -> {
             savePreference("cap_location", enabled);
@@ -104,7 +104,7 @@ public final class DeviceGrantsFragment extends Fragment {
         });
 
         // ===== ADB =====
-        CheckBox adb = view.findViewById(R.id.config_adb_enable);
+        android.widget.CompoundButton adb = view.findViewById(R.id.config_adb_enable);
         adb.setChecked(DeviceBridgeService.isAdbEnabled(ctx));
         adb.setOnCheckedChangeListener((button, enabled) -> {
             savePreference("adb_enabled", enabled);

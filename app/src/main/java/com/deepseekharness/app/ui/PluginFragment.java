@@ -386,7 +386,7 @@ public class PluginFragment extends Fragment {
             body.addView(row);
         }
         // 只看自己装的（过滤内置/官方插件）
-        android.widget.CheckBox onlyMine = new android.widget.CheckBox(requireContext());
+        com.google.android.material.materialswitch.MaterialSwitch onlyMine = new com.google.android.material.materialswitch.MaterialSwitch(requireContext());
         onlyMine.setText(UiText.text("只看自己装的"));
         onlyMine.setTextColor(requireContext().getColor(R.color.text_secondary));
         onlyMine.setButtonTintList(android.content.res.ColorStateList.valueOf(
@@ -527,9 +527,9 @@ public class PluginFragment extends Fragment {
         if (names.isEmpty()) { toast(UiText.text("没有可导出的插件")); return; }
         android.widget.LinearLayout list = new android.widget.LinearLayout(requireContext());
         list.setOrientation(android.widget.LinearLayout.VERTICAL);
-        final CheckBox[] boxes = new CheckBox[names.size()];
+        final com.google.android.material.materialswitch.MaterialSwitch[] boxes = new com.google.android.material.materialswitch.MaterialSwitch[names.size()];
         for (int i = 0; i < names.size(); i++) {
-            CheckBox box = new CheckBox(requireContext());
+            com.google.android.material.materialswitch.MaterialSwitch box = new com.google.android.material.materialswitch.MaterialSwitch(requireContext());
             box.setText(names.get(i));
             box.setTextColor(requireContext().getColor(R.color.text));
             box.setPadding(0, 8, 0, 8);

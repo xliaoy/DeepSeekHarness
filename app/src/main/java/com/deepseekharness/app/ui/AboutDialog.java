@@ -11,7 +11,7 @@ import androidx.appcompat.app.AlertDialog;
 /** 关于对话框：GitHub 仓库 / QQ 交流群入口（欢迎页 + 设置页 + 顶栏共用）。 */
 public final class AboutDialog {
 
-    public static final String GITHUB_URL = "https://github.com/qiannianhuanxiang/DeepSeekHarness";
+    public static final String GITHUB_URL = "https://github.com/xliaoy/DeepSeekHarness";
     public static final String QQ_GROUP = "975836806";
 
     private AboutDialog() {

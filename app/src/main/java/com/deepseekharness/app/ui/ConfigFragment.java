@@ -47,21 +47,17 @@ public class ConfigFragment extends Fragment {
                 .getString("dns_mode", "auto");
         dns.check("ipv4".equals(dnsMode) ? R.id.dns_ipv4
                 : "native".equals(dnsMode) ? R.id.dns_native : R.id.dns_auto);
-        android.widget.RadioGroup language = v.findViewById(R.id.config_ui_language);
-        boolean english = "en".equals(new com.deepseekharness.app.core.ConfigStore(ctx).getUiLanguage());
-        ((android.widget.RadioButton) v.findViewById(english ? R.id.lang_en : R.id.lang_zh)).setChecked(true);
-        com.deepseekharness.app.ui.LanguageController.apply(ctx);
 
         v.findViewById(R.id.config_workspace_entry).setOnClickListener(x -> open(new WorkspaceFragment()));
 
         EditText apiKey = v.findViewById(R.id.config_api_key);
         EditText port = v.findViewById(R.id.config_port);
-        CheckBox checkUpdate = v.findViewById(R.id.config_check_update);
-        CheckBox desktop = v.findViewById(R.id.config_desktop_mode);
-        CheckBox confirm = v.findViewById(R.id.config_confirm_shell);
-        CheckBox proroot = v.findViewById(R.id.config_proroot);
-        CheckBox lan = v.findViewById(R.id.config_lan_mode);
-        CheckBox overlay = v.findViewById(R.id.config_overlay_stream);
+        android.widget.CompoundButton checkUpdate = v.findViewById(R.id.config_check_update);
+        android.widget.CompoundButton desktop = v.findViewById(R.id.config_desktop_mode);
+        android.widget.CompoundButton confirm = v.findViewById(R.id.config_confirm_shell);
+        android.widget.CompoundButton proroot = v.findViewById(R.id.config_proroot);
+        android.widget.CompoundButton lan = v.findViewById(R.id.config_lan_mode);
+        android.widget.CompoundButton overlay = v.findViewById(R.id.config_overlay_stream);
         Button save = v.findViewById(R.id.config_save);
 
         // 高级项折叠
@@ -74,7 +70,7 @@ public class ConfigFragment extends Fragment {
         port.setText(c.getPort());
         checkUpdate.setChecked(c.isCheckUpdate());
         desktop.setChecked(c.isDesktopMode());
-        CheckBox gecko = v.findViewById(R.id.config_gecko_core);
+        android.widget.CompoundButton gecko = v.findViewById(R.id.config_gecko_core);
         gecko.setVisibility(com.deepseekharness.app.BuildConfig.LOW_ANDROID ? View.VISIBLE : View.GONE);
         v.findViewById(R.id.config_gecko_hint).setVisibility(com.deepseekharness.app.BuildConfig.LOW_ANDROID ? View.VISIBLE : View.GONE);
         gecko.setChecked(c.isGeckoCore());
@@ -116,13 +112,6 @@ public class ConfigFragment extends Fragment {
                                     dns.getCheckedRadioButtonId() == R.id.dns_ipv4 ? "ipv4"
                                             : dns.getCheckedRadioButtonId() == R.id.dns_native ? "native" : "auto")
                             .apply();
-                    String langChoice = language.getCheckedRadioButtonId() == R.id.lang_en ? "en" : "zh";
-                    com.deepseekharness.app.core.ConfigStore store2 = new com.deepseekharness.app.core.ConfigStore(ctx);
-                    store2.setUiLanguage(langChoice);
-                    if (!langChoice.equals(store2.getUiLanguage())) {
-                        com.deepseekharness.app.ui.LanguageController.select(ctx, langChoice);
-                        if (getActivity() != null) getActivity().recreate();
-                    }
                     c.setLanMode(lan.isChecked());
                     ctx.getSharedPreferences(Constants.PREFS, Context.MODE_PRIVATE).edit()
                             .putBoolean("overlay_stream", overlay.isChecked()).apply();
@@ -237,17 +226,17 @@ public class ConfigFragment extends Fragment {
         final android.widget.SeekBar hold = slider(box, UiText.text("无新内容后停留"), 2, 60,
                 sp.getInt(OverlayController.K_HOLD, OverlayController.DEF_HOLD), UiText.text(" 秒"));
 
-        final CheckBox think = new CheckBox(requireContext());
+        final com.google.android.material.materialswitch.MaterialSwitch think = new com.google.android.material.materialswitch.MaterialSwitch(requireContext());
         think.setText(UiText.text("显示思考过程（reasoning，会明显更吵）"));
         think.setChecked(sp.getBoolean(OverlayController.K_REASONING, false));
         box.addView(think);
 
-        final CheckBox cmd = new CheckBox(requireContext());
+        final com.google.android.material.materialswitch.MaterialSwitch cmd = new com.google.android.material.materialswitch.MaterialSwitch(requireContext());
         cmd.setText(UiText.text("工具调用带上命令原文（否则只看到「正在执行命令」）"));
         cmd.setChecked(sp.getBoolean(OverlayController.K_COMMAND, true));
         box.addView(cmd);
 
-        final CheckBox confirmHere = new CheckBox(requireContext());
+        final com.google.android.material.materialswitch.MaterialSwitch confirmHere = new com.google.android.material.materialswitch.MaterialSwitch(requireContext());
         confirmHere.setText(UiText.text("危险命令在悬浮条上直接批准（不必切回 App 或拉通知栏）"));
         confirmHere.setChecked(sp.getBoolean(OverlayController.K_CONFIRM, true));
         box.addView(confirmHere);

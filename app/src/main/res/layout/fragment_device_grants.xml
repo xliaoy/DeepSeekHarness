@@ -68,9 +68,9 @@
                 android:layout_height="wrap_content"
                 android:text="@string/grants_location" />
 
-            <CheckBox
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/config_cap_location"
-                style="@style/DeepSeekHarnessText.Body"
+               
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
@@ -78,9 +78,9 @@
                 android:text="@string/grants_location_allow"
 android:textColor="@color/text_secondary"  />
 
-            <CheckBox
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/config_cap_sensors"
-                style="@style/DeepSeekHarnessText.Body"
+               
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/touch_min"
@@ -194,9 +194,9 @@ android:textColor="@color/text_secondary"  />
                 android:layout_height="wrap_content"
                 android:text="Root Shell" />
 
-            <CheckBox
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/config_root_shell"
-                style="@style/DeepSeekHarnessText.Body"
+               
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
@@ -330,9 +330,9 @@ android:textColor="@color/text_secondary"  />
                 android:layout_height="wrap_content"
                 android:text="@string/grants_adb" />
 
-            <CheckBox
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/config_adb_enable"
-                style="@style/DeepSeekHarnessText.Body"
+               
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"

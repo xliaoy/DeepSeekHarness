@@ -35,7 +35,7 @@
                 android:layout_marginTop="@dimen/gap_control"
                 android:background="@color/line" />
 
-            <CheckBox android:id="@+id/config_backup_key" style="@style/DeepSeekHarnessText.Body"
+            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_backup_key"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/touch_min"
@@ -102,7 +102,7 @@
                 android:layout_marginTop="@dimen/gap_hair"
                 android:text="@string/workspace_dir_desc" />
 
-            <EditText android:id="@+id/workspace_path" style="@style/DeepSeekHarnessText.Body"
+            <EditText android:id="@+id/workspace_path"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/input_height"
