@@ -28,3 +28,4 @@ app/src/main/assets/*.tar.gz
 # Python 缓存
 __pycache__/
 *.pyc
+/docs/
