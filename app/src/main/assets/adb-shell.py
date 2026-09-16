@@ -424,6 +424,29 @@ def main():
         print('[POLICY_BLOCKED] %s\n[EXIT=126]' % error)
         return 126
     except ConnectFail as e:
+        # 三路回退：ADB 连不上时调 3090 /exec（Stellar/Shizuku/ADB/Root 任一可用即执行）。
+        try:
+            import json as _json
+            import urllib.request as _ur
+            import urllib.parse as _up
+            token = ''
+            try:
+                with open('/root/.dsh/.bridge_token') as _f:
+                    token = _f.read().strip()
+            except OSError:
+                pass
+            if token:
+                _req = _ur.Request('http://127.0.0.1:3090/exec?' + _up.urlencode({'token': token, 'cmd': cmd}))
+                with _ur.urlopen(_req, timeout=30) as _resp:
+                    _data = _json.load(_resp)
+                _result = _data.get('result', '')
+                if _result and not _result.startswith('[CHANNEL_UNAVAILABLE]'):
+                    sys.stdout.write(_result)
+                    if _result and not _result.endswith('\n'):
+                        print()
+                    return 0
+        except Exception:
+            pass
         print('CONNECT_FAIL: %s\n[EXIT=124]' % e)
         return 124
     except ExecutionUnknown as e:

@@ -1346,9 +1346,34 @@ public final class HttpShellService {
         return requestUserConfirm(cmd) ? execViaChannel(cmd) : "[USER_REJECTED]";
     }
 
-    /** 设备命令执行通道：Stellar 激活时优先走 Stellar，否则回退 Shizuku。 */
+    /** 设备命令执行通道：Stellar → Shizuku → ADB → Root，任一可用即执行（预选路，结果未知不重放）。 */
     private String execViaChannel(String cmd) {
-        return StellarShell.isReady() ? StellarShell.exec(cmd) : ShizukuShell.exec(cmd);
+        if (com.deepseekharness.app.StellarShell.isReady()) return com.deepseekharness.app.StellarShell.exec(cmd);
+        if (com.deepseekharness.app.ShizukuShell.isAvailable()
+                && com.deepseekharness.app.ShizukuShell.hasPermission()) return com.deepseekharness.app.ShizukuShell.exec(cmd);
+        String adb = execViaAdb(cmd);
+        if (adb != null) return adb;
+        if (com.deepseekharness.app.RootShell.enabled(ctx) && com.deepseekharness.app.RootShell.present())
+            return com.deepseekharness.app.RootShell.exec(ctx, cmd, -1);
+        return "[CHANNEL_UNAVAILABLE] ADB / Stellar / Shizuku / Root 均不可用\n[EXIT=124]";
+    }
+
+    /** ADB 路：通过 rootfs 的 adb-shell.py 执行（未配对时返回 null，自然落到下一路）。 */
+    private String execViaAdb(String cmd) {
+        try {
+            com.deepseekharness.app.core.HarnessController hc = com.deepseekharness.app.core.HarnessController.get(ctx);
+            if (hc == null || hc.getProot() == null) return null;
+            java.lang.Process p = hc.getProot().execRootfs(
+                    "python3 /root/.dsh/adb-shell.py " + com.deepseekharness.app.util.ShellQuote.arg(cmd));
+            com.deepseekharness.app.util.BoundedProcessRunner.Result r =
+                    com.deepseekharness.app.util.BoundedProcessRunner.collect(p, 30_000, 262_144,
+                            com.deepseekharness.app.util.Compat::destroy);
+            String out = r.output.trim();
+            if (out.contains("CONNECT_FAIL") || out.contains("Connection refused")) return null;
+            return out + (r.timedOut ? "\n[EXIT=124]" : "");
+        } catch (Throwable e) {
+            return null;
+        }
     }
 
     /** 只请求用户确认（不执行命令），返回是否允许；/confirm 端点用。
