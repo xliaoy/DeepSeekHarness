@@ -5717,6 +5717,35 @@ exports.inject = ['slots', 'layout', 'locale', 'sessionLogDownload', 'sessions',
  */
 function apply(ctx) {
     ctx.effect(() => ctx.locale.register(locales_ts_1.NS, { zh: locales_ts_1.zh, en: locales_ts_1.en }), 'dsh-web-mobile: dictionaries');
+    // DSHA：后台任务角标数字 + 弹窗定位（照抄子代理弹层的 catalogMenuPosition：
+    // 相对触发器下方展开、并夹在视口内；只读 DOM，不改官方组件逻辑）。
+    ctx.effect(() => {
+        const DIGITS = /(\d+)/;
+        const VIEWPORT_MARGIN = 16;
+        const placeJobsMenu = () => {
+            try {
+                const count = document.querySelector('[class*="QsffPG_count"]');
+                if (count !== null) {
+                    const match = DIGITS.exec(count.textContent || '');
+                    if (match !== null) count.setAttribute('data-dsh-jobs-count', match[1]);
+                }
+                const trigger = document.querySelector('[class*="QsffPG_trigger"]');
+                const menu = document.querySelector('[class*="QsffPG_menu"]');
+                if (trigger !== null && menu !== null) {
+                    const rect = trigger.getBoundingClientRect();
+                    const width = Math.min(336, window.innerWidth - VIEWPORT_MARGIN * 2);
+                    menu.style.setProperty('top', (rect.bottom + 5) + 'px', 'important');
+                    menu.style.setProperty('left', Math.min(Math.max(VIEWPORT_MARGIN, rect.left),
+                        window.innerWidth - width - VIEWPORT_MARGIN) + 'px', 'important');
+                    menu.style.setProperty('transform', 'none', 'important');
+                }
+            } catch (error) { /* 装饰性功能，失败不得影响主流程 */ }
+        };
+        placeJobsMenu();
+        const observer = new MutationObserver(placeJobsMenu);
+        observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+        return () => observer.disconnect();
+    }, 'dsh-web-mobile: jobs badge + dialog position');
     ctx.effect(() => {
         const tag = document.createElement('style');
         tag.dataset.plugin = 'dsh-web-mobile';
@@ -5724,6 +5753,149 @@ function apply(ctx) {
         tag.textContent = index_ts_1.MOBILE_CSS;
         // DSHA：0.1.5 的文件/预览属于右侧面板，在手机上覆盖会话而不压缩输入区。
         tag.textContent += `
+/* ===== DSHA：0.1.6-alpha.2 会话页头部·手机端密度适配 v2 =====
+   严格只改"留白/间距/截断"，不写 overflow / width / height：
+   绝不允许出现裁剪，否则会把按钮压成细条导致点不中（v1 的教训）。 */
+@media (pointer: coarse) {
+  [class*="wSkVaW_header"] {
+    min-height: 0 !important;
+    padding: 8px 12px 0 !important;
+    box-sizing: border-box !important;
+  }
+  [class*="wSkVaW_headerCorner"] {
+    margin-left: 8px !important;
+    margin-right: 0 !important;
+    flex: none !important;
+  }
+  [class*="wSkVaW_headerUtilities"] { margin-left: 10px !important; flex: none !important; }
+  [class*="wSkVaW_headerActions"] { gap: 4px !important; }
+  [class*="wSkVaW_titleRow"] { min-height: 26px !important; min-width: 0 !important; }
+  [class*="wSkVaW_titleCluster"] { min-width: 0 !important; gap: 6px !important; }
+  [class*="wSkVaW_crumbCurrent"],
+  [class*="wSkVaW_crumbSubagent"],
+  [class*="wSkVaW_crumbSeg"] {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  [class*="wSkVaW_tabs"] { gap: 14px !important; margin-top: 6px !important; padding-left: 0 !important; }
+  [class*="wSkVaW_tab"] { padding-bottom: 7px !important; }
+  [class*="wSkVaW_heroWorkspaceRow"] { padding: 0 12px !important; }
+  /* leading 槽按内容宽度，不再用 flex:1 抢占标题宽度
+     （实测它 flex:1 1 auto 会独占约 140px，把标题挤到 18px）；
+     槽内有内容时仍按内容显示，不隐藏任何东西。 */
+  [class*="wSkVaW_headerLeading"] {
+    flex: 0 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  /* 标题簇拿回剩余空间，超宽用省略号而不是被压没 */
+  [class*="wSkVaW_titleCluster"] {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+  /* Agent Team 在手机端只显示图标：保留按钮尺寸与点击区，仅隐藏文字标签 */
+  /* 顶栏垂直对齐：预设/模式等控件与标题统一在同一水平线（实测偏差 4px → 0） */
+  /* ---- 基于 alpha.2 真实 DOM 的顶栏修复（均有 A/B 实测） ---- */
+  /* ① 侧边栏展开按钮与顶栏同一水平线（fab 绝对定位 top:12px → cy34；改 15px 后 cy37） */
+  [data-mobile-nav="fab"] { top: 15px !important; }
+  /* ② 模式/预设切换不被压扁：实测有子代理时会被压到 18px 而不可见 */
+  .dsha-preset-header-anchor { flex: 0 0 auto !important; max-width: none !important; }
+  .dsha-preset-header-anchor > button { min-width: 96px !important; flex: 0 0 auto !important; }
+  /* ③ 后台任务条（N 个后台任务运行中，dsh-client-ui-jobs 的 QsffPG_root）
+     出现时隐藏标题「文字」让位；子代理出现不隐藏标题。
+     注意：只能藏标题按钮本身（wSkVaW_crumb），不能藏 crumbs 容器 ——
+     实测子代理按钮 ZKlsPq_root 就嵌在 crumbSeg 里，藏容器会把子代理一起藏掉。 */
+  /* 精确只藏标题按钮：注意 [class*="wSkVaW_crumb"] 是子串匹配，会命中
+     wSkVaW_crumbs（容器）与 wSkVaW_crumbSeg，藏容器会把子代理一起藏掉。 */
+  [class*="wSkVaW_titleCluster"]:has([class*="QsffPG_root"]) [class*="wSkVaW_crumbSeg"] > button {
+    display: none !important;
+  }
+  /* 标题隐藏后，crumbs 容器不能再占「剩余宽度」——否则那段宽度变成子代理与
+     模式切换之间的空白，并把后台任务条压到 0 宽（文字看不见）。
+     只让它占子代理自身的宽度（flex:0 0 auto），不写 display:none（会连子代理一起藏）。 */
+  [class*="wSkVaW_titleCluster"]:has([class*="QsffPG_root"]) [class*="wSkVaW_crumbs"] {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  /* 后台任务条文字不许被压到 0 宽 */
+  [class*="QsffPG_root"] { flex: 0 0 auto !important; }
+  [class*="QsffPG_trigger"] { flex: 0 0 auto !important; min-width: 0 !important; }
+  [class*="QsffPG_count"] { flex: 0 0 auto !important; white-space: nowrap !important; }
+  /* ④ 子代理按钮不被压缩 */
+  [class*="ZKlsPq_trigger"] { flex: 0 0 auto !important; }
+  /* ⑤ 会话内的侧边栏按钮（data-mobile-nav="toggle"）绝对定位 top:18px → cy45，
+     与顶栏 cy37 差 8px；改 10px 后对齐。 */
+  [data-mobile-nav="toggle"] { top: 10px !important; }
+  /* ⑥ 有子代理时腾出空间，但保留模式切换的文字（不再图标化）。
+     空间的来源：空的 leading 槽 + 收紧各槽间距 + 子代理按钮自身紧凑。 */
+  /* 长标题自我截断（省略号），不把右侧控件顶出屏幕。
+     注意：这里绝不能给 crumbs/titleCluster 加 flex:0 0 auto —— 那会让长标题
+     撑满整行，把模式切换/Agent Team/Files/SessionLog 挤到屏幕外（实测踩过）。 */
+  [class*="wSkVaW_crumbs"] { flex: 1 1 auto !important; min-width: 0 !important; }
+  [class*="wSkVaW_crumbSeg"] { flex: 0 1 auto !important; min-width: 0 !important; }
+  @media (pointer: coarse) {
+    [class*="wSkVaW_headerLeading"] { display: none !important; }
+    [class*="wSkVaW_titleRow"] { gap: 0 !important; }
+    [class*="wSkVaW_titleCluster"] { gap: 6px !important; }
+    [class*="wSkVaW_headerActions"] { gap: 4px !important; padding: 0 !important; }
+    [class*="wSkVaW_headerUtilities"] { margin-left: 6px !important; }
+    [class*="wSkVaW_titleCluster"]:has([class*="ZKlsPq_trigger"]) [class*="ZKlsPq_trigger"] {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      gap: 2px !important;
+    }
+    [class*="wSkVaW_titleCluster"]:has([class*="ZKlsPq_trigger"]) .dsha-preset-header-anchor > button {
+      min-width: 0 !important;
+      width: auto !important;
+      padding: 0 6px !important;
+    }
+  /* ⑦ 模式切换文字：实测 cubgiG_seatLabel 的 width 被算成 0px（flex:0 1 auto 被压没），
+     父按钮 overflow:hidden 于是一直只有 18px 只显图标。这里解除宽度压缩。 */
+  @media (pointer: coarse) {
+    .dsha-preset-header-anchor > button {
+      width: auto !important;
+      min-width: 92px !important;
+      max-width: none !important;
+      overflow: visible !important;
+      flex: 0 0 auto !important;
+    }
+    .dsha-preset-header-anchor > button > * { flex: 0 0 auto !important; }
+    [class*="cubgiG_seatLabel"] {
+      display: block !important;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      white-space: nowrap !important;
+    }
+    [class*="wSkVaW_headerActions"] {
+      flex: 0 0 auto !important;
+      width: auto !important;
+      overflow: visible !important;
+    }
+    [class*="wSkVaW_titleRow"] { overflow: visible !important; }
+  }
+  }
+  .dsha-preset-header-anchor { align-self: center !important; }
+  .dsha-preset-header-anchor > button {
+    height: 32px !important;
+    min-height: 32px !important;
+    align-self: center !important;
+  }
+  [class*="wSkVaW_headerActions"],
+  [class*="wSkVaW_headerUtilities"],
+  [class*="wSkVaW_headerLeading"] {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    align-items: center !important;
+  }
+}
+
 @media (max-width: 1023px) and (pointer: coarse) {
   [data-mobile-nav="frame"] [data-rightbar-col] {
     position: fixed !important; inset: 0 !important; width: 100vw !important;
@@ -5772,7 +5944,40 @@ function apply(ctx) {
     height: 44px;
     flex: none;
   }
-}`;
+}
+/* ===== DSHA：后台任务条 → 角标（数字+运行圆点）；点击展开为居中弹窗 ===== */
+@media (pointer: coarse) {
+  [class*="QsffPG_count"] { font-size: 0 !important; margin: 0 !important; }
+  [class*="QsffPG_count"]::before {
+    content: attr(data-dsh-jobs-count);
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px;
+    background: var(--dsw-alias-fill-l2, rgba(0,0,0,.08));
+    color: var(--dsw-alias-label-secondary, inherit);
+    font-size: 11px; line-height: 18px; font-variant-numeric: tabular-nums;
+  }
+  [class*="QsffPG_count"]::after {
+    content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    margin-inline-start: 4px;
+    background: var(--dsw-alias-state-business-primary, #4f6ef7);
+    animation: dsh-jobs-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes dsh-jobs-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  [class*="QsffPG_trigger"] { padding-inline: 4px !important; gap: 4px !important; }
+  /* 弹窗定位完全照抄子代理弹层（dsh-client-ui-subagent 的 catalogMenuPosition）：
+     相对触发器展开、夹在视口内，不用居中偏移，避免偏到一边。 */
+  [class*="QsffPG_menu"] {
+    position: fixed !important;
+    width: min(336px, calc(100vw - 32px)) !important;
+    max-width: none !important;
+    max-height: min(560px, 100vh - 140px) !important;
+    border-radius: 20px !important;
+    z-index: 100 !important;
+    margin: 0 !important;
+  }
+}
+`;
         document.head.appendChild(tag);
         // Keep this stylesheet last in <head> so its overrides win over the
         // host UI's own styles (some host rules also use !important).

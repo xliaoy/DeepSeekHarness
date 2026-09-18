@@ -119,7 +119,7 @@ window.__ModuleLoader__.load({id:'dsh-app-integration', factory: () => {
       if (document.hidden || leaving) return;
       const snapshot = ctx.sessions.list.getSnapshot();
       if (restoring && !touched && previous?.id && snapshot.byId?.[previous.id] && snapshot.current !== previous.id) {
-        ctx.sessions.open(previous.id); return;
+        ctx.uiWorkspace.openSession(previous.id); return;
       }
       const id = currentId();
       if (lastSession !== id) { lastSession = id; positions = []; }
@@ -179,5 +179,5 @@ window.__ModuleLoader__.load({id:'dsh-app-integration', factory: () => {
         db?.close(); stopReading(); document.removeEventListener('deepseekharness-close-details',closeDetails); };
     },'deepseekharness-browser-state');
   }
-  return {inject:['conversation','sessions','layout','sidebarRight'],apply,watchDraft,usable,writeDraft};
+  return {inject:['conversation','sessions','layout','sidebarRight','uiWorkspace'],apply,watchDraft,usable,writeDraft};
 }});

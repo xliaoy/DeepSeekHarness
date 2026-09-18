@@ -29,3 +29,4 @@ app/src/main/assets/*.tar.gz
 __pycache__/
 *.pyc
 /docs/
+*.bak
