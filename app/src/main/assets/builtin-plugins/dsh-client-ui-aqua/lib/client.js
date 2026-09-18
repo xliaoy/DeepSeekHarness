@@ -105,6 +105,17 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		//#endregion
+		//#region DeepSeekHarness 移动端：云母模式下「子代理 + 后台任务」同时出现时，模式切换只留图标（隐藏文字），腾出顶栏空间
+		const css$mj = '@media (max-width:640px){[data-dsh-aqua][data-dsh-float] [class*="wSkVaW_titleCluster"]:has([class*="ZKlsPq_trigger"]):has([class*="QsffPG_root"]) [class*="cubgiG_seatLabel"]{display:none!important}[data-dsh-aqua][data-dsh-float] [class*="wSkVaW_titleCluster"]:has([class*="ZKlsPq_trigger"]):has([class*="QsffPG_root"]) .dsha-preset-header-anchor > button{min-width:34px!important;width:34px!important;padding:0!important;justify-content:center!important}[data-dsh-aqua][data-dsh-float] [class*="wSkVaW_titleCluster"]:has([class*="QsffPG_root"]) [class*="VoX2oq_trigger"] > span:not([class*="VoX2oq_count"]){display:none!important}[data-dsh-aqua][data-dsh-float] [class*="wSkVaW_titleCluster"]:has([class*="QsffPG_root"]) [class*="VoX2oq_trigger"]{padding-inline:4px!important;gap:2px!important}}';
+		const tagId$mj = "dsh-client-ui-aqua/dsh-mobile-mica-jobs";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$mj) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-client-ui-aqua";
+			tag.dataset.pluginCss = tagId$mj;
+			tag.textContent = css$mj;
+			document.head.appendChild(tag);
+		}
+		//#endregion
 		var AquaAppearanceRow_module_css_default = {
 			"fileInput": "VYJBRq_fileInput",
 			"subGroup": "VYJBRq_subGroup",
