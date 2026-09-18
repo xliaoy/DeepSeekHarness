@@ -625,39 +625,12 @@ __modules["effects/settings-toolbar-reparent.js"] = function (require, module, e
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createSettingsToolbarTask = createSettingsToolbarTask;
 function createSettingsToolbarTask() {
-    let origin = null;
+    // 两栏布局下工具栏保留在内容区顶部，不再重排到导航列 — 空任务
     return {
         name: 'settings-toolbar-reparent',
-        scopes: ['*'],
-        ensure: () => {
-            // DeepSeekHarness 适配：设置弹窗 header（含关闭按钮）保持原位置（右侧），不再移入左侧 tab 栏
-            return;
-            const dialog = document.querySelector('[aria-modal="true"]');
-            if (dialog === null)
-                return;
-            const nav = dialog.querySelector(':scope > [class*="_nav"]');
-            const header = dialog.querySelector('[class*="_header"]:not([class*="_headerActions"])');
-            if (nav === null || header === null)
-                return;
-            if (header.parentElement === nav)
-                return;
-            // The dialog DOM can be rebuilt by React between mutations: refresh
-            // the origin every time we actually move the header, so disposal
-            // restores it where it currently belongs, not where it was first seen.
-            if (header.parentElement !== null) {
-                origin = { parent: header.parentElement, next: header.nextSibling };
-            }
-            nav.appendChild(header);
-        },
-        dispose: () => {
-            if (origin === null)
-                return;
-            const header = document.querySelector('[aria-modal="true"] [class*="_header"]:not([class*="_headerActions"])');
-            if (header !== null && origin.parent.isConnected) {
-                origin.parent.insertBefore(header, origin.next);
-            }
-            origin = null;
-        },
+        scopes: [],
+        ensure: () => {},
+        dispose: () => {},
     };
 }
 };
@@ -820,7 +793,7 @@ function createFileViewerMarkerTask() {
 __modules["effects/phone-chrome.js"] = function (require, module, exports) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DESKTOP_QUERY = exports.MOBILE_QUERY = void 0;
+exports.TOUCH_QUERY = exports.DESKTOP_QUERY = exports.MOBILE_QUERY = void 0;
 exports.installMobileEffect = installMobileEffect;
 exports.findFrame = findFrame;
 exports.getFrame = getFrame;
@@ -848,7 +821,7 @@ const NS = 'mobileNav';
  *  from a desktop window: split views and OS display scaling push a PC's CSS
  *  viewport below 1024px too, and the whole mobile shell (drawer, header
  *  Files button, gestures) would mount there. (pointer: coarse) keeps the
- *  adaptation on touch-primary devices — phones, tablets, DeepSeekHarness — while any
+ *  adaptation on touch-primary devices — phones, tablets, DSHA — while any
  *  mouse-driven window stays desktop at every width. Headless probes have no
  *  pointer at all: arm the mobile branch with Emulation.setTouchEmulation-
  *  Enabled before asserting mobile UI. */
@@ -857,14 +830,22 @@ exports.MOBILE_QUERY = '(max-width: 1023px) and (pointer: coarse)';
  *  guard is the CSS hide block in misc.css.ts — the exact complement of
  *  MOBILE_QUERY — because slot-rendered controls exist at every width. */
 exports.DESKTOP_QUERY = '(min-width: 1024px)';
+/** Pointer-only guard for the ONE feature that has no desktop equivalent:
+ *  the session-delete menu injection. Armed on touch-primary devices at
+ *  EVERY width — a large tablet in landscape (e.g. 1238px) keeps the desktop
+ *  layout but still gets the 「删除会话」 item. Mouse-driven or pointer-less
+ *  windows never arm it, at any width. */
+exports.TOUCH_QUERY = '(pointer: coarse)';
 /**
- * Re-arm a mobile-only DOM effect on every width change. Replaces the
+ * Re-arm a mobile-only DOM effect on every query change. Replaces the
  * repeated matchMedia + change-listener scaffold so all breakpoint strings
- * live in one place.
+ * live in one place. `query` defaults to MOBILE_QUERY; effects that arm on a
+ * different condition (e.g. TOUCH_QUERY) pass their own string instead of
+ * building a private matchMedia scaffold.
  */
-function installMobileEffect(ctx, label, install) {
+function installMobileEffect(ctx, label, install, query = exports.MOBILE_QUERY) {
     ctx.effect(() => {
-        const narrow = window.matchMedia(exports.MOBILE_QUERY);
+        const narrow = window.matchMedia(query);
         let cleanup;
         const arm = () => {
             cleanup?.();
@@ -1028,10 +1009,10 @@ const IOS_MARKER = 'data-mobile-nav-ios';
  * Viewport content the plugin owns while the mobile branch is armed.
  * Deliberately zoom-free: iOS 10+ ignores maximum-scale/user-scalable for
  * user pinch but other engines honor them, so writing them would only take
- * zoom away from Android/DeepSeekHarness; the iOS focus-zoom fix is the >=16px field
+ * zoom away from Android/DSHA; the iOS focus-zoom fix is the >=16px field
  * floor (data-mobile-nav-ios), not a zoom ban (#45).
  */
-const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1, viewport-fit=cover';
+const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content';
 const findViewportMeta = () => document.querySelector('meta[name="viewport"]');
 /**
  * Phone chrome: KEEP the system status bar (no fullscreen) and make it
@@ -1161,6 +1142,9 @@ function installOverlayInteractions(ctx) {
         // so takeover panels never render under the open drawer.
         const drawerRoot = () => document.querySelector('[data-mobile-nav="frame"] > :first-child');
         const shouldCloseOnTapInsideDrawer = (target) => {
+            // 已适配的会话行由明确打开事件关闭抽屉；选择高亮不代表导航。
+            if (target instanceof Element && target.closest('[data-dsha-session-select]') !== null)
+                return false;
             if (document.querySelector('[aria-modal="true"]') !== null)
                 return false;
             if (!drawerOpen())
@@ -1273,11 +1257,14 @@ function installOverlayInteractions(ctx) {
         document.addEventListener('keydown', onKeyDown, true);
         document.addEventListener('click', onDrawerClick, true);
         document.addEventListener('pointerup', onDrawerPointerUp, true);
+        const onSessionOpened = () => { if (drawerOpen()) toggleSidebar(); };
+        document.addEventListener('dsha-session-open', onSessionOpened);
         return () => {
             disarmNav();
             document.removeEventListener('keydown', onKeyDown, true);
             document.removeEventListener('click', onDrawerClick, true);
             document.removeEventListener('pointerup', onDrawerPointerUp, true);
+            document.removeEventListener('dsha-session-open', onSessionOpened);
         };
     });
 }
@@ -1510,6 +1497,17 @@ exports.BASE_CSS = `
   box-shadow: 0 8px 30px rgba(0, 0, 0, .22);
   animation: dsh-web-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out);
 }
+/* Wide touch (tablet landscape ≥1024px, pointer coarse): the card would
+   otherwise span the full desktop viewport. Cap and center it with margins
+   (not transform, which the entry animation would override mid-play). */
+@media (min-width: 1024px) and (pointer: coarse) {
+  [data-mobile-nav="delete-dialog"] {
+    left: 0;
+    right: 0;
+    width: 420px;
+    margin-inline: auto;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   [data-mobile-nav="delete-dialog-backdrop"],
   [data-mobile-nav="delete-dialog"] {
@@ -1517,19 +1515,17 @@ exports.BASE_CSS = `
   }
 }
 
-/* Floating fallback button (hero / blank phases without a session header).
-   The top clears the camera band below the status bar; when the client has
-   set viewport-fit=cover the safe-area inset moves it below the notch too. */
+/* DSHA：侧栏入口与页首控制行留相同的顶部间距；安全区只避让一次。 */
 [data-mobile-nav="fab"] {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 72px);
-  left: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 0;
   z-index: 21;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .12));
   border-radius: 50%;
@@ -2111,7 +2107,7 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
   [data-mobile-nav="toggle"] {
     position: absolute !important;
     left: 8px !important;
-    top: 12px !important;
+    top: 18px !important;
     z-index: 2 !important;
   }
   /* Files remains in flow and is ordered as the rightmost plugin action. */
@@ -2132,6 +2128,39 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     margin-left: auto;
     justify-content: flex-end;
     gap: 2px;
+  }
+  /* 预设菜单恢复原标签的右侧位置，新增的菜单容器也参与收缩。 */
+  [data-mobile-nav="frame"] [data-phase] header .dsha-preset-header-anchor {
+    order: 1;
+    width: max-content;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(44vw, 220px);
+    margin-left: auto;
+  }
+  [data-mobile-nav="frame"] [data-phase] header .dsha-preset-header-anchor [data-dsha-agent-preset="header"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+  }
+  [data-mobile-nav="frame"] [data-phase] header .dsha-preset-header-anchor [data-dsha-agent-preset="header"] > svg {
+    position: static !important;
+    transform: none !important;
+    flex: 0 0 auto;
+  }
+  [data-mobile-nav="frame"] [data-phase] header .dsha-preset-header-anchor [data-dsha-agent-preset="header"] > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* The title takes the remaining width and never paints outside it; the
      metadata lane's mode text is what shrinks first. */
@@ -2255,7 +2284,7 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"] {
       padding-right: 8px;
     }
-    [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"]:has([class*="_root"]) [class*="_label"]:has(> svg),
+    [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"]:has([class*="_root"]:not([class*="_menuAnchor"])) [class*="_label"]:has(> svg),
     [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]) [class*="_label"]:has(> svg) {
       max-width: 18px;
       min-width: 18px;
@@ -2276,7 +2305,7 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]) [class*="_headerActions"] [class*="_root"]:not([class*="_switcherRoot"]):has(> button[class*="_trigger"]) [class*="_count"] {
       display: none !important;
     }
-    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]) [class*="_label"]:has(> svg) {
+    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]:not([class*="_menuAnchor"])) [class*="_label"]:has(> svg) {
       max-width: 18px;
       min-width: 18px;
       padding-left: 18px;
@@ -2284,7 +2313,7 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     }
   }
   @media (max-width: 359px) {
-    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]) [class*="_label"]:has(> svg) {
+    [data-mobile-nav="frame"] [data-phase] header:has([class*="_crumbs"] [class*="_root"]):has([class*="_headerActions"] [class*="_root"]:not([class*="_menuAnchor"])) [class*="_label"]:has(> svg) {
       display: none !important;
     }
   }
@@ -2292,7 +2321,7 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
   /* --- Header popovers on mobile (dsh-client-ui-jobs / dsh-client-ui-subagent) --- */
   /* The official entries sit in the session header actions. Their popovers
      are anchored to the trigger's left edge, so clamp them to the viewport. */
-  [data-mobile-nav="frame"] [data-phase] header [class*="_menu"] {
+  [data-mobile-nav="frame"] [data-phase] header [class*="_menu"]:not([class*="_menuAnchor"]) {
     left: 8px !important;
     right: auto !important;
     width: min(336px, calc(100vw - 16px));
@@ -2338,9 +2367,9 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     max-height: min(800px, calc(100vh - 24px - env(safe-area-inset-top, 0px)));
     max-height: min(800px, calc(100dvh - 24px - env(safe-area-inset-top, 0px)));
     flex-direction: row !important;
-    align-items: stretch !important;
     border-radius: 14px !important;
     animation: dsh-web-mobile-sheet-in .22s var(--ds-ease-out, ease-in-out);
+    overflow: hidden;
   }
   /* The settings sheet's dimmed mask fades in with the panel (the mask is
      the first child of the overlay that directly contains the sheet). */
@@ -2358,87 +2387,51 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
   [aria-modal="true"]:not(:has(> :first-child > :last-child > button)) {
     max-width: calc(100vw - 32px);
   }
-  /* Nav rail: hide the "Settings" caption and stack the tab list vertically
-     in a left column (matching the desktop nav), so every tab is visible —
-     the previous top row wrap / horizontal scroll cut the last tab
-     ("Plugins") off with no affordance to scroll. */
+  /* Nav bar: 左侧垂直导航列 — 固定宽度、tab 纵向排列，与官方桌面版两栏布局一致 */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child {
-    flex: 0 0 auto;
-    width: 116px;
-    max-width: 38vw;
+    flex: 0 0 140px;
+    width: 140px;
+    min-width: 140px;
     flex-direction: column !important;
     align-items: stretch;
-    gap: 8px;
-    padding: 12px 6px;
-    border-right: 1px solid var(--dsw-alias-border, rgba(0, 0, 0, .08));
+    gap: 2px;
+    padding: 8px 6px;
+    border-right: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .12));
+    background: var(--dsw-alias-bg-base, #ffffff);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child > :first-child {
     display: none !important;
   }
-  /* The tab list scrolls in the space left by the toolbar: the toolbar
-     (config file + close) is reparented INTO this nav row by a client
-     reconciler task (settings-toolbar-reparent), so the tab list must be
-     anchored by its class, NOT by :last-child (the reparented toolbar
-     becomes the nav's new last child). */
+  /* Tab 列表垂直排列 */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child [class*="_navList"] {
     flex: 1 1 auto;
     min-width: 0;
     flex-direction: column !important;
     flex-wrap: nowrap;
-    gap: 4px;
+    gap: 2px;
     overflow-y: auto;
+    overflow-x: hidden;
   }
-  /* Left rail: each tab stretches to the nav column width and left-aligns its
-     label (the desktop nav is already a vertical list; the mobile override
-     only needs to undo the wrap and let buttons fill the rail). */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child [class*="_navList"] > button {
-    width: 100%;
-    justify-content: flex-start;
-    text-align: left;
-  }
-  /* Content toolbar (Open configuration file + close): grouped flush to
-     the rail bottom, and reparented INTO the nav rail on mobile by the
-     settings-toolbar-reparent reconciler task, so it sits at the foot of
-     the left tab column instead of eating a full-width row above the
-     content (user feedback 2026-08-16 — the toolbar's own row left a
-     full-width dead gap under the tabs). Children carry official
-     auto-margins that would defeat flex-end, so neutralize them. The close
-     button gets a round tappable base so it reads as its own control, not
-     part of the outline button.
-     Anchored structurally, not by class substring: a bare [class*="_header"]
-     also matches every plugin settings card header in the options area —
-     the official Plugins config cards (YyYd_a_header) and the dsh-web-ui-all
-     group cards (Kwoi6G_header / bpnj3G_header / Jh0q7G_header / jmhvDG_header /
-     rUBhvW_header, all sharing the upstream template text-align:left,
-     gap:12px, padding:14px 16px). The old broad anchor right-aligned their
-     text, gutted the padding and painted a 32px gray circle behind the
-     chevron (2026-09-05 sweep: 8 bleeding headers). The toolbar has two
-     structural homes, both covered below: after the reparent it is a direct
-     child of the nav row ([class*="_nav"]); before the reparent runs it is
-     the content column's direct child (the panel's :last-child). Card
-     headers live deeper — inside the options scroll area — and match
-     neither, so no per-plugin hash guards are needed. */
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > [class*="_nav"] > [class*="_header"]:not([class*="_headerActions"]),
+  /* Content toolbar (Open configuration file + close): 保留在内容区顶部右侧，
+     不再重排到导航列。Children carry official auto-margins that would
+     defeat flex-end, so neutralize them. The close button gets a round
+     tappable base so it reads as its own control. */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child > [class*="_header"]:not([class*="_headerActions"]) {
     flex: 0 0 auto;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
-    padding: 4px 0 0;
-    margin-top: auto;
+    padding: 8px 12px;
     min-height: 40px;
+    border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, .12));
   }
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > [class*="_nav"] > [class*="_header"]:not([class*="_headerActions"]) > *,
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child > [class*="_header"]:not([class*="_headerActions"]) > * {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
-  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > [class*="_nav"] > [class*="_header"]:not([class*="_headerActions"]) > :last-child,
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child > [class*="_header"]:not([class*="_headerActions"]) > :last-child {
-    position: absolute !important;
-    top: 8px;
-    right: 10px;
-    z-index: 3;
     width: 32px;
     height: 32px;
     border-radius: 50% !important;
@@ -2467,12 +2460,10 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
      row never sits flush against the sheet's rounded corner. */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child {
     flex: 1 1 auto;
-    min-width: 0;
     min-height: 0;
-    overflow-y: auto;
   }
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child > :last-child {
-    padding: 40px 12px 24px;
+    padding: 0 12px 24px;
   }
 }
 `;
@@ -2835,27 +2826,19 @@ exports.COMPAT_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
      into tall stacks. Stack each row (text above, control full-width) and
      keep the nav tabs on ONE horizontally scrolling row. */
 
-  /* Nav tabs: single scrolling row instead of the 3-per-row grid — seven
-     categories wrap into three rows on a phone (~130px of sheet height);
-     one row with a thin scrollbar keeps every tab reachable and returns
-     that space to the options area (user feedback 2026-08-16). An earlier
-     one-row attempt had no scroll affordance and silently cut the last
-     tab off; the thin scrollbar IS the affordance. Scoped to the frame
-     marker: the desktop dialog keeps its official vertical nav column. */
+  /* Nav tabs: 垂直列表 — 每个 tab 占一整行，与官方桌面版两栏布局一致 */
   [data-mobile-nav="frame"] [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child [class*="_navList"] {
     display: flex !important;
     flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    gap: 6px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    gap: 2px !important;
     width: 100% !important;
-    scrollbar-width: thin !important;
-    -webkit-overflow-scrolling: touch !important;
+    flex-direction: column !important;
   }
-  /* Hairline scrollbar for the tab row: the default WebKit scrollbar reads
-     fat on a phone; 2px keeps the scroll affordance without the bulk. */
+  /* 细滚动条 */
   [data-mobile-nav="frame"] [aria-modal="true"] [class*="_navList"]::-webkit-scrollbar {
-    height: 2px !important;
+    width: 2px !important;
   }
   [data-mobile-nav="frame"] [aria-modal="true"] [class*="_navList"]::-webkit-scrollbar-thumb {
     background: var(--dsw-alias-border-l2, rgba(0, 0, 0, .22)) !important;
@@ -2864,42 +2847,22 @@ exports.COMPAT_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   [data-mobile-nav="frame"] [aria-modal="true"] [class*="_navList"]::-webkit-scrollbar-track {
     background: transparent !important;
   }
-  /* ---------- dsh-web-ui polish: settings sheet 只上下滑动 ----------
-     (用户反馈 2026-09-13) 手机端设置弹窗内容可左右滑动。固定为只能
-     上下滑动：弹窗容器、导航列与内容列一律禁止横向滚动；导航 tab 行
-     从「单行横滑」改为「自动换行」，避免禁滚后尾部 tab 被截断。 */
-  [data-mobile-nav="frame"] [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) {
-    overflow-x: hidden !important;
-  }
-  [data-mobile-nav="frame"] [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child,
-  [data-mobile-nav="frame"] [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :last-child {
-    overflow-x: hidden !important;
-  }
-  [data-mobile-nav="frame"] [aria-modal="true"] [class*="_navList"] {
-    flex-wrap: wrap !important;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
-  }
   [data-mobile-nav="frame"] [aria-modal="true"] [class*="_navCell"] {
     flex: 0 0 auto !important;
     white-space: nowrap !important;
-    padding: 6px 8px !important;
-    gap: 6px !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
     font-size: 13px !important;
     justify-content: flex-start !important;
+    width: 100% !important;
+    border-radius: 8px !important;
   }
   [data-mobile-nav="frame"] [aria-modal="true"] [class*="_navCell"] svg {
     width: 14px !important;
     height: 14px !important;
     flex: none !important;
   }
-  /* Content toolbar: the "Open configuration file" button is hidden on
-     mobile — it is rarely needed on a phone and steals ~180px from the
-     tab row's scroll area (user feedback 2026-08-16). Only the close ✕
-     stays, flush right in the nav row. Desktop untouched (frame scoped). */
-  [data-mobile-nav="frame"] [aria-modal="true"] [class*="_header"]:not([class*="_headerActions"]) [class*="_actions"] {
-    display: none !important;
-  }
+  /* Content toolbar: 两栏布局下工具栏在内容区顶部，保留配置文件和关闭按钮 */
   [data-mobile-nav="frame"] [aria-modal="true"] [class*="_header"]:not([class*="_headerActions"]) [class*="_actions"] [class*="_action"]:not([class*="_actions"]) {
     font-size: 13px !important;
     padding: 6px 12px !important;
@@ -3635,7 +3598,7 @@ exports.MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   /* All modal dialogs: centered, never edge-to-edge. The settings sheet has
      a higher-specificity full-width rule above, so repeat its selector here
      to win; the generic export/other-modal rule is covered by the second
-     selector. */
+     selector. 两栏布局下给更宽的导航列。 */
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])),
   [aria-modal="true"]:not(:has(> :first-child > :last-child > button)) {
     left: 0 !important;
@@ -3644,6 +3607,11 @@ exports.MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
     margin-right: auto !important;
     width: min(calc(100vw - 32px), 720px) !important;
     max-width: min(calc(100vw - 32px), 720px) !important;
+  }
+  [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])) > :first-child {
+    flex: 0 0 180px !important;
+    width: 180px !important;
+    min-width: 180px !important;
   }
 
   /* The dsh-web-ui explorer / preview bottom sheets: same treatment — keep
@@ -3674,7 +3642,12 @@ exports.MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
    windows — the slot renders the buttons at every width, so before this the
    only guard was the width term (2026-08-30 PC leak: split windows and OS
    display scaling dropped the CSS viewport below 1024px and armed the whole
-   mobile shell on desktop). */
+   mobile shell on desktop).
+
+   The session-delete trio (menu item + confirm/error dialog) is the ONE
+   deliberate exception: its effect arms on TOUCH_QUERY (pointer: coarse at
+   every width — large tablets in landscape), so it lives in the pointer-only
+   block below instead of this width arm. */
 
 @media (min-width: 1024px), (pointer: fine), (pointer: none) {
   [data-mobile-nav="toggle"],
@@ -3684,7 +3657,16 @@ exports.MISC_CSS = `@media (max-width: 1023px) and (pointer: coarse) {
   [data-mobile-nav="session-log"],
   [data-mobile-nav="explorer"],
   [data-mobile-nav="preview-full-toggle"],
-  [data-mobile-nav="drawer-actions"],
+  [data-mobile-nav="drawer-actions"] {
+    display: none !important;
+  }
+}
+
+/* Session-delete trio: hide on mouse-driven or pointer-less windows at ANY
+   width. No width term — the injection is armed on touch at every width, so
+   a width arm here would hide the item on wide touch (the device class the
+   injection exists for). */
+@media (pointer: fine), (pointer: none) {
   [data-mobile-nav="session-delete"],
   [data-mobile-nav="delete-dialog-backdrop"],
   [data-mobile-nav="delete-dialog"] {
@@ -3773,15 +3755,19 @@ const overlay_backdrop_fab_ts_1 = require("./effects/overlay-backdrop-fab.js");
 /**
  * Start-zone width as a FRACTION of the viewport width: the pointer counts
  * as "from the left edge" anywhere inside the left (RTL: right) strip this
- * wide. Fifth tuning pass (2026-08-29, user preference "识别区再扩宽到约占
- * 总宽的 45%"): the fixed 96px strip still missed landings beyond it, and
- * the user wants the sloppy, anywhere-in-the-left-half feel of native apps.
+ * wide. The zone STAYS at 45% (2026-09-11 user decision): a brief seventh
+ * pass shrank it to 0.25 for the draggable-widget conflict and was rolled
+ * back the same day — the user keeps the "anywhere in the left half" feel
+ * and the conflict is handled by yield signals instead (the
+ * data-mobile-nav-dragging cooperation mark + the floating-widget positional
+ * heuristic, see dragMarkYields/findFloatingWidget).
  * History of the constant: 24px (hotspot era) → 48px (third pass, fixed
  * "识别成对话内容滚动") → 96px (fourth pass — at that point the zone also
  * finally cleared Chrome Android's EDGE_WIDTH_DP=48dp history-navigation
  * trigger strip, whose strokes the browser claims and pointercancels; the
  * browser gesture itself is suppressed by the root overscroll-behavior-x:
- * none rule in layout.css.ts) → 0.45×viewport (fifth pass, this value).
+ * none rule in layout.css.ts) → 0.45×viewport (fifth pass; brief 0.25
+ * experiment rolled back) — this value.
  * Safety at this width: the release classification (0.16×w travel OR
  * 0.45px/ms velocity) still gates the commit, so widening cannot open on a
  * tap; vertical strokes reset at axis lock (≤8px of prevented movement) and
@@ -4158,6 +4144,80 @@ function onCooldown() {
     return performance.now() < cooldownUntil;
 }
 /**
+ * Draggable-element yield mark (2026-09-11, 桌宠拖动冲突 D 方案的 C 侧):
+ * a dragging component (desktop pet, floating ball, drag-to-reorder, …)
+ * marks itself with `data-mobile-nav-dragging` while its drag is live — on
+ * the element the pointer is holding (or any ancestor), or on
+ * documentElement/body as a global mark when the dragged node moves around
+ * or the dragger prefers not to touch the node tree. The gesture layer
+ * reads the mark at pointerdown AND at every axis-lock attempt before the
+ * stroke locks: a mark present at either point yields the whole stroke (no
+ * drawer arm, no touchmove preventDefault) because the two layers would
+ * otherwise both answer the same pointer stream — the exact bug the probe
+ * reproduces (draggable-conflict-probe pet.t1: a 56px floating ball dragged
+ * rightward inside the fifth-pass 45% zone opened the drawer mid-drag).
+ * Semantics mirror selectionOwnsStroke: the mark must be up by the first
+ * few move events (a pointerdown handler is the natural place); once the
+ * stroke axis-locks the gesture stays committed — a mark appearing
+ * mid-locked-stroke does not unwind an already-armed open follow.
+ */
+function dragMarkYields(event) {
+    if (document.documentElement.hasAttribute('data-mobile-nav-dragging'))
+        return true;
+    if (document.body.hasAttribute('data-mobile-nav-dragging'))
+        return true;
+    return (event.target instanceof Element &&
+        event.target.closest('[data-mobile-nav-dragging]') !== null);
+}
+/** Upper bound (px) of the "small floating widget" positional heuristic.
+ * The real-world reference is dsh-pet's floating ball (kz2Bea_float,
+ * position:fixed, measured 148x160 on the live profile page) — 160 would
+ * sit exactly on that widget's edge; 200 leaves headroom for sibling
+ * plugin widgets while a full-screen overlay (backdrop, sheets, dialogs)
+ * still cannot pass. */
+const FLOATING_WIDGET_MAX_PX = 200;
+/**
+ * Floating-widget positional yield (2026-09-11, 悬浮窗拖动冲突 B 侧): plugins
+ * ship draggable floating widgets (desktop-pet / floating-ball / draggable
+ * panel shapes) that carry NO standard "draggable" DOM mark, yet the user
+ * presses the widget itself — so the stroke's start target sits inside that
+ * widget's layer. Draggable widgets almost always live in a SMALL
+ * freely-positioned layer (position: fixed | absolute, own box ≤ 160px)
+ * hovering above the page, so walk the ancestor chain from the event target:
+ * the first small positioned ancestor counts as a floating widget and the
+ * stroke yields (no arm, no touchmove preventDefault). Pairs with
+ * dragMarkYields (cooperation mark) which needs no shape guessing.
+ * Excluded: anything inside our own frame subtree — the FAB / backdrop /
+ * drawer content carry their own gesture semantics and must never be
+ * misread as floating widgets (the closed-state FAB sits in the start zone).
+ * ponytail: no DOM-standard draggable signal exists; shape ≈ draggable is an
+ * approximation with a known ceiling — a STATIC small positioned element
+ * (e.g. a message badge) also yields, costing a stroke start under a
+ * ≤160px dot; a REAL widget that misses (bigger layer, static positioning)
+ * upgrades via the data-mobile-nav-dragging mark or by raising the cap.
+ */
+function findFloatingWidget(target) {
+    if (target.closest('[data-mobile-nav="frame"]') !== null)
+        return null;
+    let el = target;
+    while (el !== null) {
+        if (el instanceof HTMLElement) {
+            const cs = getComputedStyle(el);
+            if ((cs.position === 'fixed' || cs.position === 'absolute') &&
+                el.offsetWidth <= FLOATING_WIDGET_MAX_PX &&
+                el.offsetHeight <= FLOATING_WIDGET_MAX_PX) {
+                return el;
+            }
+        }
+        el = el.parentElement;
+    }
+    return null;
+}
+function floatingWidgetYields(event) {
+    return (event.target instanceof Element &&
+        findFloatingWidget(event.target) !== null);
+}
+/**
  * Cache the follow geometry for a freshly locked stroke. Runs ONCE per
  * stroke (one getComputedStyle, plus one getBoundingClientRect only for the
  * cold-start fallback); the per-move path afterwards is write-only.
@@ -4464,6 +4524,16 @@ function beginStroke(event, rtl, viewportWidthPx) {
     // never reaches tryLock).
     if (selectionOwnsStroke())
         return false;
+    // A live draggable (data-mobile-nav-dragging, see dragMarkYields) owns the
+    // stroke: yield before any geometric test so the drawer cannot arm for a
+    // drag that starts inside the start zone.
+    if (dragMarkYields(event))
+        return false;
+    // Plugin-shipped draggable floating widgets (pet / floating-ball shapes
+    // without any cooperation mark) yield the same way, via the positional
+    // heuristic — the user pressed the widget itself.
+    if (floatingWidgetYields(event))
+        return false;
     if (!(event.target instanceof Element))
         return false;
     // A stroke beginning inside a genuinely horizontally scrollable container
@@ -4523,6 +4593,14 @@ function tryLock(event) {
     const dy = event.clientY - startY;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < LOCK_PX)
         return false;
+    // Second timing window for the drag mark (same pattern as the selection
+    // check in onPointerMove): the dragger often raises the mark in its own
+    // pointerdown/move handler, i.e. AFTER our beginStroke ran. Re-check at
+    // every lock attempt so the stroke yields before the axis locks.
+    if (dragMarkYields(event) || floatingWidgetYields(event)) {
+        reset();
+        return false;
+    }
     if (Math.abs(dx) <= Math.abs(dy)) {
         // Vertical-dominant: hand the touch back to scrolling.
         reset();
@@ -5039,10 +5117,12 @@ function escapeHtml(value) {
         .replaceAll('"', '&quot;');
 }
 /**
- * Install the mobile session-delete menu machinery. Mobile-only: the whole
- * effect arms under the ≤1023px breakpoint and is a complete no-op on
- * desktop. Returns a disposer (via installMobileEffect) that removes every
- * listener, observer, injected node, and the confirm dialog.
+ * Install the mobile session-delete menu machinery. Touch-gated: the whole
+ * effect arms under TOUCH_QUERY — (pointer: coarse) at EVERY width — so a
+ * large tablet in landscape keeps the desktop layout but still gets the
+ * delete item, while any mouse-driven or pointer-less window stays a
+ * complete no-op. Returns a disposer (via installMobileEffect) that removes
+ * every listener, observer, injected node, and the confirm dialog.
  * @param ctx - client root context.
  */
 function installSessionMenuDelete(ctx) {
@@ -5199,7 +5279,11 @@ function installSessionMenuDelete(ctx) {
                 // mode that left deleted cold sessions lingering as ghost rows.
                 const sessions = ctx.sessions;
                 await sessions.refresh?.();
-                if (wasCurrent)
+                // On the mobile branch the drawer hosts the list, so closing it is
+                // the right follow-up after deleting the current session; on the
+                // desktop layout (wide touch) the same call would collapse the
+                // always-visible sidebar panel, so gate it on the mobile query.
+                if (wasCurrent && window.matchMedia(phone_chrome_ts_1.MOBILE_QUERY).matches)
                     ctx.layout.toggleSidebar();
             });
             frame.appendChild(backdrop);
@@ -5349,7 +5433,7 @@ function installSessionMenuDelete(ctx) {
             closeDialog();
             anchor = null;
         };
-    });
+    }, phone_chrome_ts_1.TOUCH_QUERY);
 }
 };
 __modules["effects/composer-keyboard-guard.js"] = function (require, module, exports) {
@@ -5638,7 +5722,7 @@ function apply(ctx) {
         tag.dataset.plugin = 'dsh-web-mobile';
         tag.dataset.pluginCss = 'dsh-web-mobile/mobile.css';
         tag.textContent = index_ts_1.MOBILE_CSS;
-        // DeepSeekHarness：0.1.5 的文件/预览属于右侧面板，在手机上覆盖会话而不压缩输入区。
+        // DSHA：0.1.5 的文件/预览属于右侧面板，在手机上覆盖会话而不压缩输入区。
         tag.textContent += `
 @media (max-width: 1023px) and (pointer: coarse) {
   [data-mobile-nav="frame"] [data-rightbar-col] {
@@ -5653,8 +5737,42 @@ function apply(ctx) {
   [data-sidebar-right-panel][data-sidebar-right-open] { pointer-events: auto; }
   /* 标签关闭按钮由上游按 20px 居中定位，不能套用普通工具按钮的最小高度。 */
   [data-sidebar-right-panel] button:not([data-dockkit-tab-close]) { min-height: 32px; }
+  /* DSHA：输入文字缩小一级；编辑层、占位符与高度测量层使用同一字号。 */
+  html:not([data-mobile-nav-ios]) [data-composer-card] {
+    --dsh-content-font-size: 13px;
+  }
+  html:not([data-mobile-nav-ios]) [data-composer-card] [data-composer-input],
+  html:not([data-mobile-nav-ios]) [data-composer-card] [data-composer-placeholder],
+  html:not([data-mobile-nav-ios]) [data-composer-card] textarea,
+  html:not([data-mobile-nav-ios]) [data-composer-card] [data-input-mirror],
+  html:not([data-mobile-nav-ios]) [data-composer-card] [data-input-backdrop] {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
 }`;
 
+        tag.textContent += `
+/* DSHA：宽屏触控保留文件入口，预设和文件靠右；鼠标桌面规则保持不变。 */
+@media (min-width: 1024px) and (pointer: coarse) {
+  [data-phase] header [class*="_headerActions"] {
+    margin-inline-start: auto;
+    gap: 4px;
+  }
+  [data-phase] header .dsha-preset-header-anchor {
+    order: 90;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 220px;
+  }
+  [data-phase] header [data-mobile-nav="files"] {
+    display: inline-flex !important;
+    order: 100;
+    position: static !important;
+    width: 44px;
+    height: 44px;
+    flex: none;
+  }
+}`;
         document.head.appendChild(tag);
         // Keep this stylesheet last in <head> so its overrides win over the
         // host UI's own styles (some host rules also use !important).
