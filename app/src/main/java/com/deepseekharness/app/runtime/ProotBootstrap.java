@@ -97,8 +97,10 @@ public class ProotBootstrap {
     }
 
     /**
-     * 已解压 rootfs 的版本是否与 APK 内置离线包一致。
-     * 身份不一致先进入维护；同基础环境局部更新，基础环境变化才备份并重建。
+     * 已解压 rootfs 的基础环境版本是否与 APK 内置离线包一致。
+     * 只比对 Ubuntu 基础环境版本：dsh 与 App 版本允许不一致（App 支持在线更新 dsh），
+     * 覆盖安装新 APK 或在线更新后不再被拦在“运行环境维护”页；
+     * 环境缺失/损坏仍由 isOfflineExtracted + hasBash 把关。
      */
     public boolean rootfsVersionMatches() {
         try {
@@ -106,7 +108,7 @@ public class ProotBootstrap {
             String stored = vf.isFile()
                     ? new String(Compat.readAllBytes(vf),
                     java.nio.charset.StandardCharsets.UTF_8).trim() : "";
-            return com.deepseekharness.app.util.EnvironmentIdentity.matches(environmentIdentity(), stored);
+            return com.deepseekharness.app.util.ManagedRuntimeLayout.sameBase(environmentIdentity(), stored);
         } catch (Throwable e) {
             return false;
         }
