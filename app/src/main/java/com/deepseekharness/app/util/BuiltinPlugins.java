@@ -38,7 +38,9 @@ public final class BuiltinPlugins {
                     "dsh-web-mobile",
                     "dsh-client-ui-aqua",
                     "dsh-balance-panel",
-                    "dsh-memento"));
+                    "dsh-memento",
+                    "dsh-auto-review",
+                    "dsh-computer-use-android"));
 
     /** 解析 deepseekharness-builtin.txt 内容：每行一个插件名，跳过空行与 # 注释。 */
     public static List<String> parseBuiltinNames(String content) {

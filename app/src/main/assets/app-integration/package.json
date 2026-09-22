@@ -1,6 +1,6 @@
 {
   "name": "dsh-app-integration",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -18,9 +18,10 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-sidebar-right"
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-workspace"
       ]
     }
   },
-  "description": "DeepSeekHarness 后台任务、网页返回和草稿恢复适配"
+  "description": "DSHA 后台任务、网页返回和草稿恢复适配"
 }

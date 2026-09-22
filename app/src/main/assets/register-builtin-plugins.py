@@ -63,6 +63,8 @@ DEFAULT_BUILTINS = (
     "dsh-client-ui-aqua",
     "dsh-balance-panel",
     "dsh-memento",
+    "dsh-auto-review",
+    "dsh-computer-use-android",
 )
 
 # 预装第三方插件（随 App 分发，但保持第三方身份：可在线更新 / 可删除）：
