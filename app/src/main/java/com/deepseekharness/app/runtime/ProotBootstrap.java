@@ -478,7 +478,18 @@ public class ProotBootstrap {
                     + SensitiveData.redact(String.valueOf(e)));
         }
     }
-    /** 幂等 patch：session 持久化的 link(tmp,final) → rename(tmp,final)（见 ensureDshRuntimePatches 说明）。 */
+    /**
+     * 幂等 patch：session 持久化的 link(tmp,final) → rename(tmp,final)（见 ensureDshRuntimePatches 说明）。
+     *
+     * <p>import 必须与调用点<b>一起</b>改：dsh 0.1.6-alpha 起 {@code node:fs/promises} 的
+     * 具名导入列表里插入了 {@code lstat}（{@code import { link, lstat, mkdir, … }}），
+     * 早期版本写死的匹配串 {@code "import { link, mkdir, mkdtemp, open,"} 因此不再命中——
+     * {@code String.replace} 匹配不到就静默什么都不做，于是调用点换成了 {@code rename}
+     * 而 {@code rename} 从未被 import，新建会话时报 {@code rename is not defined}。
+     *
+     * <p>这里改为解析整段 import 列表后按名插入（与 InstallProbe 的修复逻辑一致），
+     * 不再依赖任何写死的成员顺序；调用点与 import 必须同时生效，否则整体放弃并保留原文件。
+     */
     private void patchLinkToRename(File f) throws Exception {
         if (!f.isFile()) return;
         String c = new String(Compat.readAllBytes(f),
@@ -491,11 +502,32 @@ public class ProotBootstrap {
                 || c.contains("publishSessionExclusive as link")) return;
         if (c.contains("DeepSeekHarness_ATOMIC_PUBLISH_V1")) return; // 新版保留排他发布语义，不能降回旧 rename 补丁。
         if (!c.contains("await link(tmp, finalPath)")) return; // 已 patch 或版本不同
-        c = c.replace("await link(tmp, finalPath);", "await rename(tmp, finalPath);");
-        c = c.replace("import { link, mkdir, mkdtemp, open,",
-                "import { mkdir, mkdtemp, open, rename,");
-        Compat.write(f, c.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        Log.i("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("已 patch dsh session 持久化 link→rename: ") + f.getAbsolutePath());
+        String callOrig = "await link(tmp, finalPath);";
+        if (!c.contains(callOrig)) return; // 调用形式已变化，交给 InstallProbe 的严格校验处理
+
+        // 1. import { ... } from "node:fs/promises"; —— 解析具名列表并确保含 rename
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                "^import \\{([^}]*)\\} from \"node:fs/promises\";", java.util.regex.Pattern.MULTILINE)
+                .matcher(c);
+        if (!m.find()) return; // 结构不认识就整体不动，避免只改一半
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (String n : m.group(1).split(",")) {
+            String t = n.trim();
+            if (!t.isEmpty()) names.add(t);
+        }
+        if (names.isEmpty()) return;
+        if (!names.contains("rename")) names.add(1, "rename");
+        String importNew = "import { " + String.join(", ", names) + "} from \"node:fs/promises\";";
+
+        StringBuilder out = new StringBuilder(c);
+        out.replace(m.start(), m.end(), importNew);
+
+        // 2. 调用点：link(tmp, finalPath) → rename(tmp, finalPath)
+        int callAt = out.indexOf(callOrig);
+        out.replace(callAt, callAt + callOrig.length(), "await rename(tmp, finalPath);");
+
+        Compat.write(f, out.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Log.i("DeepSeekHarness", "已 patch dsh session 持久化 link→rename: " + f.getAbsolutePath());
     }
 
     // ================= 内置插件注册 =================
