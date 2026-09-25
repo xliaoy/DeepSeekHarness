@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "runtimeId": "555129c57bad1a9e13572e06c2266e29317a7bc3f7ab6bfbccfd6bb415a055ec",
+  "runtimeId": "472f21fa5f4d111e99ed7b4d96b471f55f890352e05361520267e3957441ee5b",
   "baseVersion": "10",
   "dshVersion": "0.1.7-alpha.2",
   "launcherContract": "DSHA_ARM64_V2",
@@ -18,7 +18,7 @@
     "app/src/main/jniLibs/arm64-v8a/libtermux.so": "52bb4a06db4a2805fc35f7d33892a78563dce5d64f1f558d8713330cc0aefe15",
     "app/src/low/jniLibs/arm64-v8a/libproot_legacy.so": "c4cec36906b973c5923023e3492b2b221a739a4a5fa1f6dc5bc834ac9a05e9db",
     "app/src/low/jniLibs/arm64-v8a/libprootloader_legacy.so": "e2d450b84960cf5e897a36549e86801b8010f440b6355983acce93c339bba610",
-    "runtime/ProotBootstrap.java": "0b890ad3ecaa995c3e123f03915b32a16e031f50d950c340d84b0bb8dcf22d4c",
+    "runtime/ProotBootstrap.java": "8497e8407b800c2c31b8f3fa04dd7f51a4e57835222f3d34223f12716089514a",
     "runtime/ContainerRuntime.java": "efcd8480363f149bafaa31a1d6e0de916487c0fc166f3f106a304aa534c9b80e",
     "runtime/WebProcessManager.java": "636397a6a187c0291174ae2451fa5ccb95467e4660ab5a6738586e84d61f2b2d",
     "runtime/NativeProcess.java": "e08354cebfd3133e62db7464dfb0a773420daa2f867d4ed283981bd1618a6ffd",
