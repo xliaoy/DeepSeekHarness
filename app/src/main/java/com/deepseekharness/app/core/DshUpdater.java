@@ -42,6 +42,10 @@ public final class DshUpdater {
     private volatile String latestVersion;
     private volatile String latestBody;
     private volatile String latestUrl;
+    /** 用户自选的运行时版本；null 表示跟随上游最新。 */
+    private volatile String requestedVersion;
+    /** 最近一次检查得到的可安装版本（从新到旧）。 */
+    private volatile java.util.ArrayList<String> availableVersions = new java.util.ArrayList<>();
     private final MutableLiveData<State> state = new MutableLiveData<>(new State("尚未检查更新", false, null, null, null, null));
     private final Handler main = new Handler(Looper.getMainLooper());
 
@@ -126,16 +130,38 @@ public final class DshUpdater {
                 latestVersion = latest;
                 latestBody = body;
                 latestUrl = url;
-                startupNotice = startup && latest != null && current != null && compareVersion(latest, current) > 0;
-                message = current == null
-                        ? "当前环境未安装 DeepSeek Harness，可先到「安装与修复」完成环境安装。"
-                        : latest == null
-                        ? "无法读取上游最新版本，请稍后重试。"
-                        : compareVersion(latest, current) > 0
-                        ? "发现新版本 " + latest + "（当前 " + current + "）"
-                        : compareVersion(latest, current) == 0
-                        ? "已是最新版本 " + current
-                        : "本地版本 " + current + " 已高于上游最新 " + latest + "，无需更新";
+                // 版本清单用于「自选版本」；取不到不影响主流程（仍可只装最新）。
+                try { availableVersions = fetchVersionList(); }
+                catch (Exception ignored) { availableVersions = new java.util.ArrayList<>(); }
+                if (requestedVersion != null && !availableVersions.isEmpty()
+                        && !availableVersions.contains(requestedVersion)) {
+                    // 自选版本已从上游下架：明确告知并回到自动选择，不静默忽略。
+                    String gone = requestedVersion;
+                    requestedVersion = null;
+                    startupNotice = false;
+                    message = "所选运行时版本 " + gone + " 已不在上游版本列表中，已回到自动选择。";
+                } else if (requestedVersion != null) {
+                    // 自选优先：允许装旧版本（回退），界面须明确提示。
+                    latestVersion = requestedVersion;
+                    int cmp = current == null ? 0 : compareVersion(requestedVersion, current);
+                    startupNotice = false;
+                    message = current == null
+                            ? "已选择运行时版本 " + requestedVersion + "，可开始更新。"
+                            : cmp > 0 ? "已选择运行时版本 " + requestedVersion + "（当前 " + current + "）"
+                            : cmp == 0 ? "所选版本 " + requestedVersion + " 与当前版本相同，将重新安装。"
+                            : "已选择旧版本 " + requestedVersion + "（当前 " + current + "）：将回退到该版本，完成后需要重启运行时。";
+                } else {
+                    startupNotice = startup && latest != null && current != null && compareVersion(latest, current) > 0;
+                    message = current == null
+                            ? "当前环境未安装 DeepSeek Harness，可先到「安装与修复」完成环境安装。"
+                            : latest == null
+                            ? "无法读取上游最新版本，请稍后重试。"
+                            : compareVersion(latest, current) > 0
+                            ? "发现新版本 " + latest + "（当前 " + current + "）"
+                            : compareVersion(latest, current) == 0
+                            ? "已是最新版本 " + current
+                            : "本地版本 " + current + " 已高于上游最新 " + latest + "，无需更新";
+                }
             } catch (Exception error) {
                 message = "检查失败：" + SensitiveData.redact(error.getMessage());
             }
@@ -282,6 +308,73 @@ public final class DshUpdater {
         } finally {
             conn.disconnect();
         }
+    }
+
+    /**
+     * 从 npm registry 的 packument 取出可安装的历史版本（从新到旧）。
+     *
+     * <p>「运行时更新」自选版本需要完整版本列表，而上游 GitHub Release 只给最新一条，
+     * 因此这里走 registry 的 {@code versions} 字段，与安装链路（{@code fetchTarballMeta}）
+     * 使用同一来源，避免「列表里有、实际装不了」。
+     */
+    private java.util.ArrayList<String> fetchVersionList() throws Exception {
+        String api = npmRegistry() + "/@deepseek-ai%2Fdsh";
+        HttpURLConnection conn = (HttpURLConnection) new URL(api).openConnection();
+        try {
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(30000);
+            conn.setRequestProperty("User-Agent", "DeepSeek-Harness-App");
+            int code = conn.getResponseCode();
+            if (code != 200) throw new java.io.IOException("npm registry 返回 HTTP " + code);
+            try (InputStream in = conn.getInputStream(); java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192]; int n;
+                while ((n = in.read(buffer)) != -1) {
+                    if (bytes.size() + n > 4 * 1024 * 1024) throw new java.io.IOException("版本清单过大");
+                    bytes.write(buffer, 0, n);
+                }
+                org.json.JSONObject versions = new org.json.JSONObject(bytes.toString("UTF-8"))
+                        .optJSONObject("versions");
+                java.util.ArrayList<String> list = new java.util.ArrayList<>();
+                if (versions != null) {
+                    java.util.Iterator<String> it = versions.keys();
+                    while (it.hasNext()) {
+                        String v = it.next();
+                        if (v != null && !v.isEmpty()) list.add(v);
+                    }
+                }
+                // 从新到旧：同一链路内已存在 compareVersion，语义保持一致。
+                list.sort((a, b) -> compareVersion(b, a));
+                return list;
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    /** 最近一次检查得到的可安装运行时版本（从新到旧）；供「运行时更新」的自选版本列表使用。 */
+    public java.util.ArrayList<String> availableVersions() {
+        java.util.ArrayList<String> copy = new java.util.ArrayList<>(availableVersions);
+        return copy;
+    }
+
+    /** 用户自选的运行时版本；null 表示跟随上游最新。 */
+    public String requestedVersion() { return requestedVersion; }
+
+    /**
+     * 用户自选运行时版本。
+     *
+     * <p>与 APK 不同，proot 内的运行时是普通文件替换，允许装旧版本（回退）。
+     * 但界面必须明确告知「这是回到旧版本」，不能静默当作升级。
+     */
+    public void selectVersion(String version) {
+        if (busy.get()) return;
+        requestedVersion = version == null || version.isEmpty() ? null : version;
+        check();
+    }
+
+    /** 目标版本是否低于当前已安装版本（回退，界面须明确提示）。 */
+    public boolean isRollback(String version) {
+        return version != null && currentVersion != null && compareVersion(version, currentVersion) < 0;
     }
 
     /** App 侧下载 tarball 到 rootfs 临时目录，按 512KB 节流上报真实字节进度；

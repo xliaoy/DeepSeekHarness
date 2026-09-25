@@ -1,122 +1,56 @@
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawer_layout"
+<?xml version='1.0' encoding='utf-8'?>
+<!-- 主界面外壳：DrawerLayout（侧边栏设置入口）+ 官方新架构内容（顶栏 / 环境横幅 / fragment_container / 底部导航）。
+     侧边栏是【叠加】而非替换：原有全部控件与 id 一律保留。 -->
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:id="@+id/drawer_layout"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@color/surface">
+
+  <!-- 主内容容器：在主内容区域任意位置横向滑动即可展开侧边栏（系统手势下边缘滑不开）。 -->
+  <com.deepseekharness.app.ui.EdgeSwipeLayout
+    android:id="@+id/main_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+  <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface">
+    android:background="@color/surface"
+    android:orientation="vertical">
+  <!-- 顶栏与页面同色（fork 视觉）：状态栏透明后由本栏背景延伸覆盖，不再与主体产生色差。 -->
+  <LinearLayout android:id="@+id/app_bar" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="60dp" android:gravity="center_vertical" android:orientation="horizontal" android:background="@color/card" android:paddingStart="18dp" android:paddingEnd="16dp">
+    <!-- 汉堡按钮：以侧边栏方式展示全部设置入口 -->
+    <androidx.appcompat.widget.AppCompatImageButton android:id="@+id/btn_menu" android:layout_width="44dp" android:layout_height="44dp" android:padding="10dp" android:src="@drawable/ic_menu" android:contentDescription="@string/ui_m0219" android:background="?attr/selectableItemBackgroundBorderless" app:tint="@color/text" />
+    <FrameLayout android:id="@+id/app_logo" android:layout_width="34dp" android:layout_height="34dp" android:background="@drawable/bg_logo">
+      <ImageView android:layout_width="17dp" android:layout_height="17dp" android:layout_gravity="center" android:contentDescription="@null" android:src="@drawable/ic_terminal" app:tint="@color/primary" />
+    </FrameLayout>
+    <androidx.appcompat.widget.AppCompatImageButton android:id="@+id/sub_back" android:visibility="gone" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_ui_back" android:contentDescription="@string/ui_m0201" app:tint="@color/text" />
+    <TextView android:id="@+id/app_title" style="@style/DeepSeekHarnessText.PageTitle" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="@dimen/gap_control" android:text="DEEPSEEK_HARNESS" android:textSize="18sp" />
+    <androidx.appcompat.widget.AppCompatImageButton android:id="@+id/btn_tasks" android:layout_width="44dp" android:layout_height="44dp" android:padding="11dp" android:src="@drawable/ic_ui_tasks" app:tint="@color/text_secondary" android:background="?attr/selectableItemBackgroundBorderless" />
+    <TextView android:id="@+id/btn_theme" style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction" android:layout_width="44dp" android:layout_height="44dp" android:layout_marginEnd="8dp" android:text="@string/ui_m0020" android:padding="12dp" android:background="?attr/selectableItemBackgroundBorderless" />
+    <FrameLayout android:id="@+id/btn_about" android:layout_width="44dp" android:layout_height="44dp" android:background="@drawable/bg_chip_clickable" android:clickable="true" android:contentDescription="@string/ui_m0067" android:focusable="true" android:visibility="gone">
+      <ImageView android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="center" android:contentDescription="@null" android:src="@drawable/ic_about" app:tint="@color/text_secondary" />
+    </FrameLayout>
+  </LinearLayout>
+  <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/line" />
+  <TextView android:id="@+id/environment_recovery_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:padding="12dp" android:textColor="@color/primary" android:background="@drawable/bg_chip_clickable" android:textSize="14sp" android:clickable="true" android:focusable="true" android:visibility="gone" android:gravity="center" android:includeFontPadding="false" />
+  <FrameLayout android:id="@+id/fragment_container" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+  <View android:layout_width="match_parent" android:layout_height="@dimen/stroke" android:background="@color/line" />
+  <!-- Telegram 风格悬浮底栏（fork 视觉）：居中胶囊卡片，左右留白、底部悬浮、柔和阴影。
+       上游新增的控件结构（fragment_container / 环境恢复横幅 / 分隔线）全部保留。 -->
+  <FrameLayout android:id="@+id/bottom_nav_wrap" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="@dimen/nav_pad_x" android:paddingEnd="@dimen/nav_pad_x" android:paddingTop="6dp" android:paddingBottom="@dimen/nav_pad_y">
+    <com.google.android.material.bottomnavigation.BottomNavigationView android:id="@+id/bottom_nav" android:layout_width="match_parent" android:layout_height="@dimen/nav_height" android:background="@drawable/bg_nav_floating" android:elevation="8dp" app:itemActiveIndicatorStyle="@style/Widget.DEEPSEEK_HARNESS_BottomNavActiveIndicator" app:itemBackground="@drawable/nav_item_bg" app:itemHorizontalTranslationEnabled="false" app:itemIconSize="24dp" app:itemIconTint="@color/nav_item_tint" app:itemPaddingTop="4dp" app:itemPaddingBottom="4dp" app:itemRippleColor="@color/ripple" app:itemTextColor="@color/nav_item_tint" app:itemTextAppearanceActive="@style/TextAppearance.DeepSeekHarness.NavLabelActive" app:itemTextAppearanceActiveBoldEnabled="true" app:itemTextAppearanceInactive="@style/TextAppearance.DeepSeekHarness.NavLabelInactive" app:labelVisibilityMode="labeled" app:menu="@menu/bottom_nav_menu" />
+  </FrameLayout>
+  </LinearLayout>
+  </com.deepseekharness.app.ui.EdgeSwipeLayout>
 
-    <!-- ================= 主内容（EdgeSwipeLayout：左侧区域右滑展开侧边栏） ================= -->
-    <com.deepseekharness.app.ui.EdgeSwipeLayout
-        android:id="@+id/main_content"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/surface"
-        android:orientation="vertical">
-
-        <LinearLayout
-            android:id="@+id/app_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:background="@drawable/bg_bar"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="@dimen/page_pad"
-            android:paddingEnd="@dimen/gap_control">
-
-            <!-- 汉堡按钮：点击以侧边栏方式展示设置全部入口 -->
-            <ImageView
-                android:id="@+id/btn_menu"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/bg_action_plain"
-                android:contentDescription="@string/main_open_menu"
-                android:padding="10dp"
-                android:src="@drawable/ic_menu"
-                app:tint="@color/text" />
-
-            <TextView android:id="@+id/sub_back" style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                android:layout_width="44dp" android:layout_height="wrap_content" android:text="‹"
-                android:textSize="24sp" android:contentDescription="@string/main_back" android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/app_title"
-                style="@style/DeepSeekHarnessText.NavTitle"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/gap_control"
-                android:text="@string/app_name" />
-
-            <!-- 主题切换：纯图标（太阳/月亮），不显示文字 -->
-            <ImageView
-                android:id="@+id/btn_theme"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginEnd="@dimen/gap_tight"
-                android:background="@drawable/bg_action_plain"
-                android:contentDescription="@string/main_toggle_theme"
-                android:padding="10dp"
-                android:src="@drawable/ic_sun"
-                app:tint="@color/text" />
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/hairline"
-            android:background="@color/line" />
-
-        <FrameLayout
-            android:id="@+id/fragment_container"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <!-- Telegram 风格悬浮底栏：居中胶囊卡片，左右留白、底部悬浮、柔和阴影（elevation）。 -->
-        <FrameLayout
-            android:id="@+id/bottom_nav_wrap"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingStart="@dimen/nav_pad_x"
-            android:paddingEnd="@dimen/nav_pad_x"
-            android:paddingTop="6dp"
-            android:paddingBottom="@dimen/nav_pad_y">
-
-            <com.google.android.material.bottomnavigation.BottomNavigationView
-                android:id="@+id/bottom_nav"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/nav_height"
-                android:background="@drawable/bg_nav_floating"
-                android:elevation="8dp"
-                app:itemActiveIndicatorStyle="@style/Widget.DeepSeekHarness.BottomNavActiveIndicator"
-                app:itemBackground="@drawable/nav_item_bg"
-                app:itemHorizontalTranslationEnabled="false"
-                app:itemIconSize="24dp"
-                app:itemIconTint="@color/nav_item_tint"
-                app:itemPaddingTop="4dp"
-                app:itemPaddingBottom="4dp"
-                app:itemRippleColor="@color/ripple"
-                app:itemTextColor="@color/nav_item_tint"
-                app:itemTextAppearanceActive="@style/TextAppearance.DeepSeekHarness.NavLabelActive"
-                app:itemTextAppearanceActiveBoldEnabled="true"
-                app:itemTextAppearanceInactive="@style/TextAppearance.DeepSeekHarness.NavLabelInactive"
-                app:labelVisibilityMode="labeled"
-                app:menu="@menu/bottom_nav_menu" />
-        </FrameLayout>
-    </LinearLayout>
-    </com.deepseekharness.app.ui.EdgeSwipeLayout>
-
-    <!-- ================= 侧边栏（设置入口集合，代码构建内容） ================= -->
-    <LinearLayout
-        android:id="@+id/drawer_panel"
-        android:layout_width="280dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:background="@color/card"
-        android:orientation="vertical" />
+  <!-- 侧边栏面板：内容由 MainActivity.buildDrawer() 代码构建（窄屏 280dp 靠左，宽屏 360dp 靠右）。 -->
+  <LinearLayout
+    android:id="@+id/drawer_panel"
+    android:layout_width="280dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="start"
+    android:background="@color/card"
+    android:orientation="vertical" />
 </androidx.drawerlayout.widget.DrawerLayout>

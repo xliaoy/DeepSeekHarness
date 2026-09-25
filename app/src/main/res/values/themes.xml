@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.DeepseekHarness" parent="Theme.DeepSeekHarness.Base">
+    <style name="Theme.DeepseekHarness" parent="Theme.DEEPSEEK_HARNESS_Base">
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
-    <style name="Theme.DeepSeekHarness.Base" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.DEEPSEEK_HARNESS_Base" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/accent_on</item>
         <item name="colorPrimaryContainer">@color/raised</item>
@@ -18,6 +18,11 @@
              Switch / CheckBox / Slider / AlertDialog 都吃这几个语义色，
              补齐后系统控件才会和自绘的卡片按钮同色系。 -->
         <item name="colorSurface">@color/card</item>
+        <item name="colorSurfaceContainerLowest">@color/surface</item>
+        <item name="colorSurfaceContainerLow">@color/card</item>
+        <item name="colorSurfaceContainer">@color/card</item>
+        <item name="colorSurfaceContainerHigh">@color/card</item>
+        <item name="colorSurfaceContainerHighest">@color/raised</item>
         <item name="colorOnSurface">@color/text</item>
         <item name="colorSurfaceVariant">@color/raised</item>
         <item name="colorOnSurfaceVariant">@color/text_secondary</item>
@@ -27,12 +32,12 @@
         <item name="colorOnError">@color/error_on</item>
         <item name="colorControlHighlight">@color/ripple</item>
 
-        <!-- 柔和低透明度软阴影：黑色低透明度，避免生硬黑边（API 29+，minSdk 30 可用） -->
+        <!-- 柔和低透明度软阴影：黑色低透明度，避免生硬黑边（API 29+） -->
         <item name="android:outlineAmbientShadowColor">#14000000</item>
         <item name="android:outlineSpotShadowColor">#10000000</item>
 
         <item name="android:colorBackground">@color/surface</item>
-        <!-- 窗口背景取顶栏渐变顶部色(card)：状态栏透明时显示其背景不让主体灰(surface)染进来，
+        <!-- 窗口背景取顶栏同色(card)：状态栏透明时显示其背景不让主体灰(surface)染进来，
              页面主体都自带 surface 背景不受影响；暗色模式自动用 night 的 card。 -->
         <item name="android:windowBackground">@color/card</item>
         <!-- 状态栏沉浸式透明，由顶栏背景延伸覆盖（配合 setDecorFitsSystemWindows(false)） -->
@@ -45,25 +50,30 @@
         <!-- 弹窗圆角/配色跟随 App（系统默认弹窗是直角 + 紫色按钮）。
              两条各管一路：alertDialogTheme 管 appcompat/framework 的 AlertDialog，
              materialAlertDialogTheme 管 MaterialAlertDialogBuilder。 -->
-        <item name="alertDialogTheme">@style/Dialog.DeepSeekHarness.Alert</item>
+        <item name="alertDialogTheme">@style/Dialog.DEEPSEEK_HARNESS_Alert</item>
         <item name="materialAlertDialogTheme">@style/Dialog.DeepSeekHarness.Material</item>
 
         <!-- 关闭自动着色时必须同时指定默认背景和文字状态，否则未指定背景的按钮会变黑。 -->
-        <item name="materialButtonStyle">@style/Widget.DeepSeekHarness.Button</item>
-        <item name="buttonStyle">@style/Widget.DeepSeekHarness.Button</item>
-        <item name="android:buttonStyle">@style/Widget.DeepSeekHarness.PlatformButton</item>
+        <item name="materialButtonStyle">@style/Widget.DEEPSEEK_HARNESS_Button</item>
+        <item name="buttonStyle">@style/Widget.DEEPSEEK_HARNESS_Button</item>
+        <item name="android:buttonStyle">@style/Widget.DEEPSEEK_HARNESS_PlatformButton</item>
         <item name="android:colorAccent">@color/primary</item>
         <item name="colorControlNormal">@color/text_secondary</item>
         <item name="colorControlActivated">@color/primary</item>
-        <item name="radioButtonStyle">@style/Widget.DeepSeekHarness.RadioButton</item>
-        <item name="checkboxStyle">@style/Widget.DeepSeekHarness.CheckBox</item>
-        <item name="materialSwitchStyle">@style/Widget.DeepSeekHarness.Switch</item>
+        <item name="radioButtonStyle">@style/Widget.DEEPSEEK_HARNESS_RadioButton</item>
+        <item name="checkboxStyle">@style/Widget.DEEPSEEK_HARNESS_CheckBox</item>
+        <item name="materialSwitchStyle">@style/Widget.DEEPSEEK_HARNESS_Switch</item>
     </style>
 
     <!-- appcompat / framework AlertDialog：必须是完整 Dialog 主题（不能给 Overlay） -->
-    <style name="Dialog.DeepSeekHarness.Alert" parent="Theme.Material3.DayNight.Dialog.Alert">
+    <style name="Dialog.DEEPSEEK_HARNESS_Alert" parent="Theme.Material3.DayNight.Dialog.Alert">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorSurface">@color/card</item>
+        <item name="colorSurfaceContainerLowest">@color/surface</item>
+        <item name="colorSurfaceContainerLow">@color/card</item>
+        <item name="colorSurfaceContainer">@color/card</item>
+        <item name="colorSurfaceContainerHigh">@color/card</item>
+        <item name="colorSurfaceContainerHighest">@color/raised</item>
         <item name="colorOnSurface">@color/text</item>
         <item name="android:textColorPrimary">@color/text</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
@@ -73,27 +83,36 @@
         <item name="android:windowMinWidthMajor">86%</item>
         <item name="android:windowMinWidthMinor">86%</item>
         <item name="android:windowNoTitle">false</item>
-        <item name="android:buttonBarStyle">@style/Widget.DeepSeekHarness.DialogButtonBar</item>
-        <item name="buttonBarPositiveButtonStyle">@style/Widget.DeepSeekHarness.DialogPositive</item>
-        <item name="buttonBarNegativeButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
-        <item name="buttonBarNeutralButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
-        <item name="shapeAppearanceOverlay">@style/Shape.DeepSeekHarness.Dialog</item>
+        <item name="android:buttonBarStyle">@style/Widget.DEEPSEEK_HARNESS_DialogButtonBar</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.DEEPSEEK_HARNESS_DialogPositive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.DEEPSEEK_HARNESS_DialogNegative</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.DEEPSEEK_HARNESS_DialogNegative</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.DEEPSEEK_HARNESS_Dialog</item>
     </style>
 
     <!-- MaterialAlertDialogBuilder 专用（必须是 ThemeOverlay） -->
     <style name="Dialog.DeepSeekHarness.Material" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="android:backgroundDimAmount">0.22</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.DEEPSEEK_HARNESS_DialogPositive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.DEEPSEEK_HARNESS_DialogNegative</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.DEEPSEEK_HARNESS_DialogNegative</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.DEEPSEEK_HARNESS_DialogTitle</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/TextAppearance.DEEPSEEK_HARNESS_DialogBody</item>
         <item name="colorPrimary">@color/primary</item>
         <item name="colorSurface">@color/card</item>
+        <item name="colorSurfaceContainerLowest">@color/surface</item>
+        <item name="colorSurfaceContainerLow">@color/card</item>
+        <item name="colorSurfaceContainer">@color/card</item>
+        <item name="colorSurfaceContainerHigh">@color/card</item>
+        <item name="colorSurfaceContainerHighest">@color/raised</item>
         <item name="colorOnSurface">@color/text</item>
         <item name="android:colorAccent">@color/primary</item>
         <item name="android:textColorHint">@color/text_muted</item>
-        <item name="buttonBarPositiveButtonStyle">@style/Widget.DeepSeekHarness.DialogPositive</item>
-        <item name="buttonBarNegativeButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
-        <item name="buttonBarNeutralButtonStyle">@style/Widget.DeepSeekHarness.DialogNegative</item>
-        <item name="shapeAppearanceOverlay">@style/Shape.DeepSeekHarness.Dialog</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.DEEPSEEK_HARNESS_Dialog</item>
     </style>
 
-    <style name="Shape.DeepSeekHarness.Dialog" parent="">
+    <style name="Shape.DEEPSEEK_HARNESS_Dialog" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">32dp</item>
     </style>

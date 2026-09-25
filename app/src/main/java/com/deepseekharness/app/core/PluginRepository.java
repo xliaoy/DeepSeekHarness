@@ -41,13 +41,18 @@ public final class PluginRepository extends AndroidViewModel {
     private volatile List<Item> items = Collections.emptyList();
     private volatile boolean safeMode;
     private volatile boolean installationSucceeded;
-    /** 最近一次插件操作类型（检测/安装/删除/回退/更新/状态…），供结果弹窗标题用。 */
-    private volatile String lastOperation = "";
     private volatile PluginTask activeTask;
-    private volatile long lastRefreshAtMs;
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
-    private String installedDescription = "";
+    private Preview installedPreview;
     private final MutableLiveData<Preview> preview = new MutableLiveData<>();
+    private volatile List<PendingReview> pendingReviews=Collections.emptyList();
+    public static final class PendingReview {
+        public final String id,label;
+        PendingReview(JSONObject value)throws Exception{
+            id=value.getString("previewId");if(!id.matches("[a-f0-9]{32}"))throw new IOException("插件预览标识无效");
+            JSONArray names=value.getJSONArray("names");List<String> text=new ArrayList<>();for(int i=0;i<names.length();i++)text.add(names.getString(i));label=String.join("、",text);
+        }
+    }
 
     public static final class Item {
         public final String name, description, version, source;
@@ -55,6 +60,7 @@ public final class PluginRepository extends AndroidViewModel {
         public final boolean detected;
         public final boolean dynamic;
         public final String latestVersion, updatePreviewId, updateMessage, rollbackVersion, compatibility;
+        public final String loadState;
         public final boolean updateAvailable;
         public final boolean enabled, builtin, official, available, exportable, deletable;
         Item(JSONObject json) {
@@ -77,27 +83,55 @@ public final class PluginRepository extends AndroidViewModel {
             rollbackVersion = json.optString("rollbackVersion");
             compatibility = json.optString("compatibility");
             updateAvailable = json.optBoolean("updateAvailable");
+            loadState=json.optString("loadState");
         }
     }
 
     public static final class Preview {
-        public final String id, description;
+        public final String id, description, confirmation, action;
         Preview(JSONObject json) throws Exception {
             id = json.getString("previewId");
             if (!id.matches("[a-f0-9]{32}")) throw new IOException("插件预览标识无效");
+            confirmation=json.getString("confirmationSha256");
+            action=json.optString("action","install");
+            if(!confirmation.matches("[a-f0-9]{64}"))throw new IOException("插件预览标识无效");
+            data=new JSONObject(json.toString());
+            JSONArray packages=data.getJSONArray("items");
+            for(int i=0;i<packages.length();i++)packages.getJSONObject(i).getString("name");
+            description=description();
+        }
+        private final JSONObject data;
+        public boolean blocked(){JSONArray items=data.optJSONArray("items");if(items!=null)for(int i=0;i<items.length();i++){JSONObject item=items.optJSONObject(i);if(item!=null&&(item.optBoolean("existingConflict")||item.optJSONArray("missingDependencies")!=null&&item.optJSONArray("missingDependencies").length()>0))return true;}return false;}
+        public String description() {
+            JSONObject json=data;
             StringBuilder text = new StringBuilder();
-            JSONArray packages = json.getJSONArray("items");
+            JSONArray packages = json.optJSONArray("items");
             for (int i = 0; i < packages.length(); i++) {
-                JSONObject pkg = packages.getJSONObject(i);
-                text.append(pkg.getString("name")).append(" · ").append(pkg.optString("version"))
-                        .append("\n作者：").append(pkg.optString("author", "未注明"))
+                JSONObject pkg = packages.optJSONObject(i);
+                text.append(pkg.optString("name")).append(" · ").append(pkg.optString("version"))
+                        .append(com.deepseekharness.app.util.UiText.text("\n作者：")).append(pkg.optString("author", com.deepseekharness.app.util.UiText.text("未注明")))
                         .append("\n").append(pkg.optString("description"))
-                        .append("\n").append(pkg.optString("compatibilityMessage")).append("\n\n");
+                        .append("\n").append(com.deepseekharness.app.util.UiStateText.render(pkg.optString("compatibilityMessage"))).append("\n\n");
+                JSONArray dependencies=pkg.optJSONArray("resolvedDependencies");
+                text.append(com.deepseekharness.app.util.UiText.text("实际依赖数量：")).append(pkg.optInt("dependencyCount")).append('\n');
+                if(dependencies!=null)for(int at=0;at<Math.min(50,dependencies.length());at++){
+                    JSONObject dependency=dependencies.optJSONObject(at);if(dependency!=null)text.append("  ").append(dependency.optString("name")).append(" · ").append(dependency.optString("version")).append('\n');
+                }
+                if(pkg.optInt("dependencyCount")>50)text.append(com.deepseekharness.app.util.UiText.text("摘要显示前 50 项；确认时仍核对完整依赖内容。\n"));
+                String dependencyState=pkg.optString("dependencyState");
+                if(dependencyState.equals("legacy-unknown"))text.append(com.deepseekharness.app.util.UiText.text("历史依赖信息不足；本次核对现存源码和实际依赖，不重新解析旧版本。\n"));
+                if(dependencyState.equals("modified-original"))text.append(com.deepseekharness.app.util.UiText.text("现存内容与旧依赖记录不同；请按本次实际内容审阅。\n"));
+                String locked=pkg.optString("dependencyLockSha256");if(!locked.isEmpty())text.append("pnpm · ").append(pkg.optString("packageManagerVersion").equals("not-executed")?com.deepseekharness.app.util.UiText.choose("随包依赖，未运行包管理器","Bundled dependencies; package manager not run"):pkg.optString("packageManagerVersion")).append("\nSHA-256: ").append(locked).append('\n');
+                JSONArray missing=pkg.optJSONArray("missingDependencies");if(missing!=null&&missing.length()>0)text.append(com.deepseekharness.app.util.UiText.text("缺失依赖：")).append(missing).append('\n');
+                if(pkg.optBoolean("existingConflict"))text.append(com.deepseekharness.app.util.UiText.text("当前已有同名插件，现有版本不会被覆盖。请先到插件管理处理冲突。\n"));
+                text.append('\n');
             }
-            text.append("来源：").append(json.optString("source").isEmpty() ? "本地插件包" : json.optString("source"))
+            text.append(com.deepseekharness.app.util.UiText.text("来源：")).append(json.optString("source").isEmpty() ? com.deepseekharness.app.util.UiText.text("本地插件包") : json.optString("source"))
                     .append("\nSHA-256：").append(json.optString("sha256"))
-                    .append("\n\n确认后安装并登记；完成后重启 Web 生效。同名更新会保留上一版供回退。");
-            description = SensitiveData.redact(text.toString());
+                    .append(json.optString("contentsSha256").isEmpty()?"":"\n"+com.deepseekharness.app.util.UiText.text("已准备内容 SHA-256：")+json.optString("contentsSha256"))
+                    .append(com.deepseekharness.app.util.UiText.text(action.equals("install")?"\n\n确认后停止 Web 和终端，安装为停用状态；明确启用前不会加载。同名更新保留上一版。":"\n\n确认后停止 Web 和终端，再提交所审阅的启用或回退操作。"))
+                    .append(com.deepseekharness.app.util.UiText.text("\n这些是静态与完整性检查，不是安全认证。插件启用后在 DeepSeekHarness 的权限范围内运行，暂存目录不提供权限隔离。"));
+            return SensitiveData.redact(text.toString());
         }
     }
 
@@ -124,16 +158,42 @@ public final class PluginRepository extends AndroidViewModel {
     public boolean isBusy() { return working.get(); }
     public boolean isSafeMode() { return safeMode; }
     public boolean installationSucceeded() { return installationSucceeded; }
-    public String lastOperation() { return lastOperation; }
-    public String installedDescription() { return installedDescription; }
+    public String installedDescription() { return installedPreview==null?"":installedPreview.description(); }
     public LiveData<Preview> preview() { return preview; }
+    public List<PendingReview> pendingReviews(){return pendingReviews;}
+    public void openPendingReview(String id){
+        if(id==null||!id.matches("[a-f0-9]{32}"))return;
+        submit("正在读取待审阅插件…",proot->receivePreview(result(runManager(proot,"show-preview "+ShellQuote.arg(id)))));
+    }
+    public void reviewRestored(String operation,String node){
+        submit("正在只读准备隔离插件审阅…",proot->{
+            String group=com.deepseekharness.app.backup.QuarantinedPluginReview.prepare(getApplication(),operation,node,new com.deepseekharness.app.backup.BackupControl(null));
+            return receivePreview(result(runManager(proot,"review-restored "+ShellQuote.arg(group)+" "+ShellQuote.arg(node))));
+        });
+    }
 
     public void selectionMessage(String message) {
         DiagnosticLog.record(getApplication(), "FILE_SELECTION", message);
         if (!working.get()) state.setValue(new State(items, false, message));
     }
 
-    private interface Work { String run(ProotBootstrap proot) throws Exception; }
+    private interface Work {
+        String run(ProotBootstrap proot) throws Exception;
+        default boolean maintenance(){return false;}
+        default boolean includesItems(){return false;}
+    }
+
+    /** 脚本在同一进程中返回变更后的真实列表，避免再次启动容器与重复扫描。 */
+    private Work withItems(String command) {
+        return new Work() {
+            @Override public boolean includesItems(){return true;}
+            @Override public String run(ProotBootstrap proot)throws Exception {
+                JSONObject output=result(runManager(proot,command));
+                items=readItems(proot,output);
+                return output.getString("message");
+            }
+        };
+    }
 
     private void submit(String progress, Work work) {
         submit(progress, work, null);
@@ -174,7 +234,7 @@ public final class PluginRepository extends AndroidViewModel {
             return;
         }
         RuntimeTasks runtimeWork;
-        try { runtimeWork = RuntimeTasks.beginDetached(); }
+        try { runtimeWork = RuntimeTasks.beginDetached("插件管理");runtimeWork.describe(progress); }
         catch (RuntimeException | Error error) {
             lease.close(); working.set(false);
             state.setValue(new State(items, false, "插件任务未开始：" + SensitiveData.redact(String.valueOf(error.getMessage()))));
@@ -195,6 +255,7 @@ public final class PluginRepository extends AndroidViewModel {
                 if (!task.requested() && current > 0 && detail.optString("stage").equals("download"))
                     message += String.format(java.util.Locale.ROOT, " %.1f MiB%s", current / 1048576.0,
                             percent < 0 ? "" : " · " + percent + "%");
+                runtimeWork.describe(message);
                 state.setValue(new State(items, true, message,
                         cancellable && !task.requested() && detail.optBoolean("cancellable", true), percent));
                 main.postDelayed(this, 400);
@@ -240,7 +301,13 @@ public final class PluginRepository extends AndroidViewModel {
                 try {
                     task.check();
                     if (!proot.isEnvironmentReady()) throw new IOException("环境未就绪，请先完成解压 / 安装");
-                    message = work.run(proot);
+                    if(work.maintenance()){
+                        // 确认前的排队凭据已经完成职责；维护期间由原有屏障持有同步工作锁。
+                        try(RuntimeTasks synchronous=RuntimeTasks.begin()){
+                            runtimeWork.close();
+                            message=com.deepseekharness.app.BackupManager.runDataTask(controller,()->work.run(proot));
+                        }
+                    }else message = work.run(proot);
                     success[0] = true;
                 } catch (Exception error) {
                     message = "操作失败：" + SensitiveData.redact(String.valueOf(error.getMessage()));
@@ -248,7 +315,7 @@ public final class PluginRepository extends AndroidViewModel {
                 main.removeCallbacks(poll);
                 // list 也可能 prepare/同步资产，仍在同一凭据内，不能作为只读旁路。
                 try {
-                    if (proot.isEnvironmentReady()) items = loadItems(proot);
+                    if ((!work.includesItems() || !success[0]) && proot.isEnvironmentReady()) items = loadItems(proot);
                 } catch (Exception error) {
                     message += "\n列表未能同步：" + SensitiveData.redact(String.valueOf(error.getMessage()));
                 }
@@ -296,32 +363,7 @@ public final class PluginRepository extends AndroidViewModel {
     }
 
     public void refresh() {
-        // 防抖：60 秒内重复点「检测/同步」直接复用上次结果，避免反复启动 proot 扫描拖慢页面
-        if (!working.get() && System.currentTimeMillis() - lastRefreshAtMs < 60_000) {
-            lastOperation = "检测";
-            state.setValue(new State(items, false, "刚刚检测过（60 秒内防抖），未重复扫描"));
-            return;
-        }
-        lastRefreshAtMs = System.currentTimeMillis();
-        lastOperation = "检测";
-        submit("正在检测 Web、终端和本地安装的插件…", proot -> {
-            String output = proot.registerBuiltinPlugins();
-            if (output.contains("FAIL") || output.contains("ERROR:"))
-                throw new IOException(shortError(output));
-            return output.contains("PARTIAL") ? "部分内置插件待修复，请检查环境"
-                    : "插件检测完成；新检测到的插件可开启开关加入 Web，变更后重启 Web 生效";
-        }, null, false);
-    }
-
-    /** DeepSeekHarness：打开插件页时静默刷新列表（不弹“检测中/检测完成”弹窗）。 */
-    public void refreshSilent() {
-        lastOperation = "静默";
-        submit("正在同步插件清单…", proot -> {
-            String output = proot.registerBuiltinPlugins();
-            if (output.contains("FAIL") || output.contains("ERROR:"))
-                throw new IOException(shortError(output));
-            return "插件清单已同步";
-        }, null, false);
+        submit("正在检测 Web、终端和本地安装的插件…", withItems("refresh"), null, false);
     }
 
     public void install(PluginSource source) {
@@ -347,21 +389,22 @@ public final class PluginRepository extends AndroidViewModel {
             throw new IOException("已取消解析并清理临时包");
         }
         preview.postValue(new Preview(output.getJSONObject("preview")));
-        // DeepSeekHarness：解析完成自动弹「确认安装」弹窗，不再在状态栏重复提示。
-        return "";
+        return "插件包已解析，请确认作者、版本和兼容范围后安装";
     }
 
     public void confirmPreview() {
         Preview selected = preview.getValue();
         if (selected == null || working.get()) return;
-        lastOperation = "安装";
-        submit("正在安装已确认的插件包…", proot -> {
-            JSONObject output = result(runManager(proot, "install-preview " + ShellQuote.arg(selected.id)));
-            installationSucceeded = "ok".equals(output.optString("status"));
-            return operationMessage(output);
+        submit("正在安装已确认的插件包…", new Work(){
+            @Override public boolean maintenance(){return true;}
+            @Override public String run(ProotBootstrap proot)throws Exception{
+                activeTask.approve(selected.confirmation);
+                JSONObject output = result(runManager(proot, "install-preview " + ShellQuote.arg(selected.id)+" "+ShellQuote.arg(selected.confirmation)));
+                installationSucceeded = "ok".equals(output.optString("status"));return operationMessage(output);
+            }
         }, null, true, () -> {
             installationSucceeded = false;
-            installedDescription = selected.description;
+            installedPreview = selected;
             preview.setValue(null);
         });
     }
@@ -387,7 +430,6 @@ public final class PluginRepository extends AndroidViewModel {
     public void prepareUpdate(Item item) {
         if (working.get() || !item.updateAvailable) return;
         Preview old = preview.getValue();
-        lastOperation = "更新";
         submit("正在下载并核对更新包…", proot -> {
             discardPreview(proot, old);
             return receivePreview(result(runManager(proot, "prepare-update " + ShellQuote.arg(item.name))));
@@ -395,8 +437,7 @@ public final class PluginRepository extends AndroidViewModel {
     }
 
     public void rollback(Item item) {
-        lastOperation = "回退";
-        submit("正在回退 " + item.name + "…", proot -> operationMessage(result(runManager(proot, "rollback "
+        submit("正在回退 " + item.name + "…", proot -> receivePreview(result(runManager(proot, "rollback "
                 + ShellQuote.arg(item.name) + " " + ShellQuote.arg(item.rollbackVersion)))));
     }
 
@@ -445,7 +486,7 @@ public final class PluginRepository extends AndroidViewModel {
                     copy(in, out);
                 }
                 saved = true;
-                return "已将 " + names.size() + " 个插件导出到所选位置，可在另一台 DeepSeek Harness 中导入";
+                return "已将 " + names.size() + " 个插件导出到所选位置，可在另一台 DeepSeekHarness 中导入";
             } finally {
                 temporary.delete();
                 cleanup(proot, container);
@@ -458,29 +499,30 @@ public final class PluginRepository extends AndroidViewModel {
     }
 
     public void setEnabled(Item item, boolean enable) {
-        lastOperation = "状态";
-        submit("正在" + (enable ? "启用 " : "禁用 ") + item.name, proot -> {
-            String output = proot.setPluginEnabled(item.name, enable);
-            if (!output.contains("BUILTIN_REGISTER_OK")) throw new IOException(shortError(output));
-            return "已" + (enable ? "启用 " : "禁用 ") + item.name + "；重启 Web 后生效";
-        }, null, false);
+        if(enable&&!item.builtin&&!item.official){
+            submit("正在准备插件启用审阅…",proot->receivePreview(result(runManager(proot,"review-enable "+ShellQuote.arg(item.name)))));
+            return;
+        }
+        submit("正在" + (enable ? "启用 " : "禁用 ") + item.name,
+                withItems((enable?"enable-list ":"disable-list ")+ShellQuote.arg(item.name)),null,false);
     }
 
     public void delete(Item item) {
         if (!item.deletable) return;
-        lastOperation = "删除";
-        submit("正在删除 " + item.name + "…", proot -> {
-            JSONObject output = result(runManager(proot, "delete " + ShellQuote.arg(item.name)));
-            if (!"ok".equals(output.optString("status"))) throw new IOException(output.optString("message"));
-            return output.getString("message");
-        });
+        submit("正在删除 " + item.name + "…", withItems("delete-list "+ShellQuote.arg(item.name)));
     }
 
     private List<Item> loadItems(ProotBootstrap proot) throws Exception {
-        JSONObject output = result(proot.runPluginManager("list"));
+        return readItems(proot,result(runManager(proot,"list")));
+    }
+
+    private List<Item> readItems(ProotBootstrap proot,JSONObject output) throws Exception {
         if (!"ok".equals(output.optString("status"))) throw new IOException(output.optString("message"));
         JSONArray array = output.getJSONArray("items");
         safeMode = output.optBoolean("safeMode");
+        List<PendingReview> pending=new ArrayList<>();JSONArray stored=output.optJSONArray("pendingReviews");
+        if(stored!=null)for(int i=0;i<Math.min(128,stored.length());i++)pending.add(new PendingReview(stored.getJSONObject(i)));
+        pendingReviews=Collections.unmodifiableList(pending);
         List<Item> next = new ArrayList<>();
         for (int i = 0; i < array.length(); i++) {
             Item item = new Item(array.getJSONObject(i));

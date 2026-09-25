@@ -1,12 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Material Symbols outlined「extension」—— 插件：线性拼图轮廓 -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FF000000"
-        android:fillType="evenOdd"
-        android:pathData="M3.373,2.943h15.082v5.171l1.104,0.512q0.512,0.215 0.821,0.727t0.31,1.077q0,0.577 -0.31,1.07Q20.071,11.993 19.559,12.235l-1.104,0.512v5.279H13.042l-0.242,1.374q-0.135,0.727 -0.664,1.225 -0.53,0.498 -1.236,0.498Q10.16,21.123 9.621,20.625T8.948,19.399l-0.242,-1.374H3.4v-2.963q1.481,-0.539 2.397,-1.799t0.916,-2.841q0,-1.608 -0.916,-2.888T3.373,5.825v-2.882Zm0.296,-1.616q-0.781,0 -1.347,0.566t-0.566,1.374v3.744q1.401,0.081 2.37,1.05t0.97,2.37q0,1.401 -0.97,2.384t-2.343,1.034V17.729q0,0.808 0.552,1.36T3.696,19.642h3.663q0.179,1.316 1.174,2.207Q9.528,22.739 10.88,22.739q1.327,0 2.328,-0.89Q14.21,20.958 14.415,19.642h3.744q0.808,0 1.36,-0.552T20.071,17.729v-3.959q1.023,-0.485 1.629,-1.333T22.307,10.431q0,-1.158 -0.606,-2.02T20.071,7.091v-3.824q0,-0.808 -0.552,-1.374T18.159,1.327H3.669Zm8.376,9.103Z" />
-</vector>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:pathData="M9 3H5a2 2 0 0 0-2 2v4h2a3 3 0 0 1 0 6H3v4a2 2 0 0 0 2 2h4v-2a3 3 0 0 1 6 0v2h4a2 2 0 0 0 2-2v-4h-2a3 3 0 0 1 0-6h2V5a2 2 0 0 0-2-2h-4v2a3 3 0 0 1-6 0Z" android:fillColor="@android:color/transparent" android:strokeColor="#FF000000" android:strokeWidth="1.65" android:strokeLineCap="round" android:strokeLineJoin="round" /></vector>

@@ -12,7 +12,6 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepseekharness.app.R;
 import com.deepseekharness.app.util.Constants;
@@ -34,7 +33,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 
 /** 兼容版浏览器：鉴权、文件上传、错误恢复与系统 WebView 入口保持一致。 */
-public final class GeckoPreviewActivity extends AppCompatActivity implements WebFullscreenUi.Host {
+public final class GeckoPreviewActivity extends PictureInPictureActivity implements WebFullscreenUi.Host {
     private GeckoSession session;
     private GeckoView browser;
     private FrameLayout container;
@@ -54,6 +53,7 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
     private PreviewAuth previewAuth;
     public static final class Retained extends androidx.lifecycle.ViewModel {
         GeckoSession session;
+        boolean ready;
         String authUrl;
         GeckoSession.SessionState history;
         boolean canGoBack;
@@ -76,19 +76,10 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     cancelFilePrompt();
                     return;
                 }
-                Intent data = result.getData();
-                ArrayList<Uri> uris = new ArrayList<>();
-                if (data.getClipData() != null) {
-                    for (int i = 0; i < data.getClipData().getItemCount(); i++)
-                        uris.add(data.getClipData().getItemAt(i).getUri());
-                } else if (data.getData() != null) uris.add(data.getData());
-                receiveFiles(uris);
+                Uri[] selected = WebUploads.parseChooserResult(result.getResultCode(), result.getData());
+                if (selected == null) { cancelFilePrompt(); return; }
+                receiveFiles(new ArrayList<>(java.util.Arrays.asList(selected)));
             });
-
-    @Override public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) WebFullscreenUi.applySystemBars(this);
-    }
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -116,7 +107,7 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { back(); }
         });
-        if (baseUrl == null) { showError("对话地址无效", "请返回启动页重新进入。"); return; }
+        if (baseUrl == null) { showError(com.deepseekharness.app.util.UiText.text("对话地址无效"), com.deepseekharness.app.util.UiText.text("请返回启动页重新进入。")); return; }
         if (retained.session != null && authUrl.equals(retained.authUrl) && authUrl.equals(current)) load();
         else refreshSession();
     }
@@ -125,13 +116,18 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
         if (previewAuth.busy() || isFinishing() || isDestroyed()) return;
         errorPanel.setVisibility(View.GONE); progress.setVisibility(View.VISIBLE);
         previewAuth.refresh((url, cookie, error) -> {
-            if (error != null) { showError("暂时无法进入对话", error); return; }
+            if (error != null) { showError(com.deepseekharness.app.util.UiText.text("暂时无法进入对话"), error); return; }
             if (!url.equals(authUrl)) savedHistory = null;
             if (session == null && retained.session != null) session = retained.session;
             closeSession();
             authUrl = url; baseUrl = WebPreviewPolicy.loopbackBaseUrl(url);
             load();
         });
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) WebFullscreenUi.applySystemBars(this);
     }
 
     private void load() {
@@ -159,7 +155,7 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
                 @Override public GeckoResult<String> onLoadError(GeckoSession s, String uri, WebRequestError error) {
-                    showError("对话页面加载失败", "请确认服务仍在运行，点击重试。错误代码：" + error.code);
+                    showError(com.deepseekharness.app.util.UiText.text("对话页面加载失败"), com.deepseekharness.app.util.UiText.text("请确认服务仍在运行，点击重试。错误代码：") + error.code);
                     return null;
                 }
             });
@@ -168,14 +164,17 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     retained.history = new GeckoSession.SessionState(state);
                 }
                 @Override public void onPageStart(GeckoSession s, String url) {
+                    if (s != session) return;
+                    retained.ready = false; refreshPictureInPicture();
                     progress.setProgress(0);
                     progress.setVisibility(View.VISIBLE);
                 }
                 @Override public void onProgressChange(GeckoSession s, int value) { progress.setProgress(value); }
                 @Override public void onPageStop(GeckoSession s, boolean success) {
                     if (s != session) return;
+                    retained.ready = success; refreshPictureInPicture();
                     progress.setVisibility(View.GONE);
-                    if (!success) showError("页面未完成加载", "服务可能已退出，点击重试或返回启动页。");
+                    if (!success) showError(com.deepseekharness.app.util.UiText.text("页面未完成加载"), com.deepseekharness.app.util.UiText.text("服务可能已退出，点击重试或返回启动页。"));
                     else if (savedHistory != null) {
                         String history = savedHistory; savedHistory = null;
                         try { current.restoreState(GeckoSession.SessionState.fromString(history)); }
@@ -194,35 +193,35 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     if (response.statusCode != 200 && !(response.statusCode == 0
                             && (response.uri.startsWith("blob:") || response.uri.startsWith("data:")))) {
                         try { if (response.body != null) response.body.close(); } catch (Exception ignored) { }
-                        Toast.makeText(GeckoPreviewActivity.this,"下载失败：HTTP " + response.statusCode,Toast.LENGTH_LONG).show(); return;
+                        Toast.makeText(GeckoPreviewActivity.this,com.deepseekharness.app.util.UiText.text("下载失败：HTTP ") + response.statusCode,Toast.LENGTH_LONG).show(); return;
                     }
                     downloads.start(baseUrl,response.uri,null,android.webkit.URLUtil.guessFileName(response.uri,disposition,mime),size,response.body);
                 }
-                @Override public void onCrash(GeckoSession s) { showError("网页进程异常退出", "点击重试可重新打开对话。"); }
-                @Override public void onKill(GeckoSession s) { showError("网页进程被系统回收", "关闭其他应用后重试。"); }
+                @Override public void onCrash(GeckoSession s) { showError(com.deepseekharness.app.util.UiText.text("网页进程异常退出"), com.deepseekharness.app.util.UiText.text("点击重试可重新打开对话。")); }
+                @Override public void onKill(GeckoSession s) { showError(com.deepseekharness.app.util.UiText.text("网页进程被系统回收"), com.deepseekharness.app.util.UiText.text("关闭其他应用后重试。")); }
             });
             current.setPromptDelegate(new GeckoSession.PromptDelegate() {
                 @Override public GeckoResult<PromptResponse> onAlertPrompt(GeckoSession s, AlertPrompt prompt) {
                     GeckoResult<PromptResponse> result = new GeckoResult<>();
-                    new androidx.appcompat.app.AlertDialog.Builder(GeckoPreviewActivity.this)
-                            .setTitle("网页提示").setMessage(prompt.message)
-                            .setPositiveButton("确定", (d, w) -> result.complete(prompt.dismiss()))
+                    new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(GeckoPreviewActivity.this)
+                            .setTitle(com.deepseekharness.app.util.UiText.text("网页提示")).setMessage(com.deepseekharness.app.util.UiText.text(prompt.message))
+                            .setPositiveButton(com.deepseekharness.app.util.UiText.text("确定"), (d, w) -> result.complete(prompt.dismiss()))
                             .setOnCancelListener(d -> result.complete(prompt.dismiss())).show();
                     return result;
                 }
                 @Override public GeckoResult<PromptResponse> onButtonPrompt(GeckoSession s, ButtonPrompt prompt) {
                     GeckoResult<PromptResponse> result = new GeckoResult<>();
-                    new androidx.appcompat.app.AlertDialog.Builder(GeckoPreviewActivity.this)
-                            .setTitle("网页确认").setMessage(prompt.message)
-                            .setPositiveButton("确定", (d, w) -> result.complete(prompt.confirm(ButtonPrompt.Type.POSITIVE)))
-                            .setNegativeButton("取消", (d, w) -> result.complete(prompt.confirm(ButtonPrompt.Type.NEGATIVE)))
+                    new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(GeckoPreviewActivity.this)
+                            .setTitle(com.deepseekharness.app.util.UiText.text("网页确认")).setMessage(com.deepseekharness.app.util.UiText.text(prompt.message))
+                            .setPositiveButton(com.deepseekharness.app.util.UiText.text("确定"), (d, w) -> result.complete(prompt.confirm(ButtonPrompt.Type.POSITIVE)))
+                            .setNegativeButton(com.deepseekharness.app.util.UiText.text("取消"), (d, w) -> result.complete(prompt.confirm(ButtonPrompt.Type.NEGATIVE)))
                             .setOnCancelListener(d -> result.complete(prompt.dismiss())).show();
                     return result;
                 }
                 @Override public GeckoResult<PromptResponse> onFilePrompt(GeckoSession s, FilePrompt prompt) {
                     cancelFilePrompt();
                     if (prompt.type == FilePrompt.Type.FOLDER) {
-                        Toast.makeText(GeckoPreviewActivity.this, "请先将文件夹压缩为文件再上传", Toast.LENGTH_LONG).show();
+                        Toast.makeText(GeckoPreviewActivity.this, com.deepseekharness.app.util.UiText.text("请先将文件夹压缩为文件再上传"), Toast.LENGTH_LONG).show();
                         return GeckoResult.fromValue(prompt.dismiss());
                     }
                     filePrompt = prompt;
@@ -236,7 +235,7 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     try { picker.launch(intent); } catch (RuntimeException error) {
                         try { picker.launch(WebUploads.fallback(intent)); }
                         catch (RuntimeException ignored) { cancelFilePrompt(); Toast.makeText(GeckoPreviewActivity.this,
-                                "无法打开文件选择器，请启用系统文件应用",Toast.LENGTH_LONG).show(); }
+                                com.deepseekharness.app.util.UiText.text("无法打开文件选择器，请启用系统文件应用"),Toast.LENGTH_LONG).show(); }
                     }
                     return pending;
                 }
@@ -252,12 +251,12 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                         if (fresh) loadInitial(current); else progress.setVisibility(View.GONE);
                     }), error -> runOnUiThread(() -> {
                         if (session != current) return;
-                        Toast.makeText(this,"页面返回适配未加载，可重试打开对话",Toast.LENGTH_LONG).show();
+                        Toast.makeText(this,com.deepseekharness.app.util.UiText.text("页面返回适配未加载，可重试打开对话"),Toast.LENGTH_LONG).show();
                         if (fresh) loadInitial(current);
                     }));
         } catch (RuntimeException | LinkageError error) {
             closeSession();
-            showError("兼容内核无法启动", "可尝试在系统浏览器打开。错误：" + error.getClass().getSimpleName());
+            showError(com.deepseekharness.app.util.UiText.text("兼容内核无法启动"), com.deepseekharness.app.util.UiText.text("可尝试在系统浏览器打开。错误：") + error.getClass().getSimpleName());
         }
     }
 
@@ -280,7 +279,7 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     if (owner.prompt == prompt) {
                         pending.complete(prompt.dismiss()); owner.prompt = null; owner.result = null;
                     }
-                    if (error != null) Toast.makeText(app,"上传失败：" + error,Toast.LENGTH_LONG).show();
+                    if (error != null) Toast.makeText(app,com.deepseekharness.app.util.UiText.text("上传失败：") + error,Toast.LENGTH_LONG).show();
                     return;
                 }
                 Uri[] files = new Uri[ready.size()];
@@ -306,7 +305,7 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
         catch (Exception error) { backPending = false; historyBack(); return; }
         container.postDelayed(() -> { if (backPending && id == backSequence) { backPending = false; historyBack(); } },1200);
     }
-    private void historyBack() { if (session != null && canGoBack) session.goBack(); else finish(); }
+    private void historyBack() { if (session != null && canGoBack) session.goBack(); else leavePreview(); }
     private void loadInitial(GeckoSession current) {
         // 先由 Gecko 自己完成 token → Cookie 交换；成功后再恢复历史，避免进程重建绕过鉴权。
         current.loadUri(authUrl);
@@ -325,13 +324,18 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     @Override public void onPortMessage(Object message, WebExtension.Port source) {
                         if (source != pagePort || !(message instanceof org.json.JSONObject)) return;
                         org.json.JSONObject value = (org.json.JSONObject) message;
+                        if ("language-selected".equals(value.optString("type"))) {
+                            LanguageController.select(GeckoPreviewActivity.this,value.optString("language"));return;
+                        }
                         if ("startup".equals(value.optString("type"))) {
                             org.json.JSONObject event = value.optJSONObject("report");
                             if (event != null && event.toString().length() <= 9500
                                     && com.deepseekharness.app.core.HarnessController.get(GeckoPreviewActivity.this)
                                     .startupDiagnostics().pageEvent(startupGeneration, event))
-                                showError("网页插件加载失败", com.deepseekharness.app.util.SensitiveData.redact(event.optString("message"))
-                                        + "\n返回启动页可查看插件详情，或安全启动进入基础界面。");
+                            {
+                                com.deepseekharness.app.core.HarnessController.get(GeckoPreviewActivity.this).failedWebPage(startupGeneration,event.optString("message"));
+                                startActivity(new android.content.Intent(GeckoPreviewActivity.this,StartupRecoveryActivity.class));finish();
+                            }
                             return;
                         }
                         if (!backPending || !"back".equals(value.optString("type")) || value.optInt("id") != backSequence) return;
@@ -340,36 +344,61 @@ public final class GeckoPreviewActivity extends AppCompatActivity implements Web
                     }
                     @Override public void onDisconnect(WebExtension.Port source) { if (pagePort == source) { pagePort = null; retained.port = null; } }
                 });
+                try { port.postMessage(new org.json.JSONObject().put("type","language")
+                        .put("openModels",getIntent().getBooleanExtra("DeepSeekHarness_open_models",false))
+                        .put("language",new com.deepseekharness.app.core.ConfigStore(GeckoPreviewActivity.this).getUiLanguage()));
+                    getIntent().removeExtra("DeepSeekHarness_open_models");
+                }
+                catch(org.json.JSONException ignored) { }
             }
-        },"deepseekharness");
-        if (retained.port != null) current.getWebExtensionController().getMessageDelegate(extension,"deepseekharness").onConnect(retained.port);
+        },"DeepSeekHarness");
+        if (retained.port != null) current.getWebExtensionController().getMessageDelegate(extension,"DeepSeekHarness").onConnect(retained.port);
     }
     private void external(String url) {
+        if(url!=null&&PluginNavigation.open(this,url))return;
         if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) return;
         try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)); }
-        catch (RuntimeException error) { Toast.makeText(this, "没有可用的系统浏览器", Toast.LENGTH_SHORT).show(); }
+        catch (RuntimeException error) { Toast.makeText(this, com.deepseekharness.app.util.UiText.text("没有可用的系统浏览器"), Toast.LENGTH_SHORT).show(); }
     }
     private void showError(String title, String detail) {
-        com.deepseekharness.app.core.DiagnosticLog.record(this, "GECKO_PAGE", title + "：" + detail);
+        if (retained != null) retained.ready = false;
+        refreshPictureInPicture();
+        com.deepseekharness.app.core.DiagnosticLog.record(this, "GECKO_PAGE", title + com.deepseekharness.app.util.UiText.text("：") + detail);
         if (isFinishing() || isDestroyed()) return;
         ((TextView) findViewById(R.id.web_error_title)).setText(title);
-        ((TextView) findViewById(R.id.web_error_detail)).setText(detail + "\n兼容内核 Gecko 143");
+        ((TextView) findViewById(R.id.web_error_detail)).setText(detail + com.deepseekharness.app.util.UiText.text("\n兼容内核 Gecko 143"));
         progress.setVisibility(View.GONE); errorPanel.setVisibility(View.VISIBLE);
     }
     private void closeSession() {
         cancelFilePrompt();
         if (browser != null) { browser.releaseSession(); container.removeView(browser); browser = null; }
         if (session != null) { session.close(); session = null; }
-        if (retained != null) retained.session = null;
+        if (retained != null) { retained.session = null; retained.ready = false; }
+        refreshPictureInPicture();
         pagePort = null;
         if (retained != null) retained.port = null;
     }
     @Override protected void onPause() {
         PluginFragment.invalidateInstalledState();
-        if (session != null) session.setActive(false); super.onPause();
+        super.onPause();
+    }
+    @Override protected boolean pictureInPictureContentReady() {
+        return session != null && retained != null && retained.ready && baseUrl != null
+                && errorPanel != null && errorPanel.getVisibility() != View.VISIBLE;
+    }
+    @Override protected void onStop() {
+        if (!pictureInPictureActiveOrTransitioning() && session != null) session.setActive(false);
+        super.onStop();
+    }
+    @Override protected void onStart() {
+        super.onStart();
+        if (!pictureInPictureActiveOrTransitioning() && session != null) session.setActive(true);
     }
     @Override protected void onResume() {
-        super.onResume(); if (session != null) session.setActive(true);
+        super.onResume();
+        if(pagePort!=null)try{pagePort.postMessage(new org.json.JSONObject().put("type","language")
+                .put("language",new com.deepseekharness.app.core.ConfigStore(this).getUiLanguage()));}
+        catch(org.json.JSONException ignored) { }
         String current = com.deepseekharness.app.core.HarnessController.get(this).getWebAuthUrl();
         if (previewAuth != null && !current.isEmpty() && !current.equals(authUrl)) refreshSession();
     }

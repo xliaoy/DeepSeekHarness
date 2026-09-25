@@ -3,9 +3,9 @@ import { confirmedIdle } from './activity.js';
 import { runtimePlugins } from './runtime-plugins.js';
 export const inject = ['agents', 'sessions', 'sessionProjections'];
 export function apply(ctx) {
-  const generation = process.env.DSHA_WEB_GENERATION;
+  const generation = process.env.DeepSeekHarness_WEB_GENERATION;
   if (!generation) return;
-  const file = '/root/.dsha-web-activity.json';
+  const file = '/root/.deepseekharness-web-activity.json';
   const temp = file + '.' + process.pid + '.tmp';
   let dynamicRunner;
   ctx.inject(['dynamicCordisRunner'], dynamic => {
@@ -31,5 +31,5 @@ export function apply(ctx) {
     write();
     const timer = setInterval(write, 2000); timer.unref();
     return () => { alive = false; clearInterval(timer); try { unlinkSync(temp); } catch {} };
-  }, 'dsha-app-activity');
+  }, 'deepseekharness-app-activity');
 }

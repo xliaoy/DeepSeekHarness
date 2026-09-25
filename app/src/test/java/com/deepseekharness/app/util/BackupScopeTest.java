@@ -4,6 +4,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThrows;
 
 import org.junit.Test;
 
@@ -42,12 +43,20 @@ public class BackupScopeTest {
 
     @Test
     public void fromFileNameMatchesPrefix() {
+        // 新名（本版产出）与旧名（上游命名）都必须被识别 —— 读取端刻意多值，
+        // 否则用户手动选旧包恢复时会拿到错误的合并范围。
         assertEquals(BackupScope.SESSIONS,
                 BackupScope.fromFileName("/some/dir/DeepSeekHarness-sessions-2026-01-01.tar.gz"));
         assertEquals(BackupScope.PLUGINS,
                 BackupScope.fromFileName("DeepSeekHarness-plugins-42.tar.gz"));
+        assertEquals(BackupScope.SETTINGS,
+                BackupScope.fromFileName("DeepSeekHarness-settings-7.tar.gz"));
+        assertEquals(BackupScope.SESSIONS,
+                BackupScope.fromFileName("/some/dir/DEEPSEEK_HARNESS-sessions-2026-01-01.tar.gz"));
+        assertEquals(BackupScope.PLUGINS,
+                BackupScope.fromFileName("DEEPSEEK_HARNESS-plugins-42.tar.gz"));
         assertEquals(BackupScope.FULL,
-                BackupScope.fromFileName("DeepSeekHarness-backup-1.tar.gz"));
+                BackupScope.fromFileName("DEEPSEEK_HARNESS-backup-1.tar.gz"));
         assertEquals(BackupScope.FULL, BackupScope.fromFileName(null));
     }
 
@@ -56,9 +65,9 @@ public class BackupScopeTest {
         for (int scope : BackupScope.ALL) {
             assertEquals(scope, BackupScope.fromId(BackupScope.id(scope)));
         }
-        // 认不出的标识一律当全量（老备份没有该字段 = 全量）
-        assertEquals(BackupScope.FULL, BackupScope.fromId("bogus"));
-        assertEquals(BackupScope.FULL, BackupScope.fromId(null));
+        // 未知范围拒绝；无范围的历史包必须通过专门预检与用户确认。
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> BackupScope.fromId("bogus"));
+        assertThrows(IllegalArgumentException.class, () -> BackupScope.fromId(null));
     }
 
     @Test

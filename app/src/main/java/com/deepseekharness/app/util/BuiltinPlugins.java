@@ -38,9 +38,31 @@ public final class BuiltinPlugins {
                     "dsh-web-mobile",
                     "dsh-client-ui-aqua",
                     "dsh-balance-panel",
-                    "dsh-memento",
+                    "dsh-computer-use-android",
                     "dsh-auto-review",
-                    "dsh-computer-use-android"));
+                    "dsh-tool-vscreen"));
+
+    /** 预装第三方插件：随包内置但【保持第三方身份】，插件页可在线更新 / 删除。
+     *  与 DEFAULT_BUILTINS 的区别不是"装不装"，而是"算不算系统组件"——
+     *  放进 DEFAULT_BUILTINS 会让它变成不可卸载的内置项。 */
+    public static final String PRESET_PLUGIN = "dsh-infinite-gen-4";
+
+    /** 当前签名 APK 独占的系统插件；旧 profile/归档不得提供同名源码。 */
+    public static final List<String> SIGNED_BUILTINS;
+    public static final List<String> SYSTEM_PLUGINS;
+    static {
+        List<String> names = new ArrayList<>(DEFAULT_BUILTINS);
+        names.add("dsh-app-integration");
+        SIGNED_BUILTINS = Collections.unmodifiableList(names);
+        List<String> system = new ArrayList<>(names);
+        system.add("@deepseek-ai/dsh-base");
+        system.add("@deepseek-ai/dsh-web-app");
+        SYSTEM_PLUGINS = Collections.unmodifiableList(system);
+    }
+
+    public static boolean system(String name) {
+        return SYSTEM_PLUGINS.contains(name);
+    }
 
     /** 解析 deepseekharness-builtin.txt 内容：每行一个插件名，跳过空行与 # 注释。 */
     public static List<String> parseBuiltinNames(String content) {

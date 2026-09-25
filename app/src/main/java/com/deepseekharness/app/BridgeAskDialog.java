@@ -37,21 +37,22 @@ final class BridgeAskDialog implements Application.ActivityLifecycleCallbacks {
             try {
                 activity.getApplication().registerActivityLifecycleCallbacks(this);
                 registered = true;
-                if (closed.get() || !questions.pending(request)) { close(); return; }
-                dialog = com.deepseekharness.app.ui.AppDialogs.show(activity,
-                        android.R.drawable.ic_menu_help, "助手提问", question,
-                        displayOptions[0],
-                        options.length > 2 ? displayOptions[2] : null,
-                        options.length > 1 ? displayOptions[1] : null,
-                        () -> questions.answer(request, options[0]),
-                        options.length > 2 ? () -> questions.answer(request, options[2]) : null,
-                        options.length > 1 ? () -> questions.answer(request, options[1]) : null);
-                dialog.setOnCancelListener(d -> questions.cancel(request, BridgeQuestions.End.DISMISSED));
+                AlertDialog.Builder builder = new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(activity)
+                        .setTitle(com.deepseekharness.app.util.UiText.text("助手提问")).setMessage(question)
+                        .setPositiveButton(displayOptions[0], (d, w) -> questions.answer(request, options[0]));
+                if (options.length > 1) builder.setNegativeButton(displayOptions[1],
+                        (d, w) -> questions.answer(request, options[1]));
+                if (options.length > 2) builder.setNeutralButton(displayOptions[2],
+                        (d, w) -> questions.answer(request, options[2]));
+                builder.setOnCancelListener(d -> questions.cancel(request, BridgeQuestions.End.DISMISSED));
+                dialog = builder.create();
                 dialog.setOnDismissListener(d -> {
                     // 没有按钮/返回键决定的消失只能视作窗口不可用，不能伪造用户答案。
                     questions.cancel(request, BridgeQuestions.End.UNAVAILABLE);
                     close();
                 });
+                if (closed.get() || !questions.pending(request)) { close(); return; }
+                dialog.show();
             } catch (RuntimeException error) {
                 questions.cancel(request, BridgeQuestions.End.UNAVAILABLE);
                 close();

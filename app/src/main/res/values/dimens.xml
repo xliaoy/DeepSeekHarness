@@ -37,7 +37,6 @@
     <!-- 引导页大标题（只有欢迎页用，比 display 更有气势） -->
     <dimen name="text_hero">28sp</dimen>
     <dimen name="text_display">24sp</dimen>
-    <!-- iOS 大标题（分组页顶部） -->
     <dimen name="text_page_title">20sp</dimen>
     <dimen name="text_title">17sp</dimen>
     <dimen name="text_body">15sp</dimen>
@@ -52,19 +51,22 @@
     <dimen name="input_height">46dp</dimen>
     <!-- 可点行/复选框的最小触达高度（无障碍下限） -->
     <dimen name="touch_min">44dp</dimen>
-    <!-- Telegram 风格悬浮底栏：胶囊高度、左右留白、底部悬浮间距 -->
-    <dimen name="nav_height">64dp</dimen>
-    <dimen name="nav_pad_x">20dp</dimen>
-    <dimen name="nav_pad_y">10dp</dimen>
-    <!-- 启动页日志区固定高度：不管有没有日志都完整显示 -->
-    <dimen name="launch_log_height">220dp</dimen>
     <!-- 细进度条（启动/市场的忙碌指示） -->
     <dimen name="progress_thin">3dp</dimen>
     <!-- 粗进度条（解压/下载的确定式进度） -->
     <dimen name="progress_bold">6dp</dimen>
     <!-- 描边 -->
     <dimen name="stroke">1dp</dimen>
+
+
+    <!-- ===== 以下为 fork 视觉 token（上游新增控件同样复用同一套阶梯） ===== -->
+    <!-- Telegram 风格悬浮胶囊底栏：胶囊高度、左右留白、底部悬浮间距 -->
+    <dimen name="nav_height">64dp</dimen>
+    <dimen name="nav_pad_x">20dp</dimen>
+    <dimen name="nav_pad_y">10dp</dimen>
+    <!-- 启动页日志区固定高度：不管有没有日志都完整显示 -->
+    <dimen name="launch_log_height">220dp</dimen>
     <!-- iOS hairline 分隔线（0.5dp 渲染为 1px，更精致） -->
     <dimen name="hairline">0.5dp</dimen>
-
 </resources>
+

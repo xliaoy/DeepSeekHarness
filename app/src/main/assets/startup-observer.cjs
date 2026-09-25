@@ -12,8 +12,17 @@ const path = require('node:path');
 const { pathToFileURL, fileURLToPath } = require('node:url');
 const Module = require('node:module');
 const prefix = '[DeepSeekHarness_STARTUP] ';
+// 启动期的诊断文案在 Node 侧产生，容器里没有 Java 的 UiText，故自带一份 zh→en 对照。
+// 主程序通过 DeepSeekHarness_UI_LANGUAGE 传入当前语言偏好（见 HarnessController.java）。
+const uiPhrases = {"检查启动配置和插件清单": "Checking startup configuration and plugin list", "加载 DSH 和已启用插件": "Loading DSH and enabled plugins", "配置文件超过 1 MiB": "Configuration file exceeds 1 MiB", "dsh.profile.bundles 必须是插件名称数组": "dsh.profile.bundles must be an array of plugin names", "插件清单含无效名称": "The plugin list contains an invalid name", "缺少 dsh.bundle.patch 声明或补丁文件": "Missing dsh.bundle.patch declaration or patch file", "未知版本": "Unknown version", "读取启动恢复记录": "Read startup recovery records", "启动配置快照": "Startup configuration snapshot", "配置检查：": "Configuration check: ", "正在加载插件：": "Loading plugin: ", "插件加载完成：": "Plugin loaded: ", "插件等待服务：": "Plugin waiting for services: ", "启动配置检查失败：": "Startup configuration check failed: ", "加载器观察不可用，保留原始异常输出：": "Loader monitoring unavailable; original errors retained: ", "找不到插件目录，请到插件管理检查安装：": "Plugin directory not found; check its installation: "};
+function uiText(message) {
+  if (process.env.DeepSeekHarness_UI_LANGUAGE !== "en") return message;
+  if (Object.hasOwn(uiPhrases, message)) return uiPhrases[message];
+  for (const [zh, en] of Object.entries(uiPhrases)) if (zh.endsWith("：") && message.startsWith(zh)) return en + uiText(message.slice(zh.length));
+  return message;
+}
 function emit(type, plugin, message, extra = {}) {
-  process.stdout.write(prefix + JSON.stringify({ type, plugin, message, ...extra }) + '\n');
+  process.stdout.write(prefix + JSON.stringify({ type, plugin, message: uiText(message), ...extra }) + '\n');
 }
 const validName = name => typeof name === 'string' && name.length <= 214 && /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name);
 const home = process.env.DSH_HOME || '/root/.dsh';
@@ -65,21 +74,46 @@ function owner(text) {
           path.join(home, 'profiles/node_modules'), path.join(home, 'node_modules')]);
         const pkg = JSON.parse(await fsp.readFile(path.join(root, 'package.json'), 'utf8'));
         const patch = pkg.dsh?.bundle?.patch;
+        // 0.1.7 支持有序补丁数组；每一个入口仍须存在于该包内部。
+        const patches = typeof patch === 'string' ? [patch] : Array.isArray(patch) ? patch : [];
         let issue = '';
-        if (typeof patch !== 'string' || !(await exists(path.resolve(root, patch))))
-          issue = '缺少 dsh.bundle.patch 声明或补丁文件';
-        let ids = [];
-        if (typeof patch === 'string') {
-          const patchFile = path.resolve(root, patch);
+        if (!patches.length) issue = '缺少 dsh.bundle.patch 声明或补丁文件';
+        else {
+          for (const item of patches) {
+            if (typeof item !== 'string' || !item || path.isAbsolute(item)) { issue = '缺少 dsh.bundle.patch 声明或补丁文件'; break; }
+            const target = path.resolve(root, item);
+            // 三层防护：非绝对路径 → 文本上不越界 → 必须是普通文件。
+            // 注意：不可用 realpath 去比对【未解析的 root】。真机上 profile 里的插件是
+            // 指向实体目录 /root/deepseekharness-* 的软链，realpath(target) 会解析到实体路径，
+            // 于是合法的软链布局会被误判成越界（曾导致全部内置插件报「缺少补丁文件」）。
+            // 因此先把 root 自身也解析掉，再做包含性比较。
+            if (!target.startsWith(root + path.sep)) { issue = '缺少 dsh.bundle.patch 声明或补丁文件'; break; }
+            const realRoot = await fsp.realpath(root).catch(() => root);
+            const real = await fsp.realpath(target).catch(() => '');
+            if (!real || !(real === realRoot || real.startsWith(realRoot + path.sep))) { issue = '缺少 dsh.bundle.patch 声明或补丁文件'; break; }
+            try {
+              if (!(await fsp.stat(target)).isFile()) { issue = '缺少 dsh.bundle.patch 声明或补丁文件'; break; }
+            } catch (_) { issue = '缺少 dsh.bundle.patch 声明或补丁文件'; break; }
+          }
+        }
+        const ids = [];
+        // 每个补丁文件各自成组：catalog 事件按文件各发一条（与上游一致）。
+        // 不可把所有文件的 id 合并后再截断 —— 那会丢掉后面文件的全部归属（实测丢 311/411）。
+        const catalogs = [];
+        for (const item of patches) {
+          if (typeof item !== 'string' || !item) continue;
+          const patchFile = path.resolve(root, item);
           try {
             const st = await fsp.stat(patchFile);
             if (st.size <= 1024 * 1024) {
               const source = await fsp.readFile(patchFile, 'utf8');
-              ids = [...source.matchAll(/^\s*(?:-\s*)?(?:id|name|module):\s*["']?([@A-Za-z0-9_./:-]+)["']?\s*$/gm)].map(m => m[1]);
+              const found = [...source.matchAll(/^\s*(?:-\s*)?(?:id|name|module):\s*["']?([@A-Za-z0-9_./:-]+)["']?\s*$/gm)].map(m => m[1]);
+              ids.push(...found);
+              if (found.length) catalogs.push(found);
             }
           } catch (_) { }
         }
-        return { name, root, pkg, patch, ids, issue };
+        return { name, root, pkg, patches, ids, catalogs, issue };
       } catch (error) {
         return { name, error };
       }
@@ -91,10 +125,10 @@ function owner(text) {
       const info = { name: r.name, directory: r.root, url: pathToFileURL(r.root).href };
       plugins.push(info);
       if (r.issue) emit('issue', r.name, r.issue);
-      emit('plugin', r.name, '配置检查：' + r.name + ' @ ' + (r.pkg.version || '未知版本'), { path: r.root });
-      if (typeof r.patch === 'string') {
+      emit('plugin', r.name, '配置检查：' + r.name + ' @ ' + (r.pkg.version || uiText('未知版本')), { path: r.root });
+      if (r.patches.length) {
         for (const id of r.ids) moduleOwners.set(id, moduleOwners.has(id) && moduleOwners.get(id) !== r.name ? '' : r.name);
-        if (r.ids.length) emit('catalog', r.name, '', { ids: r.ids.slice(0, 100), path: r.root });
+        for (const group of r.catalogs) emit('catalog', r.name, '', { ids: group.slice(0, 100), path: r.root });
       }
     }
     emit('stage', '', '加载 DSH 和已启用插件');

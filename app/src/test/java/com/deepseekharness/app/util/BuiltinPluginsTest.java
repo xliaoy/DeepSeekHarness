@@ -18,6 +18,14 @@ public class BuiltinPluginsTest {
         org.junit.Assert.assertFalse(BuiltinPlugins.internal("@other/my-plugin"));
     }
 
+    @Test public void signedSystemSetAlwaysProtectsEveryApkPlugin() {
+        for (String name : BuiltinPlugins.DEFAULT_BUILTINS) assertTrue(BuiltinPlugins.system(name));
+        assertTrue(BuiltinPlugins.system("dsh-app-integration"));
+        assertTrue(BuiltinPlugins.system("@deepseek-ai/dsh-base"));
+        assertTrue(BuiltinPlugins.system("@deepseek-ai/dsh-web-app"));
+        assertFalse(BuiltinPlugins.system("user-plugin"));
+    }
+
     @Test
     public void parseBuiltinNames_逐行解析_跳过空行与注释() {
         String txt = "# 内置插件\n\ndsh-device-shell-guide\n  dsh-task-notifier  \n\n# 注释行\ndsh-status-overlay\ndsh-web-mobile\n";
@@ -34,14 +42,14 @@ public class BuiltinPluginsTest {
     }
 
     @Test
-    public void entityDir_把dsh前缀换成deepseekharness前缀() {
+    public void entityDir_把dsh前缀换成DeepSeekHarness前缀() {
         assertEquals("/root/deepseekharness-device-shell-guide",
                 BuiltinPlugins.entityDir("dsh-device-shell-guide"));
         assertEquals("/root/deepseekharness-web-mobile", BuiltinPlugins.entityDir("dsh-web-mobile"));
     }
 
     @Test
-    public void entityDir_非dsh前缀名字统一补deepseekharness前缀() {
+    public void entityDir_非dsh前缀名字统一补DeepSeekHarness前缀() {
         assertEquals("/root/deepseekharness-foo", BuiltinPlugins.entityDir("foo"));
     }
 

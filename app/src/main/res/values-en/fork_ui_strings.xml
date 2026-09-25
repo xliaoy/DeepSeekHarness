@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_back">Back</string>
+    <string name="common_current">Current</string>
+    <string name="common_official_default">Official default</string>
+    <string name="recovery_back">‹ Back</string>
+    <string name="recovery_desc">This page does not depend on the Web: you can view recent startup records, restore config snapshots, or uninstall problematic plugins.</string>
+    <string name="recovery_env_install">Environment install &amp; repair</string>
+    <string name="recovery_new_profile">New config profile</string>
+    <string name="recovery_other_tools">Other tools</string>
+    <string name="recovery_plugin_uninstall">Plugin uninstall</string>
+    <string name="recovery_plugin_uninstall_desc">Lists only uninstallable third-party plugins; built-in plugins cannot be uninstalled.</string>
+    <string name="recovery_recent">Recent startup records</string>
+    <string name="recovery_refresh">Refresh recovery records</string>
+    <string name="recovery_resume">Resume interrupted config repair</string>
+    <string name="recovery_retry">Retry startup</string>
+    <string name="recovery_safe_mode">Safe-start basic UI</string>
+    <string name="recovery_section">Restore &amp; repair</string>
+    <string name="recovery_snapshots">Config snapshots</string>
+    <string name="recovery_snapshots_desc">Keeps the last three healthy startups and three pre-repair snapshots; saves configuration only — sessions, workspaces, and dependency directories are not copied.</string>
+    <string name="recovery_title">Startup recovery</string>
+    <string name="recovery_view_logs">View and download logs</string>
+    <string name="source_apply_apt">Apply Ubuntu package source</string>
+    <string name="source_apply_note">Applying an APT source auto-refreshes the index; npm / pip sources take effect immediately.</string>
+    <string name="source_apply_npm">Apply npm source</string>
+    <string name="source_apply_pip">Apply pip source</string>
+    <string name="source_apt">Ubuntu package source (APT)</string>
+    <string name="source_apt_hint">Or a custom mirror root URL (https://…/ubuntu-ports/)</string>
+    <string name="source_desc">"Switch between npm / Ubuntu packages (APT) / pip mirror sources. Pick or enter one, then tap \"Apply\" to take effect."</string>
+    <string name="source_npm">npm source</string>
+    <string name="source_npm_hint">Or a custom source URL (https://…)</string>
+    <string name="source_pip">pip source (Python)</string>
+    <string name="source_pip_hint">Or a custom pip source URL (https://…/simple)</string>
+    <string name="source_title">Source settings</string>
+
+    <!-- Stellar channel (Shizuku-compatible fork) -->
+    <string name="grants_stellar">Stellar (Shizuku-compatible fork)</string>
+    <string name="grants_authorize_stellar">Authorize Stellar</string>
+    <string name="grants_checking">Checking…</string>
+</resources>

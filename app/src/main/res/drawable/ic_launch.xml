@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material Symbols outlined「play_circle」—— 启动：外圈线性圆环 + 实心播放三角 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -7,6 +6,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FF000000"
-        android:fillType="evenOdd"
-        android:pathData="m9.344,7.563 6.514,4.148 -6.514,4.148v-8.295Zm2.367,-5.611q-2.001,0 -3.782,0.769t-3.111,2.098Q3.803,6.693 3.035,8.474T2.266,12.255q0,2.025 0.769,3.806t2.098,3.099Q6.463,20.477 8.244,21.246T12.026,22.014q2.025,0 3.806,-0.769T18.93,19.16q1.317,-1.317 2.086,-3.099T21.785,12.255q0,-2.001 -0.769,-3.782T18.93,5.363q-1.317,-1.33 -3.099,-2.098T12.026,2.496Zm0,1.464q3.464,0 5.88,2.428T20.321,12.255q0,3.464 -2.415,5.88t-5.88,2.415q-3.44,0 -5.868,-2.415T3.73,12.255q0,-3.44 2.428,-5.868T12.026,3.96Zm0,8.295Z" />
+        android:pathData="M8,5v14l11,-7z" />
 </vector>

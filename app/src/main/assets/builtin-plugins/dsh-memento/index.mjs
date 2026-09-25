@@ -176,7 +176,7 @@ const SHARED_CONFIG_FIELDS = {
   }),
   writePolicy: Schema.union(['ask', 'auto', 'off']).default('ask'),
   writePolicies: Schema.dict(Schema.union(['ask', 'auto', 'off'])).default({}),
-  language: Schema.union(['en', 'zh']).default('zh'), // DSHA 定制：默认中文
+  language: Schema.union(['en', 'zh']).default('zh'), // DEEPSEEK_HARNESS 定制：默认中文
   snapshotOrder: Schema.number().default(DEFAULT_SNAPSHOT_ORDER),
   maxEntriesPerQuery: Schema.number().default(20),
   commandListLimit: Schema.number().default(50),

@@ -1,20 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <instrumentation android:name="com.deepseekharness.app.core.Rc21RecoveryAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.Rc21AttachmentAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <application>
+        <provider android:name=".DocumentsAuditProvider" android:authorities="${applicationId}.documents.audit"
+            android:exported="true" android:grantUriPermissions="true" android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter>
+        </provider>
         <activity android:name=".ui.LayoutPreviewActivity" android:exported="false" android:excludeFromRecents="true" />
         <activity android:name=".ui.FragmentSessionTestActivity" android:exported="false" android:excludeFromRecents="true" />
         <activity android:name="com.deepseekharness.app.BridgeAuditInstrumentation$AskActivity" android:exported="false" />
     </application>
+    <instrumentation android:name="com.deepseekharness.app.ui.UiMotionAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.PluginSortAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.LogPanelAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.runtime.TabletEnvironmentAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.DocumentsAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.DeviceCapabilityAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.LayoutAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.FunctionalAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.InstallAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.UpdateFlowAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.core.MaintenanceFixtureInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.FragmentSessionInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.AdbFlowAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.BridgeAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.DevicePolicyAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.SmsGrantAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.RecoveryEntryAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.ConfigurationAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.runtime.ProotCommandAuditInstrumentation" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.WebRegressionAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.DiagnosticPtyAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.ui.UiPolishAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.core.UpgradeDeviceAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
@@ -24,4 +40,12 @@
     <instrumentation android:name="com.deepseekharness.app.core.StartupDiagnosticsAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.core.RuntimeFallbackAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
     <instrumentation android:name="com.deepseekharness.app.runtime.RestartRaceAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.InstallSettingsAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.LaunchLogAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.PluginListAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.MultiTerminalLanguageAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.LanguageSettingsAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.StartupRecoveryAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.core.WebPortAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
+    <instrumentation android:name="com.deepseekharness.app.ui.BrowserCompatibilityAudit" android:targetPackage="com.deepseek.harness" android:functionalTest="true" />
 </manifest>

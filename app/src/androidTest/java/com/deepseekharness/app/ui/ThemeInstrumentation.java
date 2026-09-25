@@ -150,8 +150,8 @@ public final class ThemeInstrumentation extends Instrumentation {
             } else if ("lifecycle".equals(args.getString("mode"))) {
                 require("dark".equals(config.getUiTheme()) && ThemeController.isDark(page),"重新启动丢失主题选择");
                 MainActivity current = MainActivity.current;
-                runOnMainSync(() -> current.findViewById(R.id.btn_menu).performClick());
-                until(() -> ((androidx.drawerlayout.widget.DrawerLayout)MainActivity.current.findViewById(R.id.drawer_layout)).isDrawerOpen(androidx.core.view.GravityCompat.START),"侧边栏未打开");
+                runOnMainSync(() -> current.openSettings());
+                until(() -> MainActivity.current.findViewById(R.id.settings_tabs)!=null,"设置页未加载");
                 runOnMainSync(() -> audit(MainActivity.current.findViewById(android.R.id.content),"actual-settings"));
                 screenshot("dark-settings");
                 java.lang.reflect.Field field = PtyTerminalFragment.class.getDeclaredField("session");field.setAccessible(true);
@@ -175,8 +175,8 @@ public final class ThemeInstrumentation extends Instrumentation {
                     until(() -> MainActivity.current != null && MainActivity.current.getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
                             && !MainActivity.current.getSupportFragmentManager().isStateSaved(), "主页面尚未回到前台");
                     MainActivity current = MainActivity.current;
-                    runOnMainSync(() -> current.findViewById(R.id.btn_menu).performClick());
-                    until(() -> ((androidx.drawerlayout.widget.DrawerLayout)MainActivity.current.findViewById(R.id.drawer_layout)).isDrawerOpen(androidx.core.view.GravityCompat.START),"侧边栏未打开");
+                    runOnMainSync(() -> current.openSettings());
+                    until(() -> MainActivity.current.findViewById(R.id.settings_tabs)!=null,"外观设置未加载");
                     runOnMainSync(() -> ThemeController.select(MainActivity.current,dark?"dark":"light"));
                     until(() -> MainActivity.current!=null && ThemeController.isDark(MainActivity.current)==dark && config.getUiTheme().equals(dark?"dark":"light"),"主题未生效");
                     page = MainActivity.current;
@@ -190,12 +190,11 @@ public final class ThemeInstrumentation extends Instrumentation {
                     phase((dark?"黑夜":"白天")+"主题：检查布局、按钮状态与更新页");
                 }
                 require(failures.isEmpty(),String.join("\n",failures));
-                // 顶部按钮切换后再切回，仍保留当前主界面（标题固定 App 名）。
+                // 顶部按钮切换后再切回，仍保留当前设置页。
                 MainActivity before = MainActivity.current;
                 runOnMainSync(() -> before.findViewById(R.id.btn_theme).performClick());
                 until(() -> MainActivity.current!=before && !ThemeController.isDark(MainActivity.current),"顶部切换无效");
-                require(((TextView)MainActivity.current.findViewById(R.id.app_title)).getText().toString()
-                        .equals(getTargetContext().getString(com.deepseekharness.app.R.string.app_name)),"切换丢失当前页面");
+                require(MainActivity.current.findViewById(R.id.settings_tabs)!=null,"切换丢失当前页面");
                 runOnMainSync(() -> ThemeController.select(MainActivity.current,"dark"));
                 until(() -> ThemeController.isDark(MainActivity.current),"持久性检查准备失败");
                 output.putString("result","PASS");

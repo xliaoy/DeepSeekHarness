@@ -125,7 +125,7 @@ public final class AdbFlowAudit extends Instrumentation {
 
     private void connectionGate() {
         check(proot.isEnvironmentReady(), "BLOCKED_ENV: 请先安装环境，验收不自动解压");
-        check(LocalNetworkAccess.granted(app), "BLOCKED_PERMISSION: 请先手动允许 DeepSeek Harness 局域网权限");
+        check(LocalNetworkAccess.granted(app), "BLOCKED_PERMISSION: 请先手动允许 DEEPSEEK_HARNESS 局域网权限");
         check(wireless() != 0, "BLOCKED_WIRELESS_DISABLED: 请手动打开系统无线调试；本入口不修改该开关");
     }
 
@@ -167,7 +167,7 @@ public final class AdbFlowAudit extends Instrumentation {
                     page.getDelegate().setLocalNightMode(originalNight);
                     page.finish();
                 });
-            } catch (Throwable e) { result.putString("failure", "验收页面收尾失败，请手动返回 DeepSeek Harness"); }
+            } catch (Throwable e) { result.putString("failure", "验收页面收尾失败，请手动返回 DEEPSEEK_HARNESS"); }
             lastSaved = null;
             if (result.containsKey("failure")) result.putString("result", "FAIL");
             result.putInt("assertions", assertions);

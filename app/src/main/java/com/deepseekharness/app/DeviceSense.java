@@ -35,14 +35,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * curl 的结果。位置和传感器天生是异步回调，所以这里用 latch 等一次事件并设超时 —— 拿不到
  * 就老实说拿不到，不吊着调用方。
  *
- * <p><b>隐私默认关。</b> 位置是敏感信息，开关默认关闭；传感器与手电默认开（读环境光、
- * 开手电这类事没有隐私风险，且 agent 用得上）。开关都在「配置」页。
+ * <p><b>隐私默认关。</b> 位置是敏感信息，开关默认关闭；传感器与手电默认关（读环境光、
+ * 开手电这类事没有隐私风险，且 agent 用得上）。开关都在「设备能力授权」页。
  */
-final class DeviceSense {
+public final class DeviceSense {
 
     /** 允许 agent 读位置。默认**关** —— 这是能定位到人的信息。 */
     static final String K_LOCATION = "cap_location";
-    /** 允许 agent 读传感器与开手电。默认开。 */
+    /** 允许 agent 读传感器与开手电。默认关。 */
     static final String K_SENSORS = "cap_sensors";
 
     /** 等一次位置更新的上限。GPS 冷启动可能几十秒，别让 agent 的 curl 挂在那儿。 */
@@ -67,9 +67,9 @@ final class DeviceSense {
 
     static boolean sensorsAllowed(Context ctx) {
         try {
-            return prefs(ctx).getBoolean(K_SENSORS, true);
+            return prefs(ctx).getBoolean(K_SENSORS, false);
         } catch (Throwable e) {
-            return true;
+            return false;
         }
     }
 
@@ -90,25 +90,26 @@ final class DeviceSense {
      */
     static String location(Context ctx, boolean fresh) {
         if (!locationAllowed(ctx)) {
-            return "DISABLED 位置能力未开启：请到 DeepSeek Harness「配置」页勾选「允许 agent 读取位置」";
+            return com.deepseekharness.app.util.UiText.text("DISABLED 位置能力未开启：请到 DeepSeekHarness「设备能力授权」页勾选「允许 agent 读取位置」");
         }
         boolean fine = granted(ctx, Manifest.permission.ACCESS_FINE_LOCATION);
         boolean coarse = granted(ctx, Manifest.permission.ACCESS_COARSE_LOCATION);
         if (!fine && !coarse) {
-            return "NO_PERMISSION 未授予定位权限：到 DeepSeek Harness「配置」页点一下开关会引导授权";
+            return com.deepseekharness.app.util.UiText.text("NO_PERMISSION 未授予定位权限：到 DeepSeekHarness「设备能力授权」页点一下开关会引导授权");
         }
         LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
         if (lm == null) return "NO_SERVICE";
         try {
             if (!fresh) {
                 Location best = bestKnown(lm);
-                if (best != null) return format(best, "cached");
+                if (best != null) return locationAllowed(ctx) ? format(best, "cached") : "DISABLED";
             }
             Location live = awaitSingle(ctx, lm, fine);
+            if (!locationAllowed(ctx)) return "DISABLED";
             if (live != null) return format(live, "live");
             Location fallback = bestKnown(lm);
-            if (fallback != null) return format(fallback, "cached-fallback");
-            return "TIMEOUT 暂时定不到位（可能在室内且定位服务关闭）";
+            if (fallback != null) return locationAllowed(ctx) ? format(fallback, "cached-fallback") : "DISABLED";
+            return com.deepseekharness.app.util.UiText.text("TIMEOUT 暂时定不到位（可能在室内且定位服务关闭）");
         } catch (SecurityException e) {
             return "NO_PERMISSION " + SensitiveData.redact(e.getMessage());
         } catch (Throwable e) {
@@ -163,8 +164,14 @@ final class DeviceSense {
         final String provider = fine && lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
                 ? LocationManager.GPS_PROVIDER
                 : LocationManager.NETWORK_PROVIDER;
+        java.util.concurrent.atomic.AtomicBoolean revoked = new java.util.concurrent.atomic.AtomicBoolean();
+        SharedPreferences.OnSharedPreferenceChangeListener changes=(preferences,key)->{
+            if(K_LOCATION.equals(key)&&!locationAllowed(ctx)) { revoked.set(true);try{lm.removeUpdates(listener);}catch(RuntimeException ignored){}latch.countDown(); }
+        };
+        prefs(ctx).registerOnSharedPreferenceChangeListener(changes);
         main.post(() -> {
             try {
+                if(!locationAllowed(ctx)||revoked.get()){revoked.set(true);latch.countDown();return;}
                 lm.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper());
             } catch (Throwable e) {
                 latch.countDown();
@@ -174,6 +181,7 @@ final class DeviceSense {
             latch.await(LOCATION_WAIT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException ignored) {
         } finally {
+            prefs(ctx).unregisterOnSharedPreferenceChangeListener(changes);
             main.post(() -> {
                 try {
                     lm.removeUpdates(listener);
@@ -181,6 +189,7 @@ final class DeviceSense {
                 }
             });
         }
+        if(revoked.get()||!locationAllowed(ctx))throw new SecurityException("CAPABILITY_REVOKED");
         return box.get();
     }
 
@@ -201,7 +210,7 @@ final class DeviceSense {
 
     /** 列出这台机器有哪些传感器（agent 先问这个，再决定读哪个）。 */
     static String sensorList(Context ctx) {
-        if (!sensorsAllowed(ctx)) return "DISABLED 传感器能力未开启（配置页可开）";
+        if (!sensorsAllowed(ctx)) return com.deepseekharness.app.util.UiText.text("DISABLED 传感器能力未开启（设备能力授权页可开）");
         SensorManager sm = (SensorManager) ctx.getSystemService(Context.SENSOR_SERVICE);
         if (sm == null) return "NO_SERVICE";
         StringBuilder sb = new StringBuilder();
@@ -213,7 +222,7 @@ final class DeviceSense {
                     .append("\tmax=").append(s.getMaximumRange())
                     .append('\n');
         }
-        if (sb.length() == 0) return "EMPTY 没有可用传感器";
+        if (sb.length() == 0) return com.deepseekharness.app.util.UiText.text("EMPTY 没有可用传感器");
         return sb.toString();
     }
 
@@ -225,16 +234,16 @@ final class DeviceSense {
      *            /{@code rotation}/{@code steps}
      */
     static String sensorRead(Context ctx, String key) {
-        if (!sensorsAllowed(ctx)) return "DISABLED 传感器能力未开启（配置页可开）";
+        if (!sensorsAllowed(ctx)) return com.deepseekharness.app.util.UiText.text("DISABLED 传感器能力未开启（设备能力授权页可开）");
         Integer type = typeOf(key);
         if (type == null) {
-            return "BAD_KEY 支持的名字：light accel gyro magnet pressure proximity humidity "
+            return com.deepseekharness.app.util.UiText.text("BAD_KEY 支持的名字：light accel gyro magnet pressure proximity humidity ")
                     + "temperature gravity rotation steps";
         }
         SensorManager sm = (SensorManager) ctx.getSystemService(Context.SENSOR_SERVICE);
         if (sm == null) return "NO_SERVICE";
         Sensor s = sm.getDefaultSensor(type);
-        if (s == null) return "ABSENT 这台设备没有该传感器";
+        if (s == null) return com.deepseekharness.app.util.UiText.text("ABSENT 这台设备没有该传感器");
         // 计步等「按需求触发」的传感器可能长时间不来事件 —— 一律走超时逻辑，别卡住调用方
         final float[][] box = new float[1][];
         final CountDownLatch latch = new CountDownLatch(1);
@@ -252,8 +261,14 @@ final class DeviceSense {
             public void onAccuracyChanged(Sensor sensor, int accuracy) {
             }
         };
+        java.util.concurrent.atomic.AtomicBoolean revoked = new java.util.concurrent.atomic.AtomicBoolean();
+        SharedPreferences.OnSharedPreferenceChangeListener changes=(preferences,changed)->{
+            if(K_SENSORS.equals(changed)&&!sensorsAllowed(ctx)){revoked.set(true);sm.unregisterListener(l);latch.countDown();}
+        };
+        prefs(ctx).registerOnSharedPreferenceChangeListener(changes);
         main.post(() -> {
             try {
+                if(!sensorsAllowed(ctx)||revoked.get()){revoked.set(true);latch.countDown();return;}
                 sm.registerListener(l, s, SensorManager.SENSOR_DELAY_UI, new Handler(Looper.getMainLooper()));
             } catch (Throwable e) {
                 latch.countDown();
@@ -263,6 +278,7 @@ final class DeviceSense {
             latch.await(SENSOR_WAIT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException ignored) {
         } finally {
+            prefs(ctx).unregisterOnSharedPreferenceChangeListener(changes);
             main.post(() -> {
                 try {
                     sm.unregisterListener(l);
@@ -270,8 +286,9 @@ final class DeviceSense {
                 }
             });
         }
+        if(revoked.get()||!sensorsAllowed(ctx))return "DISABLED";
         float[] v = box[0];
-        if (v == null) return "TIMEOUT 传感器没有在 2 秒内上报（部分传感器只在数值变化时上报）";
+        if (v == null) return com.deepseekharness.app.util.UiText.text("TIMEOUT 传感器没有在 2 秒内上报（部分传感器只在数值变化时上报）");
         StringBuilder sb = new StringBuilder();
         sb.append("sensor=").append(key).append('\n').append("unit=").append(unitOf(key)).append('\n');
         for (int i = 0; i < v.length; i++) {
@@ -334,9 +351,9 @@ final class DeviceSense {
     // ================= 手电 =================
 
     /** 开关手电。setTorchMode 从 API 23 起不需要 CAMERA 权限。 */
-    static String torch(Context ctx, boolean on) {
-        if (!sensorsAllowed(ctx)) return "DISABLED 设备能力未开启（配置页可开）";
-        if (Build.VERSION.SDK_INT < 23) return "UNSUPPORTED 需要 Android 6.0+";
+    static synchronized String torch(Context ctx, boolean on) {
+        if (on && !sensorsAllowed(ctx)) return com.deepseekharness.app.util.UiText.text("DISABLED 设备能力未开启（设备能力授权页可开）");
+        if (Build.VERSION.SDK_INT < 23) return com.deepseekharness.app.util.UiText.text("UNSUPPORTED 需要 Android 6.0+");
         CameraManager cm = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
         if (cm == null) return "NO_SERVICE";
         try {
@@ -351,8 +368,10 @@ final class DeviceSense {
                     if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) break;
                 }
             }
-            if (target == null) return "ABSENT 这台设备没有闪光灯";
+            if (target == null) return com.deepseekharness.app.util.UiText.text("ABSENT 这台设备没有闪光灯");
+            if(on&&!sensorsAllowed(ctx))return "DISABLED";
             cm.setTorchMode(target, on);
+            if(on)ownedTorches.add(target);else ownedTorches.remove(target);
             return "OK torch=" + (on ? "on" : "off");
         } catch (Throwable e) {
             // 相机被其它 App 占用时会抛 CameraAccessException
@@ -360,14 +379,22 @@ final class DeviceSense {
         }
     }
 
-    /** 供配置页展示：这台机器有哪些能力可用。 */
+    private static final java.util.Set<String> ownedTorches = new java.util.HashSet<>();
+    /** 关闭能力时只关闭由 DeepSeekHarness 开启的手电。 */
+    public static synchronized void revoke(Context context,String capability){
+        if(!K_SENSORS.equals(capability))return;
+        CameraManager camera=(CameraManager)context.getSystemService(Context.CAMERA_SERVICE);
+        for(String id:new java.util.HashSet<>(ownedTorches))try{if(camera!=null)camera.setTorchMode(id,false);ownedTorches.remove(id);}catch(Exception ignored){}
+    }
+
+    /** 供设备能力授权页展示：这台机器有哪些能力可用。 */
     static String summary(Context ctx) {
         List<String> parts = new ArrayList<>();
-        parts.add("位置 " + (locationAllowed(ctx)
+        parts.add(com.deepseekharness.app.util.UiText.text("位置 ") + (locationAllowed(ctx)
                 ? (granted(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
-                || granted(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) ? "已开" : "待授权")
-                : "关"));
-        parts.add("传感器/手电 " + (sensorsAllowed(ctx) ? "已开" : "关"));
+                || granted(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) ? com.deepseekharness.app.util.UiText.text("已开") : com.deepseekharness.app.util.UiText.text("待授权"))
+                : com.deepseekharness.app.util.UiText.text("关")));
+        parts.add(com.deepseekharness.app.util.UiText.text("传感器/手电 ") + (sensorsAllowed(ctx) ? com.deepseekharness.app.util.UiText.text("已开") : com.deepseekharness.app.util.UiText.text("关")));
         return String.join(" · ", parts);
     }
 }

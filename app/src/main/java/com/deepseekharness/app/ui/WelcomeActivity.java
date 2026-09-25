@@ -1,12 +1,7 @@
 package com.deepseekharness.app.ui;
-import com.deepseekharness.app.util.UiText;
 
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,8 +28,7 @@ import java.util.List;
 public class WelcomeActivity extends AppCompatActivity {
 
     private final int[] pages = { R.layout.welcome_page1, R.layout.welcome_page2, R.layout.welcome_page3 };
-    /** iOS 风格页码点：选中为 20×8dp 主色胶囊，未选为 8dp 灰点。 */
-    private final View[] dots = new View[3];
+    private final TextView[] dots = new TextView[3];
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -45,25 +39,33 @@ public class WelcomeActivity extends AppCompatActivity {
         Button btn = findViewById(R.id.welcome_btn);
         LinearLayout dotsBox = findViewById(R.id.welcome_dots);
 
+        findViewById(R.id.welcome_skip).setOnClickListener(v->startActivity(new Intent(this,OnboardingPrepareActivity.class)));
         pager.setAdapter(new PageAdapter());
         pager.setUserInputEnabled(true);
 
         for (int i = 0; i < 3; i++) {
-            View dot = new View(this);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(8), dp(8));
-            lp.setMargins(dp(3), 0, dp(3), 0);
-            dot.setLayoutParams(lp);
-            dot.setBackgroundResource(R.drawable.dot_inactive);
-            dotsBox.addView(dot);
-            dots[i] = dot;
+            TextView d = new TextView(this);
+            d.setText("");d.setBackgroundResource(R.drawable.bg_ui2_dot);
+            d.setTextColor(getColor(R.color.text_muted));
+            d.setTextSize(10);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    Math.round((i==0?24:6)*getResources().getDisplayMetrics().density),Math.round(4*getResources().getDisplayMetrics().density));
+            lp.setMargins(6, 0, 6, 0);
+            d.setLayoutParams(lp);
+            dotsBox.addView(d);
+            dots[i] = d;
         }
-        applyDotState(0);
+        dots[0].setTextColor(getColor(R.color.primary));
 
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
-                applyDotState(position);
-                btn.setText(position == 2 ? UiText.text("开始") : UiText.text("下一步"));
+                for (int i = 0; i < 3; i++) {
+                    dots[i].setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(i==position?R.color.primary:R.color.line)));
+                    dots[i].getLayoutParams().width=Math.round((i==position?24:6)*getResources().getDisplayMetrics().density);dots[i].requestLayout();
+                }
+                btn.setText(position==0?getString(R.string.ui2_meet):position==1?com.deepseekharness.app.util.UiText.choose("了解数据与权限","Data and permissions"):com.deepseekharness.app.util.UiText.choose("开始准备环境","Prepare the environment"));
+                ((TextView)findViewById(R.id.welcome_counter)).setText((position+1)+" / 7");
             }
         });
 
@@ -71,49 +73,11 @@ public class WelcomeActivity extends AppCompatActivity {
             int cur = pager.getCurrentItem();
             if (cur < 2) {
                 pager.setCurrentItem(cur + 1);
-            } else if (needAllFilesAccess()) {
-                requestAllFilesAccessConfirm();
             } else {
-                proceed();
+                startActivity(new Intent(this,OnboardingPrepareActivity.class));
+
             }
         });
-    }
-
-    /** 点「开始」前先申请「所有文件访问」权限（Android 11+ 特殊权限，只能跳系统设置）。 */
-    private boolean needAllFilesAccess() {
-        return Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager();
-    }
-
-    private void requestAllFilesAccessConfirm() {
-        androidx.appcompat.app.AlertDialog dialog = AppDialogs.show(this, android.R.drawable.ic_menu_manage, UiText.text("需要存储权限"),
-                UiText.text("DeepSeek Harness 需要在容器中读写手机存储（如把工作区建到 /sdcard 任意位置）。")
-                        + UiText.text("请点击下方按钮在系统设置中开启「所有文件访问」权限，开启后返回本页再次点击「开始」。"),
-                UiText.text("去开启"), UiText.text("跳过"), () -> requestAllFilesAccess());
-        dialog.setCancelable(false);
-    }
-
-    private void requestAllFilesAccess() {
-        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                Uri.parse("package:" + getPackageName()));
-        try {
-            startActivity(intent);
-        } catch (Exception ignored) {
-            try {
-                startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
-            } catch (Exception ignored2) {
-                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + getPackageName()))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            }
-        }
-    }
-
-    private void proceed() {
-        new ConfigStore(this).setWelcomed(true);
-        HarnessController c = new HarnessController(this);
-        startActivity(new Intent(this,
-                c.isEnvironmentReady() ? MainActivity.class : ExtractActivity.class));
-        finish();
     }
 
     private class PageAdapter extends RecyclerView.Adapter<PageAdapter.Holder> {
@@ -146,21 +110,5 @@ public class WelcomeActivity extends AppCompatActivity {
                 super(itemView);
             }
         }
-    }
-
-    /** 刷新页码点：选中项拉长为胶囊并高亮。 */
-    private void applyDotState(int position) {
-        for (int i = 0; i < dots.length; i++) {
-            View dot = dots[i];
-            if (dot == null) continue;
-            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) dot.getLayoutParams();
-            int width = dp(i == position ? 20 : 8);
-            if (lp.width != width) { lp.width = width; dot.setLayoutParams(lp); }
-            dot.setBackgroundResource(i == position ? R.drawable.dot_active : R.drawable.dot_inactive);
-        }
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }

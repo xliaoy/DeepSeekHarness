@@ -52,7 +52,7 @@ public final class SmsQuery {
         if (!seen.contains("--uri")) throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("缺少短信 URI"));
     }
 
-    /** content 工具实际接受数字用户号；默认号也固定为 DSHA 所在的 Android 用户。 */
+    /** content 工具实际接受数字用户号；默认号也固定为 DeepSeekHarness 所在的 Android 用户。 */
     public static List<String> forUser(List<String> argv, int user) {
         validate(argv);
         if (user < 0) throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("无法确认当前 Android 用户"));

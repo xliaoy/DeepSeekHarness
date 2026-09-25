@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 
 /** 由 su 启动的短期进程；在真正的 root 身份下复用路径、应用清单与命令守卫。 */
 public final class RootShellMain {
-    public static final String RESULT = "DSHA_ROOT_RESULT=";
+    public static final String RESULT = "DeepSeekHarness_ROOT_RESULT=";
     private RootShellMain() { }
     public static void main(String[] args) {
         String output;

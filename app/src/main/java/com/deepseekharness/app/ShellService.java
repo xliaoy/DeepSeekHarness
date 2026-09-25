@@ -29,7 +29,7 @@ extends IShellService.Stub {
         java.util.List<Process> owned;
         synchronized (processes) { closing = true; owned = new java.util.ArrayList<>(processes); }
         for (Process process : owned) Compat.destroy(process);
-        // 此协议只负责 Shizuku 的特权进程；本进程中的测试实例不能退出 DSHA。
+        // 此协议只负责 Shizuku 的特权进程；本进程中的测试实例不能退出 DeepSeekHarness。
         int uid = android.os.Process.myUid();
         if (uid == 0 || uid == 2000) System.exit(0);
     }

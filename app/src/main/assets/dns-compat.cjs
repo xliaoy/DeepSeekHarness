@@ -2,8 +2,8 @@
 // AAAA 被拒时仅重试域名解析，不重放 HTTP 请求；正常双栈与显式 IPv6 完全保留。
 const dns = require('node:dns');
 const { promisify } = require('node:util');
-const marker = Symbol.for('dsha.dns.compat');
-if (process.env.DSHA_DNS_MODE !== 'native' && !dns[marker]) {
+const marker = Symbol.for('deepseekharness.dns.compat');
+if (process.env.DeepSeekHarness_DNS_MODE !== 'native' && !dns[marker]) {
   const original = dns.lookup;
   const originalPromise = dns.promises.lookup.bind(dns.promises);
   const retryable = (error, options) => {

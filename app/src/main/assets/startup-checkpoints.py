@@ -14,7 +14,7 @@ spec = importlib.util.spec_from_file_location('register', os.path.join(os.path.d
 register = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(register)
 HOME = register.local(register.DSH_HOME)
-STORE = os.path.join(HOME, 'dsha-startup-checkpoints')
+STORE = os.path.join(HOME, 'deepseekharness-startup-checkpoints')
 FILES = ('profiles/web/package.json', 'profiles/web/cordis.patch.yml',
          'profiles/web/pnpm-workspace.yaml', 'profiles/web/pnpm-lock.yaml', 'settings.yaml', 'cordis.patch.yml')
 LIMIT = 4 * 1024 * 1024

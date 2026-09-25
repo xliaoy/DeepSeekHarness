@@ -40,7 +40,7 @@ public final class UpgradeDeviceAudit extends Instrumentation {
                 for (File target : new File[]{
                         new File(getTargetContext().getCacheDir(), "runtime-startup/cold-alpha2-20260910"),
                         new File(root, "root/.deepseekharness-alpha2-tests"), new File(root, "root/.deepseekharness-alpha2-snapshot.py"),
-                        new File(root, "root/闲聊/DeepSeekHarness-alpha2-preview-check")}) {
+                        new File(root, "root/闲聊/DEEPSEEK_HARNESS-alpha2-preview-check")}) {
                     File allowed = target.getPath().startsWith(getTargetContext().getCacheDir().getPath())
                             ? getTargetContext().getCacheDir() : root;
                     check(!Compat.isSymbolicLink(target) && target.getCanonicalPath().startsWith(allowed.getCanonicalPath() + File.separator),

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 深色模式：iOS dark 系统色（不透明），同样不使用半透明 -->
+<!-- 深色模式：iOS dark 系统色（不透明），同样不使用半透明。
+     上游新增的 panel_* 键保留，取值并入 fork 灰阶：顶栏与页面同色（黑），描边用 fork 的 line。 -->
 <resources>
+    <color name="panel_top">#000000</color>
+    <color name="panel_bottom">#000000</color>
+    <color name="panel_outline">#38383A</color>
     <color name="primary">#FFFFFF</color>
     <color name="primary_dark">#FFFFFF</color>
     <color name="accent_on">#121316</color>

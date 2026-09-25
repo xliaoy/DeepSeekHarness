@@ -1,10 +1,10 @@
 /* 预设按钮不能依赖窄屏插件来清除浏览器默认边框。 */
-.dsha-preset-header-anchor {
+.deepseekharness-preset-header-anchor {
   display: inline-flex;
   min-width: 0;
   max-width: 220px;
 }
-.dsha-preset-header-anchor [data-dsha-agent-preset="header"] {
+.deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] {
   -webkit-appearance: none;
   appearance: none;
   display: inline-flex;
@@ -24,23 +24,23 @@
   font-size: 13px;
   cursor: pointer;
 }
-.dsha-preset-header-anchor [data-dsha-agent-preset="header"] > svg {
+.deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] > svg {
   flex: none;
 }
-.dsha-preset-header-anchor [data-dsha-agent-preset="header"] > span {
+.deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.dsha-preset-header-anchor [data-dsha-agent-preset="header"]:focus:not(:focus-visible) {
+.deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"]:focus:not(:focus-visible) {
   outline: none;
 }
-.dsha-preset-header-anchor [data-dsha-agent-preset="header"]:focus-visible {
+.deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"]:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary, #4f6ef7);
   outline-offset: 2px;
 }
-.dsha-preset-header-anchor [data-dsha-agent-preset="header"]:hover {
+.deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"]:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, .06));
 }
 @media (pointer: coarse) {
@@ -68,7 +68,7 @@
     white-space: nowrap !important;
   }
   /* 模式切换：order 99（子代理左侧相邻），靠右 */
-  [data-phase] header .dsha-preset-header-anchor {
+  [data-phase] header .deepseekharness-preset-header-anchor {
     margin-inline-start: auto !important;
     order: 99 !important;
     display: inline-flex !important;
@@ -79,10 +79,10 @@
     max-width: 38vw !important;
   }
   /* 模式切换按钮本体：横排、图标文字间距 10px */
-  .dsha-preset-header-anchor,
-  .dsha-preset-header-anchor [data-dsha-agent-preset="header"],
-  .dsha-preset-header-anchor * { gap: 10px !important; }
-  .dsha-preset-header-anchor [data-dsha-agent-preset="header"] {
+  .deepseekharness-preset-header-anchor,
+  .deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"],
+  .deepseekharness-preset-header-anchor * { gap: 10px !important; }
+  .deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] {
     display: inline-flex !important;
     flex-direction: row !important;
     align-items: center !important;
@@ -91,15 +91,15 @@
     font-size: 12px !important;
     border-radius: 8px !important;
   }
-  .dsha-preset-header-anchor [data-dsha-agent-preset="header"] > svg,
-  .dsha-preset-header-anchor [data-dsha-agent-preset="header"] > :first-child {
+  .deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] > svg,
+  .deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] > :first-child {
     flex: none !important;
     width: 14px !important;
     height: 14px !important;
     margin-right: 8px !important;
   }
-  .dsha-preset-header-anchor [data-dsha-agent-preset="header"] > span,
-  .dsha-preset-header-anchor [data-dsha-agent-preset="header"] > :last-child {
+  .deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] > span,
+  .deepseekharness-preset-header-anchor [data-deepseekharness-agent-preset="header"] > :last-child {
     flex: 0 1 auto !important;
     min-width: 0 !important;
     padding-left: 2px !important;

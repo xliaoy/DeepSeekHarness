@@ -6,7 +6,7 @@ import android.content.Context;
 public final class DeviceGrants {
     private final android.content.SharedPreferences preferences;
     public DeviceGrants(Context context) {
-        preferences = context.getSharedPreferences("dsha_device_grants", Context.MODE_PRIVATE);
+        preferences = context.getSharedPreferences("DeepSeekHarness_device_grants", Context.MODE_PRIVATE);
     }
     public boolean smsReadAllowed() { return preferences.getBoolean("sms_read", false); }
     public boolean setSmsReadAllowed(boolean allowed) {

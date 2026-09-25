@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 上游新增的分段控件（插件页 市场/已安装 切换）。功能结构保留上游，
+     选中态改用本 fork 的实心主色胶囊（bg_chip_selected），未选中为透明+涟漪：
+     原来走 bg_selection 的浅底在 fork 的灰阶配色里几乎看不出选中，改后选择明确。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/ripple">
+    <item><selector>
+        <item android:state_selected="true" android:drawable="@drawable/bg_chip_selected" />
+        <item android:state_focused="true"><shape><solid android:color="@color/raised" /><stroke android:width="2dp" android:color="@color/primary" /><corners android:radius="@dimen/radius_control" /></shape></item>
+        <item android:drawable="@android:color/transparent" />
+    </selector></item>
+</ripple>

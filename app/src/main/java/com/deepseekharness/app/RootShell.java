@@ -32,7 +32,7 @@ public final class RootShell {
         if (!enabled(ctx)) return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 未允许 root shell\n[EXIT=126]");
         DeviceShellPolicy.Plan plan = DeviceShellPolicy.inspect(command);
         if (!plan.allowed()) return plan.reason + "\n[EXIT=126]";
-        if (plan.kind == DeviceShellPolicy.Kind.SENSITIVE_READ && authorizedSmsUser < 0)
+        if (plan.kind == DeviceShellPolicy.Kind.SENSITIVE_READ && (authorizedSmsUser < 0 || !new com.deepseekharness.app.core.DeviceGrants(ctx).smsReadAllowed()))
             return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 短信读取尚未经过原生授权\n[EXIT=126]");
         String su = executable();
         if (su == null) return com.deepseekharness.app.util.UiText.text("[ROOT_UNAVAILABLE] 未找到 su\n[EXIT=124]");
@@ -54,7 +54,7 @@ public final class RootShell {
                 lastStatus = com.deepseekharness.app.util.UiText.text("root 通道已响应 · 设备命令仍受策略保护");
                 return output;
             }
-            lastStatus = result.timedOut ? com.deepseekharness.app.util.UiText.text("root 授权或执行超时，请在 root 管理器查看 DSHA 授权")
+            lastStatus = result.timedOut ? com.deepseekharness.app.util.UiText.text("root 授权或执行超时，请在 root 管理器查看 DeepSeekHarness 授权")
                     : com.deepseekharness.app.util.UiText.text("root 授权或执行失败：") + SensitiveData.redact(result.output.trim());
             return "[EXECUTION_UNKNOWN] " + lastStatus + com.deepseekharness.app.util.UiText.text("。未取得完整结果，不会自动重试\n[EXIT=125]");
         } catch (InterruptedException e) {

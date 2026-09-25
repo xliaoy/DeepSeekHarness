@@ -55,6 +55,11 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 
 ## 二、与官方 DSHA 的功能对比
 
+> 📌 **本版基线**：已把官方 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA) **v0.1.7-alpha2** 的新功能、内置 dsh 版本
+> （`0.1.7-alpha.2`）、设置、逻辑、插件全部移植进来，并把二开定制重新贴回新架构之上。
+> 版本号沿用二开自己的日期风格：`versionCode 145` / `versionName 20260925`（兼容版 `20260925low`），
+> 包名保持 `com.deepseek.harness`（升级覆盖安装不受影响）。
+
 ### 底层与核心能力（全部保留，零改动）
 
 | 能力 | 官方 DSHA | 本二开版 |
@@ -107,6 +112,69 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 8. **沉浸式 + 明暗自适应**：主界面状态栏与顶栏同色，明暗主题下状态栏图标自动反转，接近系统原生质感。
 9. **恢复兜底闭环**：安全启动、恢复选项、插件停用、环境重建入口侧边栏直达，环境跑挂也能自救；省电模式一键直达。
 10. **故障可视化**：增强崩溃日志记录完整异常链，配合行号高亮日志与内置诊断/错误日志导出，反馈问题即有据可查。
+
+---
+
+## 🔄 官方新版移植记录（v0.1.7-alpha2）
+
+本次以**官方新架构为底座**，把二开定制重新贴回，而不是在旧代码上打补丁。
+
+### 移植内容
+
+| 维度 | 变更 |
+|---|---|
+| 内置 dsh | `0.1.5-rc.1` → **`0.1.7-alpha.2`** |
+| 官方新功能 | 官方 v0.1.7-alpha2 全部功能、设置、逻辑、插件 |
+| Java 主干 | 官方 494 文件结构（本版在 `com.deepseekharness.app` 包名下重建） |
+| 四大组件 | 官方 **standard / low 双 flavor** 结构（`StellarShell` 等归入 `standard/`） |
+| 二开定制 | UI 美化、内置插件、`dsh-web-mobile` **左右排列设置弹窗**等全部保留 |
+
+### 命名统一
+
+全仓 `DSHA` / `dsha` → **`DeepSeekHarness` / `deepseekharness`**，含资产脚本层与各构建产物。
+以下属**兼容契约**，按「消费者适配产出端」原则**刻意保留**：
+
+- 备份族：`DSHA-backup-` / `-sessions-` / `-plugins-` / `-settings-` / `-data-v5-` / `Download/DSHA/`
+  （`BackupScope` 注释明示为跨版本契约；改了会让老用户的既有备份在启动时扫不到）
+- 握手/协议 token：`DSHA_UBUNTU_TOOLS_READY`、`DSHA_RUNTIME_VALIDATED`、`__DSHA_*__`、`dsha-session-open` 等
+- 架构身份：`DSHA_ARM64_V2`（改它会导致 `runtimeId` 漂移 → 触发错误重装）
+- 真实 URL：`github.com/DSH-APP/DSHA` 等
+
+> ⚠️ **说明**：备份族存在**有意保留**的品牌不一致（这些名字里仍是 `DSHA` 而非 `DeepSeekHarness`），
+> 这是为了老用户既有备份仍能被扫到、被恢复；**用户数据安全优先于品牌一致性**。
+> 例外：备份包内的说明文件已统一为 `DeepSeekHarness-README.txt`（导入端兼容两个历史名字）。
+
+### 移植中发现并修复的隐蔽缺陷
+
+官方新架构引入后，改名过程暴露出**六类「劈开」缺陷**（均已修复并有回归判据）：
+
+| 类型 | 说明 | 实例 |
+|---|---|---|
+| 跨端标识劈开 | Java 一侧改名、资产/JS 一侧未改 → 运行时 `ReferenceError` / 静默丢事件 | 7 组协议对（`WEB_GENERATION`、`BACKUP_RESULT`、`PLUGIN_TASK` 等） |
+| 长度耦合 | `substring(N)` 的 N 是旧前缀长度，改名后截断错位 | 5 处，其中 `EnvironmentDataBackup` 会致**每次环境备份抛异常**、`WebPreviewActivity` 致**页面诊断全丢** |
+| 派生路径不一致 | 构建脚本产出路径与消费端不一致 → **clean 重建才暴露** | `tools/build-standard-runtime.py` 的 pnpm 目录名 |
+| 上游包名残留 | 搬运官方文件时，官方用**自己包名**硬编码的正则未替换 | 4 处（含 `screenshotTarget` 致**截图无法回传给模型**） |
+| 同族半改 | 一个逻辑族只改了一半引用点 → 分支之间自相矛盾 | `DownloadsExport` 在 Android 10+ 与 9- 写出**两个不同目录**；备份说明文件名产出/消费不一致致**三种作用域的恢复全部抛异常** |
+| 覆盖事故 | 上游覆盖某文件，把该族的消费端悄悄带回旧名 | `backup-engine.py` 被覆盖（207 行差异）→ 从 fork 自洽状态变成失配 |
+
+### 一个值得强调的教训
+
+排查中发现的三类缺陷（上表第 4、5、6 类），**「搜索旧名得到 0 命中」都无法发现**：
+
+- 上游包名残留 → 源码里是转义形态 `com\.dsh\.client`，非转义搜索找不到
+- 同族半改 → 残留计数只能回答「还剩多少旧名」，回答不了「是否被改成一半」
+- 覆盖事故 → 需要**三版本对照**（上游 / fork 基线 / 当前）才能识别
+
+> **结论：「搜旧名 = 0」永远不能证明改名完整。**
+> 必须配 **形态枚举 + 族内基数判据 + 产出端追查** 三者，且枚举要同时覆盖
+> **语义角色轴**、**版本轴**、**形态轴**三个维度 —— 本轮团队三次栽跟头，全是枚举漏轴。
+
+### 验证
+
+- 双 flavor 均可构建出正式 APK（standard / low，arm64-v8a）
+- `:app:testStandardDebugUnitTest` 通过；`prepareRuntimeDescriptor` 一致性校验通过
+- 5 个运行时 `.bin` 全量解包扫描：内部**无遗留旧品牌标记**
+  （并做阳性对照证明扫描有效，避免「扫不到 = 没问题」的假阴性）
 
 ---
 

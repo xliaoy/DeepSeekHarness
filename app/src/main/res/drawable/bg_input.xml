@@ -1,18 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 输入框：聚焦时描边变主色并加粗，给出"光标在这里"的明确反馈 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+
     <item android:state_focused="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/card" />
             <corners android:radius="@dimen/radius_control" />
-            <stroke android:width="2dp" android:color="@color/primary" />
+            <stroke
+                android:width="2dp"
+                android:color="@color/primary" />
         </shape>
     </item>
+
     <item>
         <shape android:shape="rectangle">
-            <gradient android:type="linear" android:angle="270"
-                android:startColor="@color/card" android:endColor="@color/raised" />
+            <solid android:color="@color/card" />
             <corners android:radius="@dimen/radius_control" />
-            <stroke android:width="@dimen/stroke" android:color="@color/line" />
+            <stroke
+                android:width="@dimen/stroke"
+                android:color="@color/line" />
         </shape>
     </item>
 </selector>

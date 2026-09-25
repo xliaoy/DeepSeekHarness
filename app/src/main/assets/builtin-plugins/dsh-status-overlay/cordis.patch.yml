@@ -2,5 +2,5 @@
 # Pure event listener — no module-level `inject`, so it can never leave the entry
 # pending and take the whole plugin tree down with it.
 - insert:
-    - id: dsha-status-overlay
+    - id: deepseekharness-status-overlay
       name: 'dsh-status-overlay'

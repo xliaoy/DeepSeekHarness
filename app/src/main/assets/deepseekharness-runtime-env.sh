@@ -1,4 +1,13 @@
 # DeepSeek Harness 的终端入口与 TLS 根证书；用户显式设置的证书路径优先。
+# 注意：这里是 rootfs 内的**机器路径**，必须与 Java 侧 RuntimeTools.CERT_PATH /
+# ManagedRuntimeLayout / ProotBootstrap 以及 tools/ 的烘焙路径逐字一致（均为 share/deepseekharness/）。
+# 它不是用户可见品牌，按命名边界规则保持 DeepSeekHarness 不改 —— 单边改名会让 TLS 预载静默失效。
+if [ -r /usr/local/share/deepseekharness/dns-compat.cjs ]; then
+    case " ${NODE_OPTIONS-} " in
+        *" --require=/usr/local/share/deepseekharness/dns-compat.cjs "*) ;;
+        *) export NODE_OPTIONS="--require=/usr/local/share/deepseekharness/dns-compat.cjs${NODE_OPTIONS:+ $NODE_OPTIONS}" ;;
+    esac
+fi
 case ":$PATH:" in *:/root/dsh-bin:*) ;; *) export PATH="/root/dsh-bin:$PATH" ;; esac
 export SSL_CERT_FILE="${SSL_CERT_FILE:-/usr/local/share/deepseekharness/ca-certificates.crt}"
 export REQUESTS_CA_BUNDLE="${REQUESTS_CA_BUNDLE:-$SSL_CERT_FILE}"

@@ -1,16 +1,18 @@
 {
-  "version": "0.1.5-rc.1",
+  "version": "0.1.7-alpha.2",
   "inputs": {
-    "tools/build-dsh-runtime.py": "ed97026f19c437267369f3b97185533fa797c2d5ff846c8dfb6f506818915625",
-    "tools/dsh-runtime/package.json": "a33f15b1c3d732e7cef1217fe92628e0e84375f3383f33358c83384c265db6c1",
-    "tools/dsh-runtime/package-lock.json": "951a3590e4fd242469a93ca9510c5c53f110a1d32273cf3f99c964092fe438dd",
-    "app/src/main/assets/runtime-fs/index.js": "57b5524918f547f8d8a54f977d2450276720a04f351513d9e502a8cea5eca218",
+    "tools/build-dsh-runtime.py": "1c8b81e5d0095671f1ebe0c9ad73ef4e8371b1347a336eba83226549e58ab05d",
+    "tools/dsh-runtime/package.json": "5b74ccc198c3c16116c7a44af8982d42c1cf848f82dfb38603402b3e9c3cbc2a",
+    "tools/dsh-runtime/package-lock.json": "f91020c93013bd9151781cdf8deb99beb5edb5bd4abca842764a0cf04d3a12aa",
+    "app/src/main/assets/runtime-fs/index.js": "c51f37ad70bb16c2fa0e91cc8c3aa502dd4bb856cb8619743916f880ab4ede88",
     "app/src/main/assets/runtime-fs/package.json": "56d23297ab9b0ce35dc1b04466b33180e41060101e6fafb67268fd5911eb87d2",
     "app/src/main/assets/session-compat/index.js": "b0deae6d4da08847e5464b48d4dda17eba94dc60bd21f6871fd5e9a701244884",
     "app/src/main/assets/session-compat/package.json": "ac3a2d60826330b6eb99c7407d09030d7febbb89accf3ebefbbef5dd1c0dcf12",
-    "app/src/main/assets/client-combo-cache/index.js": "f7d1c35d21bc29159cb2bef6443afb946099aafc309fff7bcadd3c935ac17d81",
-    "app/src/main/assets/client-combo-cache/package.json": "ef79cb8809bc121d84126466001383f8013d76e9936368daf024ea30b235d9a1",
-    "app/src/main/assets/client-combo-patch.json": "8eaf6fcc296befe1153a0c42476931c92715cb4ad1b121e9b09a10f6cb49c259"
+    "app/src/main/assets/client-combo-cache/index.js": "982c0cdce192d71274b679983ee19549d0089f88a22bdd6177857124ab6de0e7",
+    "app/src/main/assets/client-combo-cache/package.json": "3aa2873e3608e53f64b6e0f97ebbdee42bcf70d20408664a7e27e4bd55e2b3e7",
+    "app/src/main/assets/client-combo-patch.json": "b31ce899171572ed8608d472b624ce7953c2db4ea694c1da62b20408bdee9a62",
+    "app/src/main/assets/deepseek-messages-compat-patch.json": "6af0deaf0ded3da0d6b82e3789b6d13f7f9123b07c476c850ac0062cf20749a8",
+    "app/src/main/assets/deepseekharness-deepseek-messages-compat.js": "68b67144d2d6c1abb9cf5210b15e46446ef3a529cc78b13e0d0517debcdf362a"
   },
-  "archive_sha256": "2d1401541fd3aff22dd07aea03f9c80733f424244234a461974ffac50b5f25fb"
+  "archive_sha256": "fd9e4451a232654af876d3a1bdb4a0c60b51f8cd8d8214c0e42a50928097878e"
 }

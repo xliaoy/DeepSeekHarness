@@ -74,7 +74,7 @@ public class HarnessService extends Service {
         try {
             showForegroundNotification();
         } catch (RuntimeException error) {
-            android.util.Log.w("DeepSeekHarness", "前台服务未获系统允许: " + error.getClass().getSimpleName());
+            android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("前台服务未获系统允许: ") + error.getClass().getSimpleName());
             stopSelf();
             return;
         }
@@ -93,7 +93,7 @@ public class HarnessService extends Service {
         try {
             showForegroundNotification();
         } catch (Throwable e) {
-            android.util.Log.w("DeepSeekHarness", "onStartCommand startForeground 失败: "
+            android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("onStartCommand startForeground 失败: ")
                     + SensitiveData.redact(String.valueOf(e)));
             stopSelf();
             return START_NOT_STICKY;
@@ -147,7 +147,7 @@ public class HarnessService extends Service {
                 wifiLock = null;
             }
         } catch (Throwable t) {
-            android.util.Log.w("DeepSeekHarness", "[保活] 取锁失败（不致命）: "
+            android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("[保活] 取锁失败（不致命）: ")
                     + SensitiveData.redact(String.valueOf(t)));
         }
     }
@@ -164,13 +164,13 @@ public class HarnessService extends Service {
         boolean keep = powerPolicy.keepCpu(eco, active, starting, pm == null || pm.isInteractive(),
                 lan, work, idle, android.os.SystemClock.elapsedRealtime());
         if (keep) acquireLocks(!eco || lan || work || !idle); else releaseLocks();
-        String state = c.isRestartBlocked() ? "连续失败，自动重启已暂停；点此查看恢复选项"
-                : !active ? "Web 已停止" : !eco ? "持续运行 · 后台保活已开启"
-                : keep ? "省电模式 · 有任务或状态待确认，继续保活" : "省电模式 · 已空闲，允许系统休眠";
+        String state = c.isRestartBlocked() ? com.deepseekharness.app.util.UiText.text("连续失败，自动重启已暂停；点此查看恢复选项")
+                : !active ? com.deepseekharness.app.util.UiText.text("Web 已停止") : !eco ? com.deepseekharness.app.util.UiText.text("持续运行 · 后台保活已开启")
+                : keep ? com.deepseekharness.app.util.UiText.text("省电模式 · 有任务或状态待确认，继续保活") : com.deepseekharness.app.util.UiText.text("省电模式 · 已空闲，允许系统休眠");
         if (!state.equals(notificationState)) {
             notificationState = state;
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            try { if (nm != null) nm.notify(NOTIF_ID, buildNotification("DeepSeek Harness 后台服务", state)); }
+            try { if (nm != null) nm.notify(NOTIF_ID, buildNotification(com.deepseekharness.app.util.UiText.text("DeepSeekHarness 后台服务"), state)); }
             catch (RuntimeException ignored) { }
         }
     }
@@ -250,7 +250,7 @@ public class HarnessService extends Service {
                 // Controller 在等待鉴权期间始终保持启动门控；等待时间过长不会触发自动重启。
                 if (c.restartWebAutomatically(generation, msg -> { })) {
                     lastRestartAt.set(now);
-                    android.util.Log.w("DeepSeekHarness", "[保活] WebUI 连续失联，已提交自动重启");
+                    android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("[保活] WebUI 连续失联，已提交自动重启"));
                 }
             }
         }, "deepseekharness-keepalive");
@@ -271,7 +271,7 @@ public class HarnessService extends Service {
     private boolean isWebUp() {
         int port;
         try {
-            port = c.config().getPortInt();
+            port = c.getWebPort();
         } catch (Exception e) {
             return false;
         }
@@ -304,7 +304,7 @@ public class HarnessService extends Service {
     }
 
     private void showForegroundNotification() {
-        Notification notification = buildNotification("DeepSeek Harness运行中", "Web UI 正在后台保持运行");
+        Notification notification = buildNotification(com.deepseekharness.app.util.UiText.text("DeepSeekHarness运行中"), com.deepseekharness.app.util.UiText.text("Web UI 正在后台保持运行"));
         if (Build.VERSION.SDK_INT >= 34)
             startForeground(NOTIF_ID, notification,
                     android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
@@ -316,16 +316,23 @@ public class HarnessService extends Service {
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "DeepSeek Harness后台服务", NotificationManager.IMPORTANCE_LOW);
-            ch.setDescription("保持 DeepSeek Harness Web UI 后台运行");
+                    CHANNEL_ID, com.deepseekharness.app.util.UiText.text("DeepSeekHarness后台服务"), NotificationManager.IMPORTANCE_LOW);
+            ch.setDescription(com.deepseekharness.app.util.UiText.text("保持 DeepSeek Harness Web UI 后台运行"));
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.createNotificationChannel(ch);
         }
     }
 
     private Notification buildNotification(String title, String text) {
-        Intent intent = new Intent(this, com.deepseekharness.app.ui.MainActivity.class);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, intent,
+        // 正文点击必须是一个真正的 Activity PendingIntent。显式复用已有任务并带上
+        // open_launch，避免用户已经停在设置/终端页时点击通知看起来「没有反应」。
+        // 停止按钮继续使用独立的 Service PendingIntent，不能与正文共用 requestCode。
+        Intent intent = new Intent(this, com.deepseekharness.app.ui.MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra("open_launch", true);
+        PendingIntent pi = PendingIntent.getActivity(this, NOTIF_ID, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Intent stop = new Intent(this, HarnessService.class).setAction(ACTION_STOP);
         PendingIntent stopPi = PendingIntent.getService(this, 1, stop,
@@ -337,7 +344,7 @@ public class HarnessService extends Service {
                 .setContentText(text)
                 .setContentIntent(pi)
                 .setOngoing(true)
-                .addAction(0, "停止", stopPi)
+                .addAction(0, com.deepseekharness.app.util.UiText.text("停止"), stopPi)
                 .build();
     }
 }

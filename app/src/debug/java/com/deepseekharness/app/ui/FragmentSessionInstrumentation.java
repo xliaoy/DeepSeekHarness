@@ -43,7 +43,7 @@ public final class FragmentSessionInstrumentation extends Instrumentation {
     private final List<String> failures = new ArrayList<>();
     private final StringBuilder transcript = new StringBuilder();
     private static final long LAUNCH_TIMEOUT_MS = 15_000;
-    private static final String OWNER_EXTRA = "deepseekharness_fragment_self_owner";
+    private static final String OWNER_EXTRA = "DeepSeekHarness_fragment_self_owner";
     private final String launchOwner = UUID.randomUUID().toString().replace("-", "");
     private MainActivity ownMain;
 

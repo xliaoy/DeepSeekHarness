@@ -94,12 +94,19 @@ public class DshAuthUrlTest {
     }
 
     @Test
-    public void redactHidesToken() {
+    public void redactKeepsForkDesignAndDiskLogsStillRedacted() {
+        // fork 设计（README：「本机地址自动带鉴权 Token 一键复制」）：
+        // DshAuthUrl.redact 是**故意的空操作** —— UI 层要能展示/复制完整带 Token 的地址。
+        // 断言随 fork 设计走：这里验「不遮蔽」；落盘脱敏由 SensitiveData.redact 在外层兜底（见下）。
         String out = "dsh web: " + DshAuthUrl.AUTH_URL_PREFIX + TOKEN_43;
-        String redacted = DshAuthUrl.redact(out);
-        assertFalse(redacted.contains(TOKEN_43));
-        assertTrue(redacted.contains("?token=***"));
+        String visible = DshAuthUrl.redact(out);
+        assertTrue("UI 层必须能看到完整 token（fork 设计）", visible.contains(TOKEN_43));
+        assertEquals(out, visible);
         assertNull(DshAuthUrl.redact(null));
+
+        // 关键区分：落盘路径的脱敏并未退化 —— appendHostLog 经 SensitiveData.redact 打码。
+        String disk = SensitiveData.redact(out);
+        assertFalse("落盘日志必须遮蔽 token", disk.contains(TOKEN_43));
     }
 
     @Test

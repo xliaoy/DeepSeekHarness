@@ -108,7 +108,7 @@ final class InputInsetsAudit {
         Thread.sleep(1200);
         states.put(snapshot(test,page,folder,engine+"-input-before",false));
         String previous=text(test,web).trim();
-        boolean previousTest=previous.replaceAll("[^A-Za-z]","").matches("DeepSeekHarnessinputfirst(second)?|deepseekharnessinputfirst(deepseekharnessinputsecond)?")
+        boolean previousTest=previous.replaceAll("[^A-Za-z]","").matches("DSHAinputfirst(second)?|dshainputfirst(dshainputsecond)?")
                 ||previous.matches("大厦input.*rst大厦input色从的");
         require(previous.isEmpty()||"null".equals(previous)||previousTest,"当前有未发送草稿，保留现场");
         // 先验证原生输入事件，再由真实触屏拉起厂商输入法；避免厂商拼音自动纠正改写固定断言文本。
@@ -121,21 +121,21 @@ final class InputInsetsAudit {
         require(connections[0]!=null,"网页输入法连接未创建");
         require((info.imeOptions&android.view.inputmethod.EditorInfo.IME_MASK_ACTION)!=android.view.inputmethod.EditorInfo.IME_ACTION_SEND,"输入法仍声明发送动作");
         if(previousTest)input(test,connections[0],null);
-        input(test,connections[0],"deepseekharnessinputfirst");
+        input(test,connections[0],"dshainputfirst");
         // 通过实际输入法连接发送回车，避免测试用的物理按键先进入厂商拼音候选缓冲区。
         test.runOnMainSync(()->{
             connections[0].sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_ENTER));
             connections[0].sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,KeyEvent.KEYCODE_ENTER));
         });
         Thread.sleep(400);
-        input(test,connections[0],"deepseekharnessinputsecond");
+        input(test,connections[0],"dshainputsecond");
         Thread.sleep(1200);
         String text=text(test,web);
         if(web==null){focus(test,web);Thread.sleep(1200);}
         text=text(test,web);
         // Gecko AX 将换行表示为 \n；WebView 可能合并段落为空格，仍要求两行文本都留在输入区。
         states.put(snapshot(test,page,folder,engine+"-input-keyboard",true));
-        require(text.contains("deepseekharnessinputfirst")&&text.contains("deepseekharnessinputsecond"),"回车后草稿丢失或发生发送");
+        require(text.contains("dshainputfirst")&&text.contains("dshainputsecond"),"回车后草稿丢失或发生发送");
         require(web==null||text.contains("\n"),"真实 WebView 草稿没有换行");
         test.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);Thread.sleep(1000);
         states.put(snapshot(test,page,folder,engine+"-input-hidden",false));

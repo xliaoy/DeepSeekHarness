@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# DeepSeekHarness_ADB_SCRIPT_VERSION=16
+# DeepSeekHarness_ADB_SCRIPT_VERSION=17
 """设备 shell：原生白名单判定、有限时连接、发送后不重放、真实远端退出码。
 
 用法：adb-shell.py [--host 本机IP] [--port 端口] [--timeout 秒] [--su] 命令
@@ -19,7 +19,7 @@ import time
 import uuid
 import importlib.util
 
-_policy_spec = importlib.util.spec_from_file_location('deepseekharness_device_policy', os.path.join(os.path.dirname(__file__), 'device-shell-policy.py'))
+_policy_spec = importlib.util.spec_from_file_location('DeepSeekHarness_device_policy', os.path.join(os.path.dirname(__file__), 'device-shell-policy.py'))
 policy = importlib.util.module_from_spec(_policy_spec)
 _policy_spec.loader.exec_module(policy)
 
@@ -194,7 +194,7 @@ def remember_endpoint(host, port):
 
 def frame_command(cmd, marker):
     # 子 shell 隔离 exit/exec；随机尾部标记避免普通输出碰撞。
-    return '/system/bin/sh -c ' + shlex.quote(cmd) + "; __deepseekharness_rc=$?; printf '\\n" + marker + "%s\\n' \"$__deepseekharness_rc\""
+    return '/system/bin/sh -c ' + shlex.quote(cmd) + "; __DeepSeekHarness_rc=$?; printf '\\n" + marker + "%s\\n' \"$__DeepSeekHarness_rc\""
 
 
 def parse_shell_result(raw, marker):
@@ -226,11 +226,11 @@ def run_on_endpoint(device_cls, signer_cls, cmd, host, port, deadline, command_t
                 raise TimeoutError('连接总时限已到')
         except Exception as e:
             raise ConnectFail('%s:%d %s: %s' % (host, port, type(e).__name__, str(e)[:200])) from e
-        marker = '__DeepSeekHarness_EXIT_' + uuid.uuid4().hex + '__='
+        marker = '__DEEPSEEK_HARNESS_EXIT_' + uuid.uuid4().hex + '__='
         # 从这里开始即使异常也禁止换地址重放，包括不兼容库抛出的 TypeError。
         try:
             def shell(command):
-                marker = '__DeepSeekHarness_EXIT_' + uuid.uuid4().hex + '__='
+                marker = '__DEEPSEEK_HARNESS_EXIT_' + uuid.uuid4().hex + '__='
                 if isinstance(cmd, dict) and cmd.get('su'):
                     command = 'su -c ' + shlex.quote(command)
                 raw = dev.shell(frame_command(command, marker),
@@ -294,7 +294,7 @@ def request_confirm(cmd, reason=''):
     except OSError:
         token = ''
     if not token:
-        raise ConfirmationError('BRIDGE_TOKEN_MISSING: 确认桥尚未就绪，请打开 DeepSeek Harness 后重试')
+        raise ConfirmationError('BRIDGE_TOKEN_MISSING: 确认桥尚未就绪，请打开 DEEPSEEK_HARNESS 后重试')
     display = cmd if not reason else cmd + '\n\n[理由] ' + reason
     query = '/confirm?' + urllib.parse.urlencode({'cmd': display, 'force': '1'})
     # 不继承代理环境；令牌只放头部，避免出现在 URL/错误日志。
@@ -313,17 +313,17 @@ def request_confirm(cmd, reason=''):
             if result == 'NO':
                 raise ConfirmationError('CONFIRM_NOT_GRANTED: 未获确认（可能拒绝、超时或已有确认等待），命令未发送')
             if result == '[UNAUTHORIZED]':
-                raise ConfirmationError('BRIDGE_UNAUTHORIZED: 桥鉴权失败，请重新启动 DeepSeek Harness')
+                raise ConfirmationError('BRIDGE_UNAUTHORIZED: 桥鉴权失败，请重新启动 DEEPSEEK_HARNESS')
             raise ConfirmationError('CONFIRM_NOT_GRANTED: ' + str(result or '桥返回无效响应')[:240])
         except ConfirmationError:
             raise
         except urllib.error.URLError as e:
             if isinstance(e.reason, OSError) and e.reason.errno == errno.ECONNREFUSED:
                 continue
-            raise ConfirmationError('BRIDGE_RESPONSE_LOST: 未收到确认结果，命令未发送；请回到 DeepSeek Harness 检查确认提示') from e
+            raise ConfirmationError('BRIDGE_RESPONSE_LOST: 未收到确认结果，命令未发送；请回到 DEEPSEEK_HARNESS 检查确认提示') from e
         except (TimeoutError, OSError, ValueError) as e:
             raise ConfirmationError('CONFIRM_TIMEOUT: 确认等待超时或响应中断，命令未发送') from e
-    raise ConfirmationError('BRIDGE_UNREACHABLE: 3090 确认桥未监听，请打开 DeepSeek Harness 后重试')
+    raise ConfirmationError('BRIDGE_UNREACHABLE: 3090 确认桥未监听，请打开 DEEPSEEK_HARNESS 后重试')
 
 
 def request_device_plan(cmd, use_su=False):
@@ -338,19 +338,19 @@ def request_device_plan(cmd, use_su=False):
         query = urllib.parse.urlencode({'cmd': cmd, 'su': '1' if use_su else '0'})
         request = urllib.request.Request('http://127.0.0.1:3090/device/plan?' + query, headers={'X-Token': token})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open(request, timeout=15) as response:
+        with opener.open(request, timeout=75) as response:
             value = json.loads(response.read(1024 * 1024)).get('result')
         if not isinstance(value, str) or not value.startswith('{'):
             raise policy.Blocked(str(value or '原生策略未就绪'))
         plan = json.loads(value)
-        if plan.get('version') != 1 or plan.get('kind') not in ('READ', 'FILE', 'STOP'):
+        if plan.get('version') != 1 or plan.get('kind') not in ('READ', 'FILE', 'STOP', 'VIRTUAL_SCREEN'):
             raise policy.Blocked(plan.get('reason') or '命令未获策略允许')
         plan['su'] = use_su
         return plan
     except policy.Blocked:
         raise
     except Exception as error:
-        raise policy.Blocked('设备策略桥不可用，命令未发送；请打开或更新 DeepSeekHarness（' + type(error).__name__ + '）') from error
+        raise policy.Blocked('设备策略桥不可用，命令未发送；请打开或更新 DEEPSEEK_HARNESS（' + type(error).__name__ + '）') from error
 
 
 def parse_args(args):
@@ -384,6 +384,39 @@ def parse_args(args):
     return port, host, timeout, connect_timeout, use_su, (args[0] if len(args) == 1 else shlex.join(args)) if args else 'id'
 
 
+def request_native_execution(cmd, use_su=False, force_adb=False):
+    """原生层先选 root/Shizuku；仅收到明确的 ADB 计划才连接，不重放未知结果。"""
+    import urllib.request
+    import urllib.parse
+    try:
+        with open('/root/.dsh/.bridge_token') as source:
+            token = source.read().strip()
+        if not token:
+            raise ValueError('missing token')
+    except (OSError, ValueError) as error:
+        raise policy.Blocked('设备桥未准备好，请打开 DEEPSEEK_HARNESS 后重试') from error
+    query = urllib.parse.urlencode({'cmd': cmd, 'su': '1' if use_su else '0', 'adb': '1' if force_adb else '0'})
+    request = urllib.request.Request('http://127.0.0.1:3090/device/execute?' + query, headers={'X-Token': token})
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=155) as response:
+            envelope = json.loads(response.read(1024 * 1024))
+        value = json.loads(envelope['result'])
+        if value.get('state') == 'completed':
+            code = value.get('exit')
+            if not isinstance(code, int) or not 0 <= code <= 255 or not isinstance(value.get('output'), str):
+                raise ValueError('invalid execution result')
+            return ShellResult(value['output'], code)
+        plan = value.get('plan')
+        if value.get('state') != 'adb' or not isinstance(plan, dict) or plan.get('version') != 1:
+            raise ValueError('missing explicit ADB plan')
+        if plan.get('kind') not in ('READ', 'FILE', 'STOP', 'VIRTUAL_SCREEN'):
+            raise ValueError('invalid ADB plan')
+        return plan
+    except Exception as error:
+        raise ExecutionUnknown('设备桥响应不完整，命令可能已执行，不会切换通道重试（' + type(error).__name__ + '）') from error
+
+
 def main():
     try:
         port, host, timeout, connect_timeout, use_su, cmd = parse_args(sys.argv[1:])
@@ -391,12 +424,18 @@ def main():
         print('INVALID_ARGUMENT: %s\n[EXIT=2]' % e)
         return 2
     try:
-        plan = request_device_plan(cmd, use_su)
+        plan = request_native_execution(cmd, use_su, bool(port or host))
     except policy.Blocked as error:
         print('[POLICY_BLOCKED] %s\n[EXIT=126]' % error)
         return 126
+    except ExecutionUnknown as error:
+        print('EXECUTION_UNKNOWN: %s\n[EXIT=125]' % error)
+        return 125
+    if isinstance(plan, ShellResult):
+        print(plan.output)
+        return plan.exit_code
     if not (os.path.isfile(KEY) and os.path.isfile(KEYPUB)):
-        print('NO_KEY: 请到配置页完成 ADB 无线配对\n[EXIT=1]')
+        print('NO_KEY: 请到设置 → 设备能力授权完成 ADB 无线配对\n[EXIT=1]')
         return 1
     try:
         from adb_shell_wifi.adb_device import AdbDeviceTls
@@ -424,29 +463,6 @@ def main():
         print('[POLICY_BLOCKED] %s\n[EXIT=126]' % error)
         return 126
     except ConnectFail as e:
-        # 三路回退：ADB 连不上时调 3090 /exec（Stellar/Shizuku/ADB/Root 任一可用即执行）。
-        try:
-            import json as _json
-            import urllib.request as _ur
-            import urllib.parse as _up
-            token = ''
-            try:
-                with open('/root/.dsh/.bridge_token') as _f:
-                    token = _f.read().strip()
-            except OSError:
-                pass
-            if token:
-                _req = _ur.Request('http://127.0.0.1:3090/exec?' + _up.urlencode({'token': token, 'cmd': cmd}))
-                with _ur.urlopen(_req, timeout=30) as _resp:
-                    _data = _json.load(_resp)
-                _result = _data.get('result', '')
-                if _result and not _result.startswith('[CHANNEL_UNAVAILABLE]'):
-                    sys.stdout.write(_result)
-                    if _result and not _result.endswith('\n'):
-                        print()
-                    return 0
-        except Exception:
-            pass
         print('CONNECT_FAIL: %s\n[EXIT=124]' % e)
         return 124
     except ExecutionUnknown as e:

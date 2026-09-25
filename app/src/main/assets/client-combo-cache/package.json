@@ -1,1 +1,6 @@
-{"name":"deepseekharness-client-combo-cache","version":"1.0.0","type":"module","exports":"./index.js"}
+{
+  "name": "deepseekharness-client-combo-cache",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": "./index.js"
+}

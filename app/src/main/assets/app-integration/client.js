@@ -1,10 +1,10 @@
 window.__ModuleLoader__.load({id:'dsh-app-integration', factory: () => {
   const LIMIT = 256 * 1024 * 1024;
-  const prefix = 'dsha.images.revision:';
+  const prefix = 'deepseekharness.images.revision:';
   function request(req) { return new Promise((resolve,reject) => { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
   function openDatabase() {
     return new Promise((resolve,reject) => {
-      const req = indexedDB.open('dsha-image-drafts',1);
+      const req = indexedDB.open('deepseekharness-image-drafts',1);
       req.onupgradeneeded = () => req.result.createObjectStore('drafts',{keyPath:'id'});
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -84,7 +84,7 @@ window.__ModuleLoader__.load({id:'dsh-app-integration', factory: () => {
     let restoring = true, touched = false, lastSession = currentId(),
       positions = [], deadline = Date.now()+10000, lastSaved = '', leaving = false,
       dirty = false, scrollFrame = 0, storeTimer = 0;
-    const storageKey = 'dsha.reading-position';
+    const storageKey = 'deepseekharness.reading-position';
     const pendingScrolls = new Set();
     let previous, previousRaw = null;
     try {
@@ -198,15 +198,15 @@ window.__ModuleLoader__.load({id:'dsh-app-integration', factory: () => {
       viewport.setAttribute('name','viewport');
       viewport.setAttribute('content',directives.concat('interactive-widget=resizes-content').join(', '));
       if (!viewport.parentNode) document.head.appendChild(viewport);
-      document.documentElement.setAttribute('data-dsha-integration','ready');
+      document.documentElement.setAttribute('data-deepseekharness-integration','ready');
       let alive = true, db, warned = false;
       const entries = new Map();
       const closeDetails = () => { try {
         if (!ctx.sidebarRight.isExpanded()) return;
         ctx.sidebarRight.toggleExpanded();
-        document.documentElement.setAttribute('data-dsha-back-handled','true');
+        document.documentElement.setAttribute('data-deepseekharness-back-handled','true');
       } catch {} };
-      document.addEventListener('dsha-close-details',closeDetails);
+      document.addEventListener('deepseekharness-close-details',closeDetails);
       const stopReading = installReadingPosition(ctx);
       const scan = () => {
         if (!db || !alive) return;
@@ -224,9 +224,9 @@ window.__ModuleLoader__.load({id:'dsh-app-integration', factory: () => {
       // Session shell 没有可枚举订阅；低频扫描只负责发现驻留输入框，不参与每帧渲染。
       const timer = setInterval(scan,750);
       return () => { alive = false; clearInterval(timer); for (const entry of entries.values()) { entry.active = false; entry.off?.(); }
-        document.documentElement.removeAttribute('data-dsha-integration');
-        db?.close(); stopReading(); document.removeEventListener('dsha-close-details',closeDetails); };
-    },'dsha-browser-state');
+        document.documentElement.removeAttribute('data-deepseekharness-integration');
+        db?.close(); stopReading(); document.removeEventListener('deepseekharness-close-details',closeDetails); };
+    },'deepseekharness-browser-state');
   }
   return {inject:['conversation','sessions','layout','sidebarRight','uiWorkspace'],apply,watchDraft,usable,writeDraft,residentInputs,installReadingPosition};
 }});

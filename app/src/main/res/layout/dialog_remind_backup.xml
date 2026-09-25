@@ -1,30 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 备份提醒弹窗：iOS 拟态卡片分组（白色大圆角卡片承载可点条目） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@color/surface"
     android:paddingLeft="@dimen/page_pad"
     android:paddingRight="@dimen/page_pad"
-    android:paddingTop="@dimen/gap_tight"
-    android:paddingBottom="@dimen/gap_tight">
+    android:paddingTop="8dp">
 
-    <LinearLayout
-        style="@style/DeepSeekHarnessCard"
+    <CheckBox
+        android:id="@+id/remind_less"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <CheckBox
-            android:id="@+id/remind_less"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="@dimen/touch_min"
-            android:gravity="center_vertical"
-            android:paddingLeft="@dimen/gap_hair"
-            android:paddingRight="@dimen/gap_hair"
-            android:text="@string/dialog_remind_less"
-            android:textColor="@color/text"
-            android:textSize="@dimen/text_body" />
-    </LinearLayout>
+        android:layout_height="wrap_content"
+        android:text="@string/ui_m0110" />
 </LinearLayout>

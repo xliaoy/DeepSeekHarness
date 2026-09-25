@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- API 23–27 没有可核验的客户端加密能力标志，只迁移无凭据的偏好投影。 -->
+    <include domain="sharedpref" path="deepseekharness-portable-settings.xml" />
+</full-backup-content>

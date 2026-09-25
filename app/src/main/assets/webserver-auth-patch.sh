@@ -68,22 +68,27 @@ const __deepseekharnessAuthOk = (req, res) => {
   const tok = __deepseekharnessToken();
   if (!tok) return true;
   const url = req.url || "/";
-  const qi = url.indexOf("deepseekharness_t=");
+  // ★ 偏移必须由 KEY.length 导出，不能写死：
+  //   改名把前缀从 "dsha_t="(7) 变成 "deepseekharness_t="(18)，
+  //   写死 +7 会静默解析出 "kharness_t=<tok>"，认证以"需要 token"的形态失败（难排查）。
+  //   KEY 下方所有使用点（indexOf / slice / Set-Cookie / Cookie 比对）共用同一字面量。
+  const KEY = "deepseekharness_t=";
+  const qi = url.indexOf(KEY);
   if (qi >= 0) {
-    const got = decodeURIComponent(url.slice(qi + 7).split("&")[0].split("#")[0]);
+    const got = decodeURIComponent(url.slice(qi + KEY.length).split("&")[0].split("#")[0]);
     if (got === tok) {
       // 回设 Cookie：之后的静态资源、XHR 和 WebSocket upgrade 都会自动带上，
       // 页面里不必到处拼 token（也就不会把 token 泄进前端代码或历史记录）
       try {
         res?.setHeader?.("Set-Cookie",
-          "deepseekharness_t=" + tok + "; Path=/; SameSite=Strict; Max-Age=31536000");
+          KEY + tok + "; Path=/; SameSite=Strict; Max-Age=31536000");
       } catch { /* upgrade 时没有 res，忽略 */ }
       return true;
     }
   }
   const cookie = req.headers?.cookie || "";
   for (const part of cookie.split(";")) {
-    if (part.trim() === "deepseekharness_t=" + tok) return true;
+    if (part.trim() === KEY + tok) return true;
   }
   if (req.headers?.["x-deepseekharness-token"] === tok) return true;
   return false;

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 共同颜色及控件规则集中到 Base，夜间只覆盖系统栏图标。 -->
-    <style name="Theme.DeepseekHarness" parent="Theme.DeepSeekHarness.Base">
+    <style name="Theme.DeepseekHarness" parent="Theme.DEEPSEEK_HARNESS_Base">
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

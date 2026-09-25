@@ -1,256 +1,57 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 诊断与日志：与官方页结构一致（错误日志 / 环境检查 / 反馈问题 / 诊断报告），
-     UI 用 DeepSeekHarness 样式；诊断报告区用 LogScrollView 固定高度滚动，可上下滑动查看。 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/diagnostic_page_scroll"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/surface"
-    android:fillViewport="true">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="@dimen/page_pad"
-        android:paddingEnd="@dimen/page_pad"
-        android:paddingTop="@dimen/gap_tight"
-        android:paddingBottom="@dimen/page_pad">
-
-        <!-- 顶栏：返回 + 页面大标题 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="@dimen/touch_min"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/diagnostic_back"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                android:layout_width="44dp"
-                android:layout_height="wrap_content"
-                android:contentDescription="@string/common_back"
-                android:text="‹"
-                android:textSize="24sp" />
-
-            <TextView
-                style="@style/DeepSeekHarnessText.PageTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/gap_tight"
-                android:layout_weight="1"
-                android:text="@string/diag_title" />
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/surface">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingLeft="12dp" android:paddingRight="18dp" android:gravity="center_vertical">
+    <androidx.appcompat.widget.AppCompatImageButton android:id="@+id/diagnostic_back" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_ui_back" android:contentDescription="@string/ui_m0201" app:tint="@color/text" />
+    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/ui2_diagnostics" android:textSize="18sp" android:textColor="@color/text" android:includeFontPadding="false" android:textStyle="bold" android:layout_weight="1" android:layout_marginStart="10dp" />
+  </LinearLayout>
+  <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui2_diagnostics" android:textSize="24sp" android:textColor="@color/text" android:includeFontPadding="false" android:textStyle="bold" />
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui2_diagnostics_intro" android:textSize="12sp" android:textColor="@color/text_secondary" android:includeFontPadding="false" android:layout_marginTop="6dp" android:layout_marginBottom="18dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="16dp" android:layout_marginBottom="12dp">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_check_ready" android:textSize="18sp" android:textColor="@color/text" android:includeFontPadding="false" android:id="@+id/diagnostic_headline" android:textStyle="bold" />
+        <TextView android:id="@+id/diagnostic_status" style="@style/DeepSeekHarnessText.Label" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="" />
+        <Button android:id="@+id/diagnostic_refresh" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_m0209" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_results" android:textSize="11sp" android:textColor="@color/text" android:includeFontPadding="false" android:layout_marginTop="10dp" android:layout_marginBottom="8dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="0dp" android:layout_marginBottom="12dp" android:id="@+id/diagnostic_results" />
+      <TextView android:id="@+id/diagnostic_report" style="@style/DeepSeekHarnessText.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:textIsSelectable="true" android:fontFamily="monospace" android:paddingEnd="8dp" android:visibility="gone" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <Button android:id="@+id/diagnostic_copy" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/ui_m0103" style="@style/Widget.DEEPSEEK_HARNESS_Button" />
+        <Button android:id="@+id/diagnostic_export" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/ui_m0109" style="@style/Widget.DEEPSEEK_HARNESS_Button" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_start_records" android:textSize="11sp" android:textColor="@color/text" android:includeFontPadding="false" android:layout_marginTop="10dp" android:layout_marginBottom="8dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="0dp" android:layout_marginBottom="12dp">
+        <LinearLayout android:id="@+id/diagnostic_history" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp" android:minHeight="64dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+          <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_recovery_document" android:padding="7dp" android:background="@drawable/bg_logo" android:contentDescription="@null" app:tint="@color/primary" />
+          <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:orientation="vertical" android:layout_weight="1" android:layout_marginStart="12dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_recent_startups" android:textSize="13sp" android:textColor="@color/text" android:includeFontPadding="false" android:textStyle="bold" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_recent_startups_sub" android:textSize="11sp" android:textColor="@color/text_secondary" android:includeFontPadding="false" android:layout_marginTop="4dp" />
+          </LinearLayout>
+          <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_ui2_chevron" android:contentDescription="@null" />
         </LinearLayout>
-
-        <!-- 错误日志：下载 / 另存为 / 状态 -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section">
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/diag_error_logs" />
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="@string/diag_error_logs_desc" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/diagnostic_logs_download"
-                    style="@style/Widget.DeepSeekHarness.PrimaryButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
-                    android:text="@string/diag_download_logs" />
-
-                <Button
-                    android:id="@+id/diagnostic_logs_save_as"
-                    style="@style/Widget.DeepSeekHarness.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/gap_tight"
-                    android:text="@string/common_save_as" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/diagnostic_logs_status"
-                style="@style/DeepSeekHarnessText.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:background="@color/raised"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:minHeight="@dimen/touch_min"
-                android:padding="@dimen/gap_tight"
-                android:textColor="@color/primary" />
+        <LinearLayout android:id="@+id/diagnostic_recovery" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp" android:minHeight="64dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+          <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_ui2_box" android:padding="7dp" android:background="@drawable/bg_logo" android:contentDescription="@null" app:tint="@color/primary" />
+          <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:orientation="vertical" android:layout_weight="1" android:layout_marginStart="12dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_startup_recovery" android:textSize="13sp" android:textColor="@color/text" android:includeFontPadding="false" android:textStyle="bold" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_startup_recovery_sub" android:textSize="11sp" android:textColor="@color/text_secondary" android:includeFontPadding="false" android:layout_marginTop="4dp" />
+          </LinearLayout>
+          <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_ui2_chevron" android:contentDescription="@null" />
         </LinearLayout>
-
-        <!-- 环境检查：重新诊断 / 修复工具 / 打开插件管理 -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section">
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/env_check" />
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="@string/env_check_desc" />
-
-            <TextView
-                android:id="@+id/diagnostic_status"
-                style="@style/DeepSeekHarnessText.Label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:lineSpacingExtra="2dp"
-                android:text="" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/diagnostic_refresh"
-                    style="@style/Widget.DeepSeekHarness.PrimaryButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
-                    android:text="@string/diag_rerun" />
-
-                <Button
-                    android:id="@+id/diagnostic_repair"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/gap_tight"
-                    android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
-                    android:text="@string/diag_repair_tools" />
-            </LinearLayout>
-
-            <Button
-                android:id="@+id/diagnostic_plugins"
-                style="@style/Widget.DeepSeekHarness.TextButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="@string/common_open_plugin_manager" />
-        </LinearLayout>
-
-        <!-- 反馈问题：补充复现步骤 + 复制 / 导出 -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section">
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/diag_feedback" />
-
-            <EditText
-                android:id="@+id/diagnostic_steps"
-                style="@style/DeepSeekHarnessText.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:background="@drawable/bg_input"
-                android:gravity="top"
-                android:hint="@string/diag_feedback_hint"
-                android:inputType="textMultiLine"
-                android:maxLength="2000"
-                android:minHeight="80dp"
-                android:padding="@dimen/card_pad" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/diagnostic_copy"
-                    style="@style/Widget.DeepSeekHarness.PrimaryButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
-                    android:text="@string/diag_copy_feedback" />
-
-                <Button
-                    android:id="@+id/diagnostic_export"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/gap_tight"
-                    android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
-                    android:text="@string/diag_export_report" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 诊断报告：LogScrollView 固定高度滚动区，可上下滑动查看 -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section"
-            android:background="@drawable/bg_preview">
-
-            <TextView
-                style="@style/DeepSeekHarnessText.Title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/diag_report" />
-
-            <com.deepseekharness.app.ui.LogScrollView
-                android:id="@+id/diagnostic_report_scroll"
-                android:layout_width="match_parent"
-                android:layout_height="220dp"
-                android:layout_marginTop="@dimen/gap_control"
-                android:fadeScrollbars="false"
-                android:fillViewport="true"
-                android:scrollbars="vertical">
-
-                <TextView
-                    android:id="@+id/diagnostic_report"
-                    style="@style/DeepSeekHarnessText.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:lineSpacingExtra="1dp"
-                    android:paddingEnd="@dimen/gap_tight"
-                    android:textIsSelectable="true" />
-            </com.deepseekharness.app.ui.LogScrollView>
-        </LinearLayout>
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui2_error_logs" android:textSize="11sp" android:textColor="@color/text" android:includeFontPadding="false" android:layout_marginTop="10dp" android:layout_marginBottom="8dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="16dp" android:layout_marginBottom="12dp">
+        <TextView android:id="@+id/diagnostic_logs_status" style="@style/DeepSeekHarnessText.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="44dp" android:gravity="center_vertical" android:paddingTop="8dp" android:paddingBottom="8dp" android:textColor="@color/primary" android:clickable="true" android:focusable="true" />
+        <Button android:id="@+id/diagnostic_logs_download" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_m0047" />
+        <Button android:id="@+id/diagnostic_logs_save_as" style="@style/Widget.DEEPSEEK_HARNESS_TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/ui_m0080" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui2_troubleshooting" android:textSize="11sp" android:textColor="@color/text" android:includeFontPadding="false" android:layout_marginTop="10dp" android:layout_marginBottom="8dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="16dp" android:layout_marginBottom="12dp">
+        <Button android:id="@+id/diagnostic_repair" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/ui_m0060" />
+        <Button android:id="@+id/diagnostic_plugins" style="@style/Widget.DEEPSEEK_HARNESS_TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/ui_m0013" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui2_reproduction" android:textSize="11sp" android:textColor="@color/text" android:includeFontPadding="false" android:layout_marginTop="10dp" android:layout_marginBottom="8dp" />
+      <EditText android:id="@+id/diagnostic_steps" style="@style/DeepSeekHarnessText.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="80dp" android:layout_marginTop="12dp" android:background="@drawable/bg_input" android:padding="12dp" android:gravity="top" android:inputType="textMultiLine" android:hint="@string/ui_m0182" android:maxLength="2000" />
     </LinearLayout>
-</ScrollView>
+  </ScrollView>
+</LinearLayout>

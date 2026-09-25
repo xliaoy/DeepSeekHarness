@@ -1,9 +1,9 @@
-/** DSHA 设备能力引导：使用 dsh 0.1.5 的消息工厂与已提交事件判重。 */
+/** DEEPSEEK_HARNESS 设备能力引导：使用 dsh 0.1.5 的消息工厂与已提交事件判重。 */
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 export const name = 'dsh-device-shell-guide';
 
 const PROMPT = [
-  '【设备操作能力 · DSHA】你正运行在用户 Android 手机的容器里，可以干预这台实体手机。',
+  '【设备操作能力 · DEEPSEEK_HARNESS】你正运行在用户 Android 手机的容器里，可以干预这台实体手机。',
 
   '■ 三条通道，按这个顺序选：',
   '  1) Ubuntu 工作区内的开发与文件操作使用普通工具；Android 设备文件写入必须走受保护的设备 shell。',
@@ -29,7 +29,7 @@ const PROMPT = [
   '■ 硬约束（几条，都别违）：',
   '  - 短信是独立敏感能力：用 adb-shell 执行 content query --uri content://sms，默认逐次确认。' +
   '    持续自动化需用户在设置 → 设备能力授权中开启短信读取，可随时撤销；仅当前 Android 用户，' +
-  '    不允许发送、修改或删除短信。DSHA 授权不能替代 Android 权限，拒绝时不要绕过；',
+  '    不允许发送、修改或删除短信。DEEPSEEK_HARNESS 授权不能替代 Android 权限，拒绝时不要绕过；',
   '  - 设备命令保护始终开启：允许读取任何目录（仍受 Android 权限限制）；根目录和系统目录、' +
   '    DCIM、Pictures、Android/data、Android/obb 及其子目录只读。普通 Download 文件操作允许；',
   '  - 禁止块设备/分区、SELinux 修改、settings put/setprop、挂载、刷机、卸载/清应用数据，未知命令直接拦截；',

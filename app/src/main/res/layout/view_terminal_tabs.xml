@@ -1,33 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 终端多标签行：标签横向滚动 + 独立「＋ 新建」按钮（48dp 触摸目标） -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical">
-
-    <HorizontalScrollView
-        android:id="@+id/terminal_tabs_scroll"
-        android:layout_width="0dp"
-        android:layout_weight="1"
-        android:layout_height="wrap_content"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/terminal_tabs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingBottom="6dp">
+    <HorizontalScrollView android:id="@+id/terminal_tabs_scroll" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:scrollbars="none">
+        <LinearLayout android:id="@+id/terminal_tabs" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" />
     </HorizontalScrollView>
-
-    <Button
-        android:id="@+id/terminal_new"
-        style="@style/Widget.DeepSeekHarness.TextButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/gap_tight"
-        android:minWidth="64dp"
-        android:minHeight="48dp"
-        android:text="@string/terminal_tabs_new"
-        android:contentDescription="@string/terminal_tabs_new_desc" />
+    <Button android:id="@+id/terminal_new" style="@style/Widget.DEEPSEEK_HARNESS_TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="64dp" android:minHeight="48dp" android:text="@string/ui_m0218" android:contentDescription="@string/ui_m0142" />
 </LinearLayout>

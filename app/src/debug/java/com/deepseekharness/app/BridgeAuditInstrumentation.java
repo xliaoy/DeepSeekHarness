@@ -475,7 +475,7 @@ public final class BridgeAuditInstrumentation extends Instrumentation {
             getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             record("create");
             TextView title = new TextView(this);
-            title.setText("DeepSeek Harness 原生桥提问测试（仅测试数据）");
+            title.setText("DEEPSEEK_HARNESS 原生桥提问测试（仅测试数据）");
             title.setPadding(24, 72, 24, 24);
             setContentView(title);
         }

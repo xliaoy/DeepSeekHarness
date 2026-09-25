@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 本 fork 独有页面的文案（源设置 / 启动恢复 / 通用按钮）。
+     上游把这些页面的文案移入 ui_m#### 混淆命名空间，本 fork 独有 layout
+     仍引用语义化 key，故在此集中保留，避免与上游 key 冲突。 -->
+<resources>
+    <string name="common_back">返回</string>
+    <string name="common_current">当前</string>
+    <string name="common_official_default">官方默认</string>
+    <string name="recovery_back">‹ 返回</string>
+    <string name="recovery_desc">此页面不依赖 Web，可直接查看最近启动记录、恢复配置快照或卸载出错的插件。</string>
+    <string name="recovery_env_install">环境安装与修复</string>
+    <string name="recovery_new_profile">新建配置文件</string>
+    <string name="recovery_other_tools">其他工具</string>
+    <string name="recovery_plugin_uninstall">插件卸载</string>
+    <string name="recovery_plugin_uninstall_desc">仅列出可卸载的第三方插件；内置插件不可卸载。</string>
+    <string name="recovery_recent">最近启动记录</string>
+    <string name="recovery_refresh">刷新恢复记录</string>
+    <string name="recovery_resume">恢复中断的配置修复</string>
+    <string name="recovery_retry">重试启动</string>
+    <string name="recovery_safe_mode">安全启动基础界面</string>
+    <string name="recovery_section">恢复与修复</string>
+    <string name="recovery_snapshots">配置快照</string>
+    <string name="recovery_snapshots_desc">保留三次健康启动与三次修复前快照；仅保存配置，不复制会话、工作区或依赖目录。</string>
+    <string name="recovery_title">启动恢复</string>
+    <string name="recovery_view_logs">查看并下载日志</string>
+    <string name="source_apply_apt">应用 Ubuntu 软件包源</string>
+    <string name="source_apply_note">APT 源应用会自动刷新索引；npm / pip 源即时生效。</string>
+    <string name="source_apply_npm">应用 npm 源</string>
+    <string name="source_apply_pip">应用 pip 源</string>
+    <string name="source_apt">Ubuntu 软件包源（APT）</string>
+    <string name="source_apt_hint">或自定义镜像根地址（https://…/ubuntu-ports/）</string>
+    <string name="source_desc">切换 npm / Ubuntu 软件包(APT) / pip 镜像源。选择或输入后点「应用」生效。</string>
+    <string name="source_npm">npm 源</string>
+    <string name="source_npm_hint">或自定义源地址（https://…）</string>
+    <string name="source_pip">pip 源（Python）</string>
+    <string name="source_pip_hint">或自定义 pip 源地址（https://…/simple）</string>
+    <string name="source_title">源设置</string>
+
+    <!-- Stellar 通道（Shizuku 兼容分支）：上游 v0.1.7 删掉了 Stellar 区块，
+         但本 fork 回流了该通道，fragment_device_grants.xml 的 Stellar 卡片需要这三条。 -->
+    <string name="grants_stellar">Stellar（Shizuku 兼容分支）</string>
+    <string name="grants_authorize_stellar">授权 Stellar</string>
+    <string name="grants_checking">检查中…</string>
+</resources>

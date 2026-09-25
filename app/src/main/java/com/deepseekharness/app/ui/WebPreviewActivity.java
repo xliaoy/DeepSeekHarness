@@ -1,5 +1,4 @@
 package com.deepseekharness.app.ui;
-import com.deepseekharness.app.util.UiText;
 
 import android.content.Context;
 import android.content.Intent;
@@ -9,8 +8,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import android.webkit.CookieManager;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.ValueCallback;
@@ -30,14 +27,13 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepseekharness.app.R;
 import com.deepseekharness.app.util.Constants;
 import com.deepseekharness.app.util.WebPreviewPolicy;
 
 /** 标准版预览：系统 WebView、异步鉴权、文件选择与可恢复的加载错误。 */
-public class WebPreviewActivity extends AppCompatActivity implements WebFullscreenUi.Host {
+public class WebPreviewActivity extends PictureInPictureActivity implements WebFullscreenUi.Host {
     private static final String EXTRA_URL = "url";
     private static final String EXTRA_COOKIE = "cookie";
     // 检查真实页面能力，包括上游 polyfill 的结果，不凭伪装 UA 判断。
@@ -48,6 +44,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
             + "if(typeof AbortSignal==='undefined'||typeof AbortSignal.any!=='function')m.push('AbortSignal.any');"
             + "if(typeof AbortSignal==='undefined'||typeof AbortSignal.timeout!=='function')m.push('AbortSignal.timeout');"
             + "if(typeof Promise.withResolvers!=='function')m.push('Promise.withResolvers');"
+            + "if(typeof Iterator==='undefined'||typeof Iterator.from!=='function'||typeof Iterator.prototype.filter!=='function')m.push('Iterator');"
             + "return m.join(', ');})()";
 
     private FrameLayout container;
@@ -55,13 +52,12 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
     private TextView errorTitle;
     private TextView errorDetail;
     private ProgressBar progress;
-    private TextView progressText;
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private String authUrl;
     private String authCookie;
     private String baseUrl;
-    private String browserInfo = UiText.text("系统 WebView 版本未知");
+    private String browserInfo = com.deepseekharness.app.util.UiText.text("系统 WebView 版本未知");
     private boolean pageFailed;
     private boolean authRetried;
     private Retained retained;
@@ -70,11 +66,10 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
     private boolean navigatingBack;
     private PreviewAuth previewAuth;
     private long startupGeneration;
-    private int themeColor;
-    private final android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    /** 状态栏实时跟色：前台期间持续采样页面顶部颜色（滚动/内容变化/从后台返回都恢复）。 */
     private boolean colorLoopActive;
     private long lastScrollSampleAt;
-    /** 前台期间持续采样页面顶部颜色，让状态栏实时跟随页面背景（滚动/内容变化/从后台返回都能恢复）。 */
+    private final android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable colorLoop = new Runnable() {
         @Override public void run() {
             if (!colorLoopActive || isFinishing() || isDestroyed()) return;
@@ -85,7 +80,10 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
 
     public static final class Retained extends androidx.lifecycle.ViewModel {
         WebView view;
+        boolean ready;
         String authUrl;
+        androidx.webkit.ScriptHandler compatibilityScript;
+        String scriptLanguage;
         WebBlobDownload blobDownload;
         ValueCallback<Uri[]> pickerCallback;
         final java.util.ArrayList<java.io.File> uploads = new java.util.ArrayList<>();
@@ -104,30 +102,12 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
                 retained.pickerCallback = null;
                 fileCallback = null;
                 if (callback == null) return;
-                Uri[] selected = WebChromeClient.FileChooserParams.parseResult(
+                Uri[] selected = WebUploads.parseChooserResult(
                         result.getResultCode(), result.getData());
-                // DeepSeekHarness：图库/相册返回时 data.getData() 常为 null，URI 在 clipData 里，
-                // parseResult 对这类结果可能返回空数组 —— 手动从 clipData 兜底提取。
-                if ((selected == null || selected.length == 0) && result.getData() != null
-                        && result.getData().getClipData() != null) {
-                    int clipCount = result.getData().getClipData().getItemCount();
-                    java.util.ArrayList<android.net.Uri> list = new java.util.ArrayList<>();
-                    for (int i = 0; i < clipCount; i++) {
-                        android.net.Uri u = result.getData().getClipData().getItemAt(i).getUri();
-                        if (u != null) list.add(u);
-                    }
-                    if (!list.isEmpty()) selected = list.toArray(new android.net.Uri[0]);
-                }
-                com.deepseekharness.app.core.DiagnosticLog.record(this, "WEB_UPLOAD",
-                        "picker resultCode=" + result.getResultCode()
-                        + " data=" + (result.getData() == null ? "null" : result.getData().toString())
-                        + " selectedLen=" + (selected == null ? 0 : selected.length));
                 if (selected != null) {
                     for (Uri uri : selected) {
                         // 只接收内容 URI，不向网页开放任意本地文件路径。
                         if (uri == null || !"content".equals(uri.getScheme())) {
-                            com.deepseekharness.app.core.DiagnosticLog.record(this, "WEB_UPLOAD",
-                                    UiText.text("拒绝非 content URI: ") + (uri == null ? "null" : uri.toString()));
                             selected = null;
                             break;
                         }
@@ -145,22 +125,14 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
                         for (int i=0;i<local.length;i++) local[i] = androidx.core.content.FileProvider.getUriForFile(app,app.getPackageName()+".updates",copied.get(i));
                         final java.util.ArrayList<java.io.File> ready = copied;
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                            if (owner.view == null) {
-                                com.deepseekharness.app.core.DiagnosticLog.record(app, "WEB_UPLOAD", "view 已销毁，放弃");
-                                WebUploads.clean(ready); callback.onReceiveValue(null);
-                            } else {
-                                com.deepseekharness.app.core.DiagnosticLog.record(app, "WEB_UPLOAD",
-                                        UiText.text("上传成功 ") + ready.size() + UiText.text(" 个: ") + new java.io.File(local[0].getPath()).getName());
-                                owner.uploads.addAll(ready); callback.onReceiveValue(local);
-                            }
+                            if (owner.view == null) { WebUploads.clean(ready); callback.onReceiveValue(null); }
+                            else { owner.uploads.addAll(ready); callback.onReceiveValue(local); }
                         });
                     } catch (Exception error) {
                         WebUploads.clean(copied);
-                        com.deepseekharness.app.core.DiagnosticLog.record(app, "WEB_UPLOAD",
-                                UiText.text("复制失败: ") + (error.getMessage() == null ? error.toString() : error.getMessage()));
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                             callback.onReceiveValue(null);
-                            Toast.makeText(app,UiText.text("上传失败：")+error.getMessage(),Toast.LENGTH_LONG).show();
+                            Toast.makeText(app,com.deepseekharness.app.util.UiText.text("上传失败：")+error.getMessage(),Toast.LENGTH_LONG).show();
                         });
                     }
                 },"web-file-import").start();
@@ -186,7 +158,6 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         errorTitle = findViewById(R.id.web_error_title);
         errorDetail = findViewById(R.id.web_error_detail);
         progress = findViewById(R.id.web_progress);
-        progressText = findViewById(R.id.web_progress_text);
         findViewById(R.id.web_retry).setOnClickListener(v -> loadSession());
         findViewById(R.id.web_error_browser).setOnClickListener(v -> openExternal(authUrl));
         findViewById(R.id.web_error_logs).setOnClickListener(v -> startActivity(DiagnosticActivity.downloadLogs(this)));
@@ -204,7 +175,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         baseUrl = WebPreviewPolicy.loopbackBaseUrl(authUrl);
         if (baseUrl == null) {
             authUrl = null;
-            showError(UiText.text("对话地址无效"), UiText.text("请返回启动页，重新进入对话。"));
+            showError(com.deepseekharness.app.util.UiText.text("对话地址无效"), com.deepseekharness.app.util.UiText.text("请返回启动页，重新进入对话。"));
             return;
         }
         if (PreviewFallback.preferred(this) && PreviewFallback.open(this, authUrl, authCookie)) return;
@@ -213,6 +184,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
             ((android.content.MutableContextWrapper) webView.getContext()).setBaseContext(this);
             attachClients(webView);
             container.addView(webView,new FrameLayout.LayoutParams(-1,-1));
+            WebFrameRate.apply(this, webView);
             progress.setVisibility(View.GONE);
         } else {
             // 旋转保留同一进程的页面；服务已换代时清理旧页面，再用当前凭据加载。
@@ -229,7 +201,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         if (isFinishing() || isDestroyed() || previewAuth.busy()) return;
         errorPanel.setVisibility(View.GONE); progress.setVisibility(View.VISIBLE);
         previewAuth.refresh((url, cookie, error) -> {
-            if (error != null) { showError(UiText.text("暂时无法进入对话"), error); return; }
+            if (error != null) { showError(com.deepseekharness.app.util.UiText.text("暂时无法进入对话"), error); return; }
             if (!url.equals(authUrl)) restoreState = null;
             authUrl = url; authCookie = cookie; baseUrl = WebPreviewPolicy.loopbackBaseUrl(url);
             createWebView(allowAuthRetry);
@@ -248,9 +220,9 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
             retained.view = view;
             retained.authUrl = authUrl;
             PackageInfo provider = android.os.Build.VERSION.SDK_INT >= 26 ? WebView.getCurrentWebViewPackage() : null;
-            browserInfo = provider == null ? UiText.text("系统 WebView 版本未知")
+            browserInfo = provider == null ? com.deepseekharness.app.util.UiText.text("系统 WebView 版本未知")
                     : provider.packageName + " " + provider.versionName;
-            Log.i("DeepSeekHarness", "标准版预览内核: " + browserInfo);
+            Log.i("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("标准版预览内核: ") + browserInfo);
             com.deepseekharness.app.core.DiagnosticLog.record(this, "WEB_ENGINE", browserInfo);
             WebSettings settings = view.getSettings();
             settings.setJavaScriptEnabled(true);
@@ -262,28 +234,13 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
             settings.setSupportMultipleWindows(false);
             settings.setLoadWithOverviewMode(true);
             settings.setUseWideViewPort(true);
-            // 禁止用户捏合缩放：页面按移动端视口渲染，缩放会导致布局错乱。
-            settings.setSupportZoom(false);
-            settings.setBuiltInZoomControls(false);
-            settings.setDisplayZoomControls(false);
-            // 滚动时实时重采状态栏颜色（节流 300ms），页面滚动/换页时状态栏跟随背景。
-            view.setOnScrollChangeListener((v, sx, sy, ox, oy) -> {
-                long now = android.os.SystemClock.elapsedRealtime();
-                if (now - lastScrollSampleAt > 300) {
-                    lastScrollSampleAt = now;
-                    samplePageColor();
-                }
-            });
-            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(view,WebPageScripts.compatibility(this),
-                        java.util.Collections.singleton(baseUrl.substring(0,baseUrl.length()-1)));
-            }
             if (getSharedPreferences(Constants.PREFS, MODE_PRIVATE)
                     .getBoolean(Constants.KEY_DESKTOP_MODE, false)) {
                 settings.setUserAgentString(WebPreviewPolicy.desktopUserAgent(settings.getUserAgentString()));
             }
             attachClients(view);
             container.addView(view, new FrameLayout.LayoutParams(-1, -1));
+            WebFrameRate.apply(this, view);
             CookieManager cookies = CookieManager.getInstance();
             cookies.setAcceptCookie(true);
             cookies.setAcceptThirdPartyCookies(view, false);
@@ -303,15 +260,40 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         } catch (RuntimeException | LinkageError e) {
             destroyWebView();
             if (PreviewFallback.open(this, authUrl, authCookie)) return;
-            Log.w("DeepSeekHarness", "系统 WebView 初始化失败: " + e.getClass().getSimpleName());
-            showError(UiText.text("系统 WebView 无法启动"), UiText.text("请更新或启用 Android System WebView / Chrome，")
-                    + UiText.text("也可以使用系统浏览器进入对话。"));
+            Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("系统 WebView 初始化失败: ") + e.getClass().getSimpleName());
+            showError(com.deepseekharness.app.util.UiText.text("系统 WebView 无法启动"), com.deepseekharness.app.util.UiText.text("请更新或启用 Android System WebView / Chrome，")
+                    + com.deepseekharness.app.util.UiText.text("也可以使用系统浏览器进入对话。"));
         }
     }
 
     private void attachClients(WebView view) {
+        updateDocumentLanguage(view);
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            androidx.webkit.WebViewCompat.removeWebMessageListener(view,"DeepSeekHarnessLanguage");
+            androidx.webkit.WebViewCompat.addWebMessageListener(view,"DeepSeekHarnessLanguage",
+                java.util.Collections.singleton(baseUrl.substring(0,baseUrl.length()-1)),
+                (source,message,origin,mainFrame,reply)->{
+                    if(source!=webView||!mainFrame||!WebPreviewPolicy.sameService(baseUrl,source.getUrl()))return;
+                    try {
+                        String language=message.getData();
+                        // 网页只有「中文 / English」两个显式选项，不接受 system：
+                        // 把网页当成用户显式选择，避免页面误传偏好值后行为含糊。
+                        if(com.deepseekharness.app.util.UiLanguagePreference.EN.equals(language)
+                                ||com.deepseekharness.app.util.UiLanguagePreference.ZH.equals(language))
+                            LanguageController.select(this,language);
+                    } catch(IllegalStateException ignored) { }
+                });
+        }
         view.setWebViewClient(new PreviewClient());
         view.setWebChromeClient(new PreviewChromeClient());
+        // 滚动时实时重采状态栏颜色（节流 300ms），页面滚动/换页时状态栏跟随背景。
+        view.setOnScrollChangeListener((v, sx, sy, ox, oy) -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastScrollSampleAt > 300) {
+                lastScrollSampleAt = now;
+                samplePageColor();
+            }
+        });
         view.setDownloadListener((url, agent, disposition, mime, length) -> {
             if (!WebPreviewPolicy.sameService(baseUrl, view.getUrl())) return;
             String name = android.webkit.URLUtil.guessFileName(url,disposition,mime);
@@ -324,44 +306,15 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         });
     }
 
-    /** DeepSeekHarness 状态栏跟色：从 WebView 顶部采样页面实际像素色（含流体/玻璃/header），
-     *  比 body 背景纯色更接近用户看到的页面背景，用于渲染状态栏区域。 */
-    private void samplePageColor() {
-        if (webView == null || isFinishing() || isDestroyed()) return;
-        try {
-            // 窗口坐标：跳过顶部的状态栏区域，取状态栏下方紧邻的页面顶部色。
-            androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(getWindow().getDecorView());
-            int top = insets == null ? 0 : insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()
-                    | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).top;
-            final android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(24, 8, android.graphics.Bitmap.Config.ARGB_8888);
-            final int[] pixelTries = {0};
-            final Runnable[] pixelRetry = new Runnable[1];
-            pixelRetry[0] = () -> {
-                if (webView == null || isFinishing() || isDestroyed()) return;
-                android.view.PixelCopy.request(getWindow(), new android.graphics.Rect(0, top, 24, top + 8), bmp,
-                        result -> {
-                            if (result != android.view.PixelCopy.SUCCESS) {
-                                // 窗口动画/不可见时 PixelCopy 会失败，短延迟补采两次再放弃。
-                                if (pixelTries[0]++ < 2) {
-                                    new android.os.Handler(android.os.Looper.getMainLooper())
-                                            .postDelayed(pixelRetry[0], 600);
-                                }
-                                return;
-                            }
-                            long r = 0, g = 0, b = 0;
-                            int n = 0;
-                            for (int y = 0; y < 8; y++) {
-                                for (int x = 0; x < 24; x++) {
-                                    int c = bmp.getPixel(x, y);
-                                    r += (c >> 16) & 0xFF; g += (c >> 8) & 0xFF; b += c & 0xFF; n++;
-                                }
-                            }
-                            int avg = 0xFF000000 | ((int) (r / n) << 16) | ((int) (g / n) << 8) | (int) (b / n);
-                            WebFullscreenUi.applyThemeColor(WebPreviewActivity.this, avg);
-                        }, new android.os.Handler(android.os.Looper.getMainLooper()));
-            };
-            pixelRetry[0].run();
-        } catch (Exception | LinkageError ignored) { }
+    /** 保留网页实例时同步后续文档的启动脚本，避免重载时短暂回到旧语言。 */
+    private void updateDocumentLanguage(WebView view) {
+        if(!androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT))return;
+        String language=new com.deepseekharness.app.core.ConfigStore(this).getUiLanguage();
+        if(retained.compatibilityScript!=null&&language.equals(retained.scriptLanguage))return;
+        if(retained.compatibilityScript!=null)retained.compatibilityScript.remove();
+        retained.compatibilityScript=androidx.webkit.WebViewCompat.addDocumentStartJavaScript(view,WebPageScripts.compatibility(this),
+            java.util.Collections.singleton(baseUrl.substring(0,baseUrl.length()-1)));
+        retained.scriptLanguage=language;
     }
 
     private class PreviewClient extends WebViewClient {
@@ -382,25 +335,47 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
 
         @Override public void onPageStarted(WebView view, String url, Bitmap favicon) {
             if (webView != view) return;
+            retained.ready = false; refreshPictureInPicture();
             pageFailed = false;
             errorPanel.setVisibility(View.GONE);
             progress.setProgress(0);
             progress.setVisibility(View.VISIBLE);
-            if (progressText != null) { progressText.setText("0%"); progressText.setVisibility(View.VISIBLE); }
         }
 
         @Override public void onPageFinished(WebView view, String url) {
             if (webView != view || pageFailed) return;
             progress.setVisibility(View.GONE);
-            if (progressText != null) progressText.setVisibility(View.GONE);
-            // DeepSeekHarness 状态栏跟色：App 主动读取网页主题色渲染状态栏区域。
-            // 页面刚加载完样式可能还没成形，带轮询重试直到拿到有效颜色。
-            // 优先读 DSH 主题变量 --dsw-alias-bg-base（body 自身背景是透明的，
-            // 只读 backgroundColor 会永远拿不到），失败回退 body 的直接背景色。
+            if (!WebPreviewPolicy.sameService(baseUrl, url)) return;
+            retained.ready = true; refreshPictureInPicture();
+            // 新内核已经在文档起始执行兼容脚本；这里只做轻量能力核验，避免每次页面完成
+            // 又把数十 KB 的 polyfill 注入一次。旧内核没有 DOCUMENT_START_SCRIPT 时仍保留
+            // 原来的页面完成注入路径。
+            String compatibility = retained != null && retained.compatibilityScript != null
+                    ? CAPABILITY_CHECK
+                    : WebPageScripts.compatibility(WebPreviewActivity.this)+"\n"+CAPABILITY_CHECK;
+            view.evaluateJavascript(compatibility, result -> {
+                if (webView != view || pageFailed || isFinishing() || isDestroyed()) return;
+                try {
+                    Object missing = new org.json.JSONTokener(result).nextValue();
+                    if (missing instanceof String && !((String) missing).isEmpty()) {
+                        if (PreviewFallback.open(WebPreviewActivity.this, authUrl, authCookie)) return;
+                        showError(com.deepseekharness.app.util.UiText.text("系统 WebView 需要更新"), com.deepseekharness.app.util.UiText.text("当前内核缺少：") + missing
+                                + com.deepseekharness.app.util.UiText.text("。\n更新 Android System WebView / Chrome 后重试，或在浏览器中打开。"));
+                    }
+                } catch (org.json.JSONException ignored) { }
+            });
+            // DeepSeekHarness 状态栏跟色：console 上报之外的双保险——App 主动读取网页主题色
+            // 渲染状态栏区域。页面刚加载完样式可能还没成形，带轮询重试直到拿到有效颜色。
+            // 优先读 DSH 主题变量 --dsw-alias-bg-base（aqua 主题也通过该变量改色），失败回退 body 直接背景色。
+            readBodyThemeColor(view);
+        }
+
+        /** 每隔 400ms 直读一次页面主题色（最多 20 次），成功即应用到状态栏。 */
+        private void readBodyThemeColor(final WebView view) {
             final int[] colorTries = {0};
             final Runnable[] readBodyColor = new Runnable[1];
             readBodyColor[0] = () -> {
-                if (isFinishing() || isDestroyed() || webView != view) return;
+                if (isFinishing() || isDestroyed() || webView != view || pageFailed) return;
                 view.evaluateJavascript("(function(){var el=document.body||document.documentElement;if(!el)return '';"
                         + "var css=getComputedStyle(el);"
                         + "function res(n){var v=css.getPropertyValue(n),d=0;"
@@ -420,28 +395,14 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
                     if (!ok && colorTries[0]++ < 20) view.postDelayed(readBodyColor[0], 400);
                 });
             };
-            readBodyColor[0].run();
-            // 页面渲染稳定后再用实际像素色校正（流体/玻璃背景比 body 纯色更接近视觉）。
-            view.postDelayed(WebPreviewActivity.this::samplePageColor, 700);
-            if (!WebPreviewPolicy.sameService(baseUrl, url)) return;
-            view.evaluateJavascript(CAPABILITY_CHECK, result -> {
-                if (webView != view || pageFailed || isFinishing() || isDestroyed()) return;
-                try {
-                    Object missing = new org.json.JSONTokener(result).nextValue();
-                    if (missing instanceof String && !((String) missing).isEmpty()) {
-                        if (PreviewFallback.open(WebPreviewActivity.this, authUrl, authCookie)) return;
-                        showError(UiText.text("系统 WebView 需要更新"), UiText.text("当前内核缺少：") + missing
-                                + UiText.text("。\n更新 Android System WebView / Chrome 后重试，或在浏览器中打开。"));
-                    }
-                } catch (org.json.JSONException ignored) { }
-            });
+            view.postDelayed(readBodyColor[0], 200);
         }
 
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
             if (webView != view || !request.isForMainFrame()) return;
-            showError(UiText.text("暂时无法连接对话服务"), UiText.text("服务可能仍在启动或已退出。请稍后重试，")
-                    + UiText.text("持续失败时返回启动页查看日志。\n错误代码：") + error.getErrorCode());
+            showError(com.deepseekharness.app.util.UiText.text("暂时无法连接对话服务"), com.deepseekharness.app.util.UiText.text("服务可能仍在启动或已退出。请稍后重试，")
+                    + com.deepseekharness.app.util.UiText.text("持续失败时返回启动页查看日志。\n错误代码：") + error.getErrorCode());
         }
 
         @Override
@@ -456,42 +417,84 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
                 loadSession(false);
                 return;
             }
-            showError(code == 401 || code == 403 ? UiText.text("对话认证已失效") : UiText.text("对话页面加载失败"),
-                    "HTTP " + code + UiText.text("。请返回启动页重新进入对话，或稍后重试。"));
+            showError(code == 401 || code == 403 ? com.deepseekharness.app.util.UiText.text("对话认证已失效") : com.deepseekharness.app.util.UiText.text("对话页面加载失败"),
+                    "HTTP " + code + com.deepseekharness.app.util.UiText.text("。请返回启动页重新进入对话，或稍后重试。"));
         }
 
         @androidx.annotation.RequiresApi(26)
         @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
             if (webView == view) {
                 destroyWebView();
-                showError(UiText.text("网页渲染进程已退出"), detail.didCrash()
-                        ? UiText.text("系统 WebView 发生异常，点击重试可重新打开；持续出现时请更新内核。")
-                        : UiText.text("系统可能因内存不足回收了网页，点击重试可重新打开。"));
+                showError(com.deepseekharness.app.util.UiText.text("网页渲染进程已退出"), detail.didCrash()
+                        ? com.deepseekharness.app.util.UiText.text("系统 WebView 发生异常，点击重试可重新打开；持续出现时请更新内核。")
+                        : com.deepseekharness.app.util.UiText.text("系统可能因内存不足回收了网页，点击重试可重新打开。"));
             }
             return true;
         }
     }
 
+    /** DeepSeekHarness 状态栏跟色：从 WebView 顶部采样页面实际像素色（含流体/玻璃/header），
+     *  比 body 背景纯色更接近用户看到的页面背景，用于渲染状态栏区域。 */
+    private void samplePageColor() {
+        if (webView == null || isFinishing() || isDestroyed()) return;
+        try {
+            androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(getWindow().getDecorView());
+            int top = insets == null ? 0 : insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()
+                    | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).top;
+            final android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(24, 8, android.graphics.Bitmap.Config.ARGB_8888);
+            final int[] pixelTries = {0};
+            final Runnable[] pixelRetry = new Runnable[1];
+            pixelRetry[0] = () -> {
+                if (webView == null || isFinishing() || isDestroyed()) return;
+                android.view.PixelCopy.request(getWindow(), new android.graphics.Rect(0, top, 24, top + 8), bmp,
+                        result -> {
+                            if (result != android.view.PixelCopy.SUCCESS) {
+                                // 窗口动画/不可见时 PixelCopy 会失败，短延迟补采两次再放弃。
+                                if (pixelTries[0]++ < 2) {
+                                    uiHandler.postDelayed(pixelRetry[0], 600);
+                                }
+                                return;
+                            }
+                            long r = 0, g = 0, b = 0;
+                            int n = 0;
+                            for (int y = 0; y < 8; y++) {
+                                for (int x = 0; x < 24; x++) {
+                                    int c = bmp.getPixel(x, y);
+                                    r += (c >> 16) & 0xFF; g += (c >> 8) & 0xFF; b += c & 0xFF; n++;
+                                }
+                            }
+                            int avg = 0xFF000000 | ((int) (r / n) << 16) | ((int) (g / n) << 8) | (int) (b / n);
+                            WebFullscreenUi.applyThemeColor(WebPreviewActivity.this, avg);
+                        }, uiHandler);
+            };
+            pixelRetry[0].run();
+        } catch (Exception | LinkageError ignored) { }
+    }
+
     private class PreviewChromeClient extends WebChromeClient {
+        /** 与 assets/web-integration/startup.js 的 console.info 前缀逐字一致。 */
+        private static final String PAGE_MARKER = "[DeepSeekHarness_PAGE] ";
         @Override public boolean onConsoleMessage(android.webkit.ConsoleMessage message) {
             com.deepseekharness.app.core.StartupDiagnostics diagnostics = com.deepseekharness.app.core.HarnessController.get(WebPreviewActivity.this).startupDiagnostics();
+            if (message.message().startsWith(PAGE_MARKER) && message.message().length() <= 9500
+                    && webView != null && WebPreviewPolicy.sameService(baseUrl, webView.getUrl())) {
+                try {
+                    org.json.JSONObject event = new org.json.JSONObject(message.message().substring(PAGE_MARKER.length()));
+                    if (diagnostics.pageEvent(startupGeneration, event)) {
+                        com.deepseekharness.app.core.HarnessController.get(WebPreviewActivity.this).failedWebPage(startupGeneration,event.optString("message"));
+                        startActivity(new Intent(WebPreviewActivity.this,StartupRecoveryActivity.class));finish();
+                    }
+                } catch (Exception ignored) { }
+                return true;
+            }
+            // 从 Web 页面解析 CSS 变量背景色 → 更新状态栏颜色与图标明暗
             if (message.message().startsWith("[DeepSeekHarness_THEME] ")) {
                 int parsed = WebFullscreenUi.parseThemeColor(
                         message.message().substring("[DeepSeekHarness_THEME] ".length()));
                 if (parsed != 0) {
-                    themeColor = parsed;
                     WebFullscreenUi.applyThemeColor(WebPreviewActivity.this, parsed);
+                    if (webView != null) webView.postDelayed(WebPreviewActivity.this::samplePageColor, 700);
                 }
-                return true;
-            }
-            if (message.message().startsWith("[DeepSeekHarness_PAGE] ") && message.message().length() <= 9500
-                    && webView != null && WebPreviewPolicy.sameService(baseUrl, webView.getUrl())) {
-                try {
-                    org.json.JSONObject event = new org.json.JSONObject(message.message().substring(12));
-                    if (diagnostics.pageEvent(startupGeneration, event)) showError(UiText.text("网页插件加载失败"),
-                            com.deepseekharness.app.util.SensitiveData.redact(event.optString("message"))
-                                    + UiText.text("\n返回启动页可查看插件详情，或安全启动进入基础界面。"));
-                } catch (Exception ignored) { }
                 return true;
             }
             if (message.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
@@ -504,12 +507,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
             return true;
         }
         @Override public void onProgressChanged(WebView view, int value) {
-            if (webView != view || pageFailed) return;
-            progress.setProgress(value);
-            if (progressText != null) {
-                progressText.setText(value + "%");
-                progressText.setVisibility(value >= 100 ? View.GONE : View.VISIBLE);
-            }
+            if (webView == view && !pageFailed) progress.setProgress(value);
         }
 
         @Override
@@ -534,7 +532,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
                     filePicker.launch(WebUploads.fallback(primary));
                 } catch (RuntimeException ignored) {
                     cancelFileSelection();
-                    Toast.makeText(WebPreviewActivity.this, UiText.text("无法打开文件选择器，请启用系统文件应用"), Toast.LENGTH_LONG).show();
+                    Toast.makeText(WebPreviewActivity.this, com.deepseekharness.app.util.UiText.text("无法打开文件选择器，请启用系统文件应用"), Toast.LENGTH_LONG).show();
                 }
             }
             return true;
@@ -543,22 +541,24 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
 
     private void showError(String title, String detail) {
         if (isFinishing() || isDestroyed()) return;
-        com.deepseekharness.app.core.DiagnosticLog.record(this, "WEB_PAGE", title + "：" + detail);
+        com.deepseekharness.app.core.DiagnosticLog.record(this, "WEB_PAGE", title + com.deepseekharness.app.util.UiText.text("：") + detail);
         pageFailed = true;
+        retained.ready = false; refreshPictureInPicture();
         progress.setVisibility(View.GONE);
         errorTitle.setText(title);
-        errorDetail.setText(detail + "\n\n" + browserInfo);
+        errorDetail.setText(com.deepseekharness.app.util.UiText.text(detail + "\n\n" + browserInfo));
         errorPanel.setVisibility(View.VISIBLE);
     }
 
     private void openExternal(String url) {
         if (url == null) return;
+        if(PluginNavigation.open(this,url))return;
         Uri uri = Uri.parse(url);
         if (!"http".equals(uri.getScheme()) && !"https".equals(uri.getScheme())) return;
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE));
         } catch (RuntimeException e) {
-            Toast.makeText(this, UiText.text("未找到可用的系统浏览器"), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, com.deepseekharness.app.util.UiText.text("未找到可用的系统浏览器"), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -570,7 +570,7 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         Runnable fallback = () -> {
             if (!navigatingBack || webView != current || isDestroyed()) return;
             navigatingBack = false;
-            if (current.canGoBack()) current.goBack(); else finish();
+            if (current.canGoBack()) current.goBack(); else leavePreview();
         };
         current.postDelayed(fallback,1200);
         current.evaluateJavascript(WebPageScripts.back(this), result -> {
@@ -591,8 +591,11 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
     private void destroyWebView() {
         cancelFileSelection();
         WebView previous = webView;
+        WebFrameRate.clear(this, previous);
         webView = null;
-        if (retained != null) retained.view = null;
+        if (retained != null) { retained.view = null; retained.ready = false; }
+        refreshPictureInPicture();
+        if(retained!=null){retained.compatibilityScript=null;retained.scriptLanguage=null;}
         if (retained != null && retained.blobDownload != null) { retained.blobDownload.close(); retained.blobDownload = null; }
         if (previous != null) {
             container.removeView(previous);
@@ -603,8 +606,8 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
-            if (themeColor != 0) WebFullscreenUi.applyThemeColor(this, themeColor);
-            else WebFullscreenUi.applySystemBars(this);
+            WebFullscreenUi.applySystemBars(this);
+            if (webView != null) WebFrameRate.apply(this, webView);
             samplePageColor();
         }
     }
@@ -613,14 +616,33 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
         PluginFragment.invalidateInstalledState();
         colorLoopActive = false;
         uiHandler.removeCallbacks(colorLoop);
-        if (webView != null) webView.onPause();
+        if (!pictureInPictureActiveOrTransitioning()) WebFrameRate.clear(this, webView);
         super.onPause();
+    }
+
+    @Override protected boolean pictureInPictureContentReady() {
+        return webView != null && retained != null && retained.ready && !pageFailed
+                && WebPreviewPolicy.sameService(baseUrl, webView.getUrl());
+    }
+
+    // 画中画仍可见但 Activity 已暂停；完全不可见时才暂停网页绘制。
+    @Override protected void onStop() {
+        if (!pictureInPictureActiveOrTransitioning() && webView != null) webView.onPause();
+        super.onStop();
+    }
+
+    @Override protected void onStart() {
+        super.onStart();
+        if (!pictureInPictureActiveOrTransitioning() && webView != null) webView.onResume();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        if (webView != null) webView.onResume();
-        // 从后台返回立即重采状态栏颜色（避免"切出去再回来变白色"），并启动前台实时采样循环。
+        if (!pictureInPictureActiveOrTransitioning() && webView != null) WebFrameRate.apply(this, webView);
+        if(webView!=null&&WebPreviewPolicy.sameService(baseUrl,webView.getUrl())) {
+            updateDocumentLanguage(webView);webView.evaluateJavascript(WebPageScripts.language(this),null);
+        }
+        // 从后台返回立即重采状态栏颜色，并启动前台实时采样循环。
         samplePageColor();
         colorLoopActive = true;
         uiHandler.removeCallbacks(colorLoop);
@@ -630,8 +652,6 @@ public class WebPreviewActivity extends AppCompatActivity implements WebFullscre
     }
 
     @Override protected void onDestroy() {
-        colorLoopActive = false;
-        uiHandler.removeCallbacks(colorLoop);
         if (previewAuth != null) previewAuth.cancel();
         if (downloads != null) downloads.dismiss();
         if (isChangingConfigurations() && webView != null) {

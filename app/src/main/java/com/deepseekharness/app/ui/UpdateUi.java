@@ -1,42 +1,52 @@
 package com.deepseekharness.app.ui;
-import com.deepseekharness.app.util.UiText;
 
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import com.deepseekharness.app.R;
-import com.deepseekharness.app.core.DshUpdater;
+import com.deepseekharness.app.core.UpdateRepository;
 
-/** 更新页的状态与操作排版；检查与更新由 DshUpdater 负责。 */
+/** 更新页的状态与操作排版；下载、校验仍由原有更新引擎负责。 */
 final class UpdateUi {
     private UpdateUi() { }
-    static void render(View root, DshUpdater.State state) {
-        if (state == null) return;
-        boolean busy = state.busy;
-        boolean updatable = state.updatable();
-        // 更新完成时详细说明已由完成弹窗展示，页面只保留简短状态，避免同一内容重复显示
-        ((TextView) root.findViewById(R.id.update_status)).setText(
-                state.needsRestart ? UiText.text("更新完成，等待重启应用") : state.message);
-        ((TextView) root.findViewById(R.id.update_current)).setText(
-                state.currentVersion == null ? UiText.text("未检测到（环境未安装）") : state.currentVersion);
+    static void render(View root, UpdateRepository.State state, boolean installing) {
+        render(root, state, installing, installing);
+    }
+    static void render(View root, UpdateRepository.State state, boolean installing, boolean verifyingInstall) {
+        boolean busy = state.busy || installing;
+        boolean showBytes = state.total > 0 && !verifyingInstall
+                && (state.stage == UpdateRepository.Stage.IDLE || state.stage == UpdateRepository.Stage.DOWNLOADING);
+        boolean indeterminate = verifyingInstall || state.stage != UpdateRepository.Stage.DOWNLOADING || state.total <= 0;
+        RadioGroup channels = root.findViewById(R.id.update_channels);
+        ((TextView) root.findViewById(R.id.update_status)).setText(com.deepseekharness.app.util.UiStateText.render(state.message));
+        ((TextView) root.findViewById(R.id.update_notes)).setText(state.release == null ? ""
+                : state.release.version + " · " + String.format(java.util.Locale.ROOT, "%.2f MiB", state.release.bytes / 1048576.0) + "\n\n" + state.release.notes);
         ProgressBar progress = root.findViewById(R.id.update_progress);
-        TextView progressText = root.findViewById(R.id.update_progress_text);
-        progress.setVisibility(busy ? View.VISIBLE : View.GONE);
-        // 更新页使用无限进度条，当前阶段由 update_status 文字说明（获取数据/停止/下载/解压/校验等）
-        progress.setIndeterminate(true);
-        if (progressText != null) progressText.setVisibility(View.GONE);
+        progress.setVisibility(state.busy || verifyingInstall ? View.VISIBLE : View.GONE);
+        progress.setIndeterminate(indeterminate);
+        if (!indeterminate) progress.setProgress((int) (state.downloaded * 100 / state.total));
+        ((TextView) root.findViewById(R.id.update_bytes)).setText(showBytes ? String.format(java.util.Locale.ROOT,
+                "%.1f / %.1f MiB", state.downloaded / 1048576.0, state.total / 1048576.0) : "");
+        root.findViewById(R.id.update_release_panel).setVisibility(state.release != null ? android.view.View.VISIBLE : android.view.View.GONE);
+        root.findViewById(R.id.update_bytes).setVisibility(showBytes ? View.VISIBLE : View.GONE);
+        root.findViewById(R.id.update_download).setVisibility(state.release != null && state.apk == null ? android.view.View.VISIBLE : android.view.View.GONE);
+        root.findViewById(R.id.update_install).setVisibility(state.apk != null ? android.view.View.VISIBLE : android.view.View.GONE);
         Button check = root.findViewById(R.id.update_check);
         check.setEnabled(!busy);
-        check.setText(state.latestVersion == null ? UiText.text("检查更新") : UiText.text("重新检查"));
-        Button update = root.findViewById(R.id.update_update);
-        update.setVisibility(updatable ? View.VISIBLE : View.GONE);
-        update.setEnabled(!busy);
-        update.setText(UiText.text("更新到 ") + state.latestVersion);
-        TextView notes = root.findViewById(R.id.update_notes);
-        String body = state.notes == null ? "" : state.notes;
-        notes.setText(state.latestVersion == null ? "" : state.latestVersion + "\n\n" + body);
-        root.findViewById(R.id.update_notes_panel).setVisibility(
-                state.latestVersion != null ? View.VISIBLE : View.GONE);
+        check.setText(state.release == null ? com.deepseekharness.app.util.UiText.text("检查更新") : com.deepseekharness.app.util.UiText.text("重新检查"));
+        check.setBackgroundResource(state.release == null ? R.drawable.bg_btn_primary : R.drawable.bg_btn);
+        check.setTextColor(androidx.core.content.ContextCompat.getColorStateList(root.getContext(),state.release == null ? R.color.button_primary_text : R.color.button_text));
+        root.findViewById(R.id.update_download).setEnabled(!busy && state.release != null);
+        ((Button) root.findViewById(R.id.update_download)).setText(state.downloaded > 0 && state.apk == null ? com.deepseekharness.app.util.UiText.text("继续下载") : com.deepseekharness.app.util.UiText.text("下载更新"));
+        // 降级候选：Android 会在系统安装器阶段直接拒绝，这里提前禁用按钮并说明原因，
+        // 避免用户点了「安装」却只看到系统报错、以为应用坏了。
+        boolean downgrade = state.release != null
+                && state.release.versionCode < com.deepseekharness.app.util.UpdatePolicy.comparableCode(com.deepseekharness.app.BuildConfig.VERSION_NAME);
+        root.findViewById(R.id.update_install).setEnabled(!busy && state.apk != null && !downgrade);
+        root.findViewById(R.id.update_cancel).setVisibility(state.busy && !installing ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < channels.getChildCount(); i++) channels.getChildAt(i).setEnabled(!busy);
+
     }
 }

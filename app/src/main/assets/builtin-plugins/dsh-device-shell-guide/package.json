@@ -1,6 +1,6 @@
 {
   "name": "dsh-device-shell-guide",
-  "description": "DSHA builtin plugin: protected device commands through root, Shizuku or ADB",
+  "description": "DeepSeekHarness builtin plugin: protected device commands through root, Shizuku or ADB",
   "version": "0.1.19",
   "type": "module",
   "main": "lib/index.js",
@@ -17,8 +17,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-system-prompt": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-llm": "0.1.6-alpha.2"
+    "@deepseek-ai/dsh-system-prompt": "0.1.7-alpha.1",
+    "@deepseek-ai/dsh-llm": "0.1.7-alpha.1"
   },
   "license": "MIT"
 }

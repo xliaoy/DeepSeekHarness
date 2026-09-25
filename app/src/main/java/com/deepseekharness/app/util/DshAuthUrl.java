@@ -92,7 +92,12 @@ public final class DshAuthUrl {
         return url != null && parse(url).loopbackBaseUrl.equals("http://127.0.0.1:" + port + "/") ? url : null;
     }
 
-    /** DeepSeekHarness：按需求不再遮蔽 token，日志展示真实鉴权地址（端口无关）。 */
+    /** DeepSeekHarness：按需求不再遮蔽 token，日志展示真实鉴权地址（端口无关）。
+     *
+     *  <p>注意区分：落盘日志的脱敏仍由 {@code SensitiveData.redact} 在
+     *  {@code appendHostLog} 外层兜底；本方法的分歧点仅在于让 UI 层能拿到并复制
+     *  完整的带 Token 地址（README 承诺「本机地址自动带鉴权 Token 一键复制」），
+     *  因此**故意**返回原文，不是遗漏。 */
     public static String redact(String s) {
         return s;
     }

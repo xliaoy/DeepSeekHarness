@@ -1,0 +1,9 @@
+{
+  "name": "deepseekharness-web-compat-build",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "core-js": "3.50.0",
+    "esbuild": "0.25.12"
+  }
+}

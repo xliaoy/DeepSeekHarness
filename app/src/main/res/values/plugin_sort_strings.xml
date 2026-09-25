@@ -1,0 +1,25 @@
+<resources>
+    <string name="plugin_sort_title">插件排序</string>
+    <string name="plugin_sort_az">名称 A–Z</string>
+    <string name="plugin_sort_za">名称 Z–A</string>
+    <string name="plugin_sort_enabled">已启用优先</string>
+    <string name="plugin_sort_updates">可更新优先</string>
+
+    <!-- 插件页（无商城版）：列表 + 在线安装 + 命令行安装。
+         语义名与参考实现一致，便于对照；文案取自参考实现的对应语言文件。
+         ⚠️ 本文件是【默认语言 = 中文】的资源。曾误把英文文案填进这些键，
+         导致中文模式下插件页整页显示英文（values-en 同值 ⇒ 两种语言无法区分）。 -->
+    <string name="plugins_title">插件管理</string>
+    <string name="plugins_search_hint">搜索插件名称或描述</string>
+    <string name="plugins_sort_name">名称排序</string>
+    <string name="plugins_sync_status">同步本机安装状态</string>
+    <string name="update_check">检查更新</string>
+    <string name="plugin_install_title">安装插件</string>
+    <string name="plugins_tip">使用提示</string>
+    <string name="plugins_online_install">在线安装</string>
+    <string name="plugins_cli_install">命令行安装</string>
+    <string name="plugins_safe_mode">安全模式：恢复此前启用的第三方插件</string>
+    <string name="plugins_list">插件列表</string>
+    <string name="plugins_import">导入</string>
+    <string name="plugins_export">导出</string>
+</resources>

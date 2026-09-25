@@ -22,7 +22,7 @@
 
             <TextView
                 android:id="@+id/source_back"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction"
                 android:layout_width="44dp"
                 android:layout_height="wrap_content"
                 android:text="‹"
@@ -120,7 +120,7 @@
 
             <Button
                 android:id="@+id/npm_apply"
-                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                style="@style/Widget.DEEPSEEK_HARNESS_PrimaryButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_control"
@@ -205,7 +205,7 @@
 
             <Button
                 android:id="@+id/apt_apply"
-                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                style="@style/Widget.DEEPSEEK_HARNESS_PrimaryButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_control"
@@ -290,7 +290,7 @@
 
             <Button
                 android:id="@+id/pip_apply"
-                style="@style/Widget.DeepSeekHarness.PrimaryButton"
+                style="@style/Widget.DEEPSEEK_HARNESS_PrimaryButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_control"

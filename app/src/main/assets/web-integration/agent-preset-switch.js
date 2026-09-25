@@ -1,5 +1,5 @@
-/* DSHA_AGENT_PRESET_SWITCH_V1：只有 Host 确认后才发布成功；已有对话的 Agent 组装保持原位。 */
-function createDshaAgentPresetSwitcher(scope, seat) {
+/* DeepSeekHarness_AGENT_PRESET_SWITCH_V1：只有 Host 确认后才发布成功；已有对话的 Agent 组装保持原位。 */
+function createDeepSeekHarnessAgentPresetSwitcher(scope, seat) {
     const ids = ['standard', 'ptc', 'minimal', 'cordis'];
     let pending = false;
     const message = (zh, en) => scope.locale?.getSnapshot?.().active === 'en' ? en : zh;

@@ -47,14 +47,14 @@ public interface ContainerRuntime {
 
         @Override public String id() { return "proot"; }
 
-        @Override public String displayName() { return "proot（内置，稳定）"; }
+        @Override public String displayName() { return com.deepseekharness.app.util.UiText.text("proot（内置，稳定）"); }
 
         @Override public boolean available() {
             return nativeLibProot != null && nativeLibProot.exists();
         }
 
         @Override public String unavailableReason() {
-            return available() ? "" : "APK 内的 libproot.so 缺失（安装包可能损坏，建议重装）";
+            return available() ? "" : com.deepseekharness.app.util.UiText.text("APK 内的 libproot.so 缺失（安装包可能损坏，建议重装）");
         }
 
         @Override public List<String> baseArgv(File rootfsDir, boolean hardlinkSupported) {
@@ -80,7 +80,7 @@ public interface ContainerRuntime {
                 argv.add("-b");
                 argv.add(b.length == 1 ? b[0] : b[0] + ":" + b[1]);
             }
-            return argv;
+            UserDataBindings.append(argv,rootfsDir);return argv;
         }
 
         @Override public void applyEnv(ProcessBuilder pb, File baseDir, File libDir, File tmpDir) {
@@ -105,10 +105,12 @@ public interface ContainerRuntime {
 
         private final Context ctx;
         private final File dir;
+        private final boolean staticLoader;
 
         public Proroot(Context ctx, File dir) {
             this.ctx = ctx;
             this.dir = dir;
+            this.staticLoader = new com.deepseekharness.app.core.ConfigStore(ctx).isProrootStaticLoader();
         }
 
         /**
@@ -121,7 +123,7 @@ public interface ContainerRuntime {
 
         @Override public String id() { return "proroot"; }
 
-        @Override public String displayName() { return "proroot（实验，零 ptrace 开销）"; }
+        @Override public String displayName() { return com.deepseekharness.app.util.UiText.text("proroot（实验，零 ptrace 开销）"); }
 
         @Override public boolean available() {
             for (String n : LIBS) {
@@ -138,12 +140,14 @@ public interface ContainerRuntime {
                 if (!f.isFile() || f.length() == 0) missing.add(n);
             }
             if (missing.isEmpty()) return "";
-            return "缺 " + missing.size() + " 个运行时文件（" + missing.get(0) + " 等）";
+            return com.deepseekharness.app.util.UiText.text("缺 ") + missing.size() + com.deepseekharness.app.util.UiText.text(" 个运行时文件（") + missing.get(0) + com.deepseekharness.app.util.UiText.text(" 等）");
         }
 
         @Override public List<String> baseArgv(File rootfsDir, boolean hardlinkSupported) {
             List<String> argv = new ArrayList<>();
             argv.add(new File(dir, "libproroot.so").getAbsolutePath());
+            argv.add(staticLoader
+                    ? "--static-loader" : "--no-static-loader");
             argv.add("-r");
             argv.add(rootfsDir.getAbsolutePath());
             argv.add("-0");
@@ -160,7 +164,7 @@ public interface ContainerRuntime {
             argv.add("-b");
             argv.add(shm.getAbsolutePath() + ":/dev/shm");
             argv.add("--link2symlink");
-            return argv;
+            UserDataBindings.append(argv,rootfsDir);return argv;
         }
 
         File shmDir() {
@@ -173,14 +177,15 @@ public interface ContainerRuntime {
                     new File(dir, "libproroot-runtime.so").getAbsolutePath());
             pb.environment().put("PROROOT_LINKER_PATH",
                     new File(dir, "libproroot-linker.so").getAbsolutePath());
-            pb.environment().put("PROROOT_STUB_LOADER",
-                    new File(dir, "libproroot-stub-loader.so").getAbsolutePath());
+            if(staticLoader)
+                pb.environment().put("PROROOT_STUB_LOADER",new File(dir,"libproroot-stub-loader.so").getAbsolutePath());
+            else pb.environment().remove("PROROOT_STUB_LOADER");
         }
 
         @Override public void prepare() throws Exception {
             for (String n : LIBS) {
                 if (!new File(dir, n).isFile()) {
-                    throw new IllegalStateException("proroot 运行时缺 " + n);
+                    throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("proroot 运行时缺 ") + n);
                 }
             }
             //noinspection ResultOfMethodCallIgnored

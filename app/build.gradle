@@ -15,8 +15,8 @@ android {
         applicationId "com.deepseek.harness"
         minSdk 30
         targetSdk 37
-        versionCode 117
-        versionName "20260922"
+        versionCode 145
+        versionName "20260925"
         testInstrumentationRunner project.findProperty('deepseekharness.testRunner') ?: "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters 'arm64-v8a'
@@ -35,7 +35,7 @@ android {
         low {
             dimension 'androidSupport'
             minSdk 23
-            versionName '20260922low'
+            versionNameSuffix 'low'
             buildConfigField 'boolean', 'LOW_ANDROID', 'true'
             resValue 'string', 'edition_description', '兼容版 · Android 6+ · WebView / Gecko'
             resValue 'string', 'browser_description', '旧系统 WebView 自动使用内置 Gecko；可手动开启兼容内核。'
@@ -133,6 +133,7 @@ android {
 
     sourceSets {
         main.assets.setSrcDirs([layout.buildDirectory.dir("generated/standardAssets")])
+        main.java.srcDir(layout.buildDirectory.dir("generated/uiLanguage").get().asFile)
     }
 }
 
@@ -151,6 +152,64 @@ def prepareStandardAssets = tasks.register("prepareStandardAssets", Exec) {
             "--output", layout.buildDirectory.dir("generated/standardAssets").get().asFile.absolutePath])
 }
 tasks.named("preBuild").configure { dependsOn(prepareStandardAssets) }
+
+/** 由 tools/prepare-backup-assets.py 从 dsh-runtime.bin 生成包来源证明（CurrentManagedPackages/NativePluginGraph 读取）。 */
+def prepareBackupAssets = tasks.register("prepareBackupAssets", Exec) {
+    inputs.file(rootProject.file("tools/prepare-backup-assets.py"))
+    inputs.file(file("src/main/assets/dsh-runtime.bin"))
+    outputs.file(file("src/main/assets/managed-package-proofs.json"))
+    commandLine(pythonForAssets() + ["-B", rootProject.file("tools/prepare-backup-assets.py").absolutePath])
+}
+prepareStandardAssets.configure { dependsOn(prepareBackupAssets) }
+
+/** 由 tools/prepare-runtime-descriptor.py 生成运行时身份摘要（ProotBootstrap/RuntimeTools 判定已装 rootfs 是否匹配）。 */
+def prepareRuntimeDescriptor = tasks.register("prepareRuntimeDescriptor", Exec) {
+    inputs.file(rootProject.file("tools/prepare-runtime-descriptor.py"))
+    inputs.files(fileTree("src/main/assets") { exclude "runtime-descriptor.json", "managed-package-proofs.json" })
+    inputs.files(fileTree("src/main/jniLibs"), fileTree("src/low/jniLibs"), fileTree("src/main/java/com/deepseekharness/app/runtime"),
+            file("src/main/java/com/deepseekharness/app/util/WebProcSel.java"), file("src/main/java/com/deepseekharness/app/util/WebPidIdentity.java"))
+    outputs.file(file("src/main/assets/runtime-descriptor.json"))
+    commandLine(pythonForAssets() + ["-B", rootProject.file("tools/prepare-runtime-descriptor.py").absolutePath])
+}
+prepareStandardAssets.configure { dependsOn(prepareRuntimeDescriptor) }
+
+/** 校验备份依赖版本与摘要被锁文件钉死，且对应许可资产在位。 */
+def verifyBackupDependencies = tasks.register("verifyBackupDependencies") {
+    inputs.file(rootProject.file("tools/backup-dependencies.lock.json"))
+    doLast {
+        def lock = new groovy.json.JsonSlurper().parse(rootProject.file("tools/backup-dependencies.lock.json"))
+        if (lock.version != 1 || lock.dependencies.size() != 2) throw new GradleException("备份依赖锁格式错误")
+        ["standardReleaseRuntimeClasspath", "lowReleaseRuntimeClasspath"].each { name ->
+            def resolved = configurations.getByName(name).resolvedConfiguration.resolvedArtifacts
+            lock.dependencies.each { expected ->
+                def selected = resolved.findAll { it.moduleVersion.id.group == expected.group && it.name == expected.name }
+                if (selected.size() != 1 || selected[0].moduleVersion.id.version != expected.version)
+                    throw new GradleException("备份依赖版本未锁定：${expected.group}:${expected.name}")
+                def hash = java.security.MessageDigest.getInstance("SHA-256")
+                selected[0].file.withInputStream { input ->
+                    byte[] buffer = new byte[65536]; int count
+                    while ((count = input.read(buffer)) != -1) hash.update(buffer, 0, count)
+                }
+                if (hash.digest().encodeHex().toString() != expected.sha256)
+                    throw new GradleException("备份依赖摘要不符：${expected.name}")
+                if (!file("src/main/assets/${expected.licenseAsset}").isFile())
+                    throw new GradleException("缺少备份依赖许可：${expected.name}")
+            }
+        }
+    }
+}
+tasks.withType(JavaCompile).configureEach { dependsOn(verifyBackupDependencies) }
+
+/** 构建期由 tools/prepare-ui-languages.py 生成 util/UiMessages（UiText/StartupText/UiStateText 依赖它）。 */
+def prepareUiLanguages = tasks.register("prepareUiLanguages", Exec) {
+    inputs.file(rootProject.file("tools/prepare-ui-languages.py"))
+    inputs.file(rootProject.file("tools/i18n/messages.json"))
+    outputs.dir(layout.buildDirectory.dir("generated/uiLanguage"))
+    commandLine(pythonForAssets() + ["-B",
+            rootProject.file("tools/prepare-ui-languages.py").absolutePath,
+            "--output", layout.buildDirectory.dir("generated/uiLanguage").get().asFile.absolutePath])
+}
+tasks.named("preBuild").configure { dependsOn(prepareUiLanguages) }
 
 /**
  * 解析调用 prepare-standard-assets.py 的 Python 解释器，兼容 Android Studio：
@@ -179,13 +238,23 @@ dependencies {
     // 1.15 保留 API 23；1.16 起要求 API 24，不能用于兼容版。
     implementation 'androidx.webkit:webkit:1.15.0'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'dev.rikka.shizuku:api:12.2.0'
-    implementation 'dev.rikka.shizuku:provider:12.2.0'
-    // Stellar（Shizuku 深度定制分支）：免 ADB 特权通道，配 StellarProvider 使用
-    implementation 'com.github.roro2239:Stellar-API:1.0.3'
+    // Shizuku：按 flavor 分版本（上游写法）。本机缓存只有 12.2.0，
+    // 标准版暂不升 13.1.5（避免联网拉包不稳导致构建不可复现）；
+    // 以后要升 13.1.5 只需改 standard 两行，low 天然不会拿到高 minSdk 的依赖。
+    standardImplementation 'dev.rikka.shizuku:api:12.2.0'
+    standardImplementation 'dev.rikka.shizuku:provider:12.2.0'
+    lowImplementation 'dev.rikka.shizuku:api:12.2.0'
+    lowImplementation 'dev.rikka.shizuku:provider:12.2.0'
+    // Stellar（Shizuku 深度定制分支，独立 groupId com.github.roro2239.Stellar-API.*，
+    // 与 dev.rikka.shizuku 无坐标/类名冲突）：免 ADB 特权通道。
+    // 仅标准版引入：low 是 minSdk 23 兼容版，引入它必须靠 overrideLibrary 硬压 minSdk。
+    standardImplementation 'com.github.roro2239:Stellar-API:1.0.3'
     // 真 PTY 终端：Termux 拆出的 terminal-view/terminal-emulator（Apache 2.0），
     // 自带 JNI PTY 层（openpty+fork/exec）。坐标是 JitPack 多模块真实 groupId
     // （com.termux.termux-app），不是 Wiki 上会 401 的 com.termux:terminal-view。
     implementation 'com.termux.termux-app:terminal-view:0.118.0'
+    // 宿主备份：流式 JSON 清单与跨 API 23 的 PBKDF2-SHA256 / AES-GCM 实现，版本锁定。
+    implementation 'com.google.code.gson:gson:2.13.1'
+    implementation 'org.bouncycastle:bcprov-jdk15to18:1.85.2'
     testImplementation 'junit:junit:4.13.2'
 }

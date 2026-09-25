@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "dshVersion": "0.1.7-alpha.2",
+  "patches": [
+    {
+      "before": "\t\tfunction SearchResultItem({ result, currentId, onOpen, onUnarchive, t }) {",
+      "after": "\n        // DeepSeekHarness_SESSION_INTERACTION_V1：选择与实际打开使用独立状态。\n        const deepseekharnessSessionSelection = createDeepSeekHarnessSessionSelection();\n        function useDshaPickedSession(currentId) {\n            return (0, react.useSyncExternalStore)(deepseekharnessSessionSelection.subscribe,\n                () => deepseekharnessSessionSelection.selected(currentId), () => currentId);\n        }\n        function deepseekharnessSessionClick(event, id, currentId, onOpen) {\n            deepseekharnessSessionSelection.click(event, id, currentId, () => {\n                const focused = document.activeElement;\n                if (focused instanceof HTMLElement && focused.closest('[data-composer-input]')) focused.blur();\n                onOpen(id);\n                document.dispatchEvent(new CustomEvent('deepseekharness-session-open', { detail: { id } }));\n            });\n        }\n\t\tfunction SearchResultItem({ result, currentId, onOpen, onUnarchive, t }) {",
+      "prependAsset": "web-integration/session-interaction.js"
+    },
+    {
+      "before": "\t\t\tconst selected = result.id === currentId;",
+      "after": "\t\t\tconst selected = result.id === useDshaPickedSession(currentId);"
+    },
+    {
+      "before": "\t\t\tconst selected = node.id === currentId;",
+      "after": "\t\t\tconst selected = node.id === useDshaPickedSession(currentId);"
+    },
+    {
+      "before": "\t\t\t\tonClick: () => {\n\t\t\t\t\tonOpen(result.id);\n\t\t\t\t},",
+      "after": "\t\t\t\t\"data-deepseekharness-session-select\": result.id,\n\t\t\t\t\"aria-description\": \"单击选中，双击打开；键盘 Enter 打开\",\n\t\t\t\tstyle: { touchAction: \"manipulation\" },\n\t\t\t\tonClick: (event) => deepseekharnessSessionClick(event, result.id, currentId, onOpen),"
+    },
+    {
+      "before": "\t\t\t\t\tonClick: () => {\n\t\t\t\t\t\tonOpen(node.id);\n\t\t\t\t\t},",
+      "after": "\t\t\t\t\t\"data-deepseekharness-session-select\": node.id,\n\t\t\t\t\t\"aria-description\": \"单击选中，双击打开；键盘 Enter 打开\",\n\t\t\t\t\tstyle: { touchAction: \"manipulation\" },\n\t\t\t\t\tonClick: (event) => deepseekharnessSessionClick(event, node.id, currentId, onOpen),\n\t\t\t\t\ttabIndex: 0,\n\t\t\t\t\tonKeyDown: (event) => {\n                        if (event.target !== event.currentTarget) return;\n                        if (event.key === 'Enter') {\n                            event.preventDefault();\n                            deepseekharnessSessionClick({ detail: 0 }, node.id, currentId, onOpen);\n                        } else if (event.key === ' ') {\n                            event.preventDefault();\n                            deepseekharnessSessionSelection.select(node.id, currentId);\n                        }\n                    },"
+    }
+  ]
+}

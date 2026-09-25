@@ -3,7 +3,7 @@ package com.deepseekharness.app.util;
 /** 保留用户 DNS/search/options；仅管理自己的 IPv4 兼容行。自动模式保留 IPv6。 */
 public final class ResolverConfig {
     private ResolverConfig() { }
-    private static final String OWNED="# DSHA managed IPv4 DNS compatibility\noptions no-aaaa\n";
+    private static final String OWNED="# DEEPSEEK_HARNESS managed IPv4 DNS compatibility\noptions no-aaaa\n";
     public static String mode(String value) {
         return "ipv4".equals(value)||"native".equals(value)?value:"auto";
     }

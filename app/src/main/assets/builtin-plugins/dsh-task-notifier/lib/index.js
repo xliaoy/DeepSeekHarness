@@ -1,8 +1,8 @@
 /**
- * dsh-task-notifier — DSHA builtin server plugin.
+ * dsh-task-notifier — DEEPSEEK_HARNESS builtin server plugin.
  *
  * 精准任务完成通知：监听 session/event 的 turn/end（整轮对话结束 =
- * agent 任务完成），通过 DSHA 3090 桥发 App 通知栏提醒。
+ * agent 任务完成），通过 DEEPSEEK_HARNESS 3090 桥发 App 通知栏提醒。
  * 取代 App 端 TaskNotifier 的「轮询会话文件」方案（不准）。
  *
  * 链路：turn/end → curl http://127.0.0.1:3090/app/notify?title=&text=&token=
@@ -17,10 +17,10 @@ export const name = 'dsh-task-notifier'
 /** 通知节流：同一 agent 30s 内只发一次（防连续 turn/end 轰炸） */
 const THROTTLE_MS = 30_000
 export function completionNotice(reason) {
-  if (reason === 'completed') return ['DSHA · 任务完成', 'Agent 已完成一轮对话，点击查看结果']
-  if (reason === 'max-tokens') return ['DSHA · 已达到输出上限', '请查看结果，按需继续对话']
-  if (reason === 'aborted' || reason === 'interrupted') return ['DSHA · 任务已停止', '本轮任务未完成，点击查看状态']
-  return ['DSHA · 任务需要处理', '本轮任务因错误或阻塞结束，请查看对话详情']
+  if (reason === 'completed') return ['DEEPSEEK_HARNESS · 任务完成', 'Agent 已完成一轮对话，点击查看结果']
+  if (reason === 'max-tokens') return ['DEEPSEEK_HARNESS · 已达到输出上限', '请查看结果，按需继续对话']
+  if (reason === 'aborted' || reason === 'interrupted') return ['DEEPSEEK_HARNESS · 任务已停止', '本轮任务未完成，点击查看状态']
+  return ['DEEPSEEK_HARNESS · 任务需要处理', '本轮任务因错误或阻塞结束，请查看对话详情']
 }
 
 /** 通过 3090 桥发 App 通知（token 鉴权） */

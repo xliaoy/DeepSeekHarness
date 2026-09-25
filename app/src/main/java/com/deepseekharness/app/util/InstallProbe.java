@@ -12,6 +12,8 @@ public final class InstallProbe {
     public static final String SESSION_TOP = SESSION_BASE + "dsh-session-persistence-jsonl/lib/index.js";
     public static final String SESSION_NESTED = SESSION_BASE + "dsh/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js";
     public static final String SESSION_PUBLISH_IMPORT = "import { publishSessionExclusive as link } from \"deepseekharness-runtime-fs\";";
+    /** alpha.2 的会话后端用受管 cwd 直达提示，仍保留真实磁盘读取与格式校验。 */
+    public static final String SESSION_DIRECT_HINT_MARKER = "DeepSeekHarness_SESSION_DIRECT_HINTS_V1";
     public static final String SETTINGS = SESSION_BASE + "dsh/node_modules/@deepseek-ai/dsh-client-ui-settings/lib/client.js";
 
     public static final class Check {
@@ -25,20 +27,21 @@ public final class InstallProbe {
         List<Check> all = new ArrayList<>();
         all.add(new Check(2, "curl", "curl", "curl --version"));
         all.add(new Check(2, "git", "git", "git --version"));
-        all.add(new Check(2, "python", "Python 与标准库", "python3 -B -c 'import ssl, sqlite3, readline, tarfile, zipfile, sys; print(sys.version); ssl.create_default_context()'"));
+        all.add(new Check(2, "python", com.deepseekharness.app.util.UiText.text("Python 与标准库"), "python3 -B -c 'import ssl, sqlite3, readline, tarfile, zipfile, sys; print(sys.version); ssl.create_default_context()'"));
         all.add(new Check(3, "node", "Node.js", "node --version"));
         all.add(new Check(4, "pnpm", "pnpm", "pnpm --version"));
-        all.add(new Check(5, "dsh", "dsh 入口与版本", "test -x /usr/local/bin/dsh && node -e "
+        all.add(new Check(5, "dsh", com.deepseekharness.app.util.UiText.text("dsh 入口与版本"), "test -x /usr/local/bin/dsh && node -e "
                 + ShellQuote.arg("const p=require('/usr/local/lib/node_modules/@deepseek-ai/dsh/package.json'); if(!/^\\d+\\./.test(p.version))process.exit(1); console.log(p.version)")));
-        all.add(new Check(6, "dns", "DNS 配置", "grep -Eq '^[[:space:]]*nameserver[[:space:]]+[^[:space:]#]+' /etc/resolv.conf || { echo '缺少 nameserver 配置'; exit 1; }"));
-        all.add(new Check(6, "session", "会话写入补丁", "found=0; for f in " + ShellQuote.arg(SESSION_TOP) + " " + ShellQuote.arg(SESSION_NESTED)
+        all.add(new Check(6, "dns", com.deepseekharness.app.util.UiText.text("DNS 配置"), "grep -Eq '^[[:space:]]*nameserver[[:space:]]+[^[:space:]#]+' /etc/resolv.conf || { echo '缺少 nameserver 配置'; exit 1; }"));
+        all.add(new Check(6, "session", com.deepseekharness.app.util.UiText.text("会话写入补丁"), "found=0; for f in " + ShellQuote.arg(SESSION_TOP) + " " + ShellQuote.arg(SESSION_NESTED)
                 + "; do [ -f \"$f\" ] || continue; found=1; if grep -Fq 'await link(tmp, finalPath)' \"$f\" && ! grep -Fq "
-                + ShellQuote.arg(SESSION_PUBLISH_IMPORT) + " \"$f\"; then echo \"会话写入补丁缺失：$f\"; exit 1; fi; done; [ \"$found\" = 1 ] || { echo '会话模块缺失'; exit 1; }"));
-        all.add(new Check(6, "settings", "局域网设置补丁", "test -f " + ShellQuote.arg(SETTINGS)
+                + ShellQuote.arg(SESSION_PUBLISH_IMPORT) + " \"$f\" && ! grep -Fq " + ShellQuote.arg(SESSION_DIRECT_HINT_MARKER)
+                + " \"$f\"; then echo \"会话写入补丁缺失：$f\"; exit 1; fi; done; [ \"$found\" = 1 ] || { echo '会话模块缺失'; exit 1; }"));
+        all.add(new Check(6, "settings", com.deepseekharness.app.util.UiText.text("局域网设置补丁"), "test -f " + ShellQuote.arg(SETTINGS)
                 + " || { echo '设置模块缺失'; exit 1; }; if grep -Fq "
                 + ShellQuote.arg("const persistence = ctx.remote.$host.isLoopback ? \"host\" : \"memory\";")
                 + " " + ShellQuote.arg(SETTINGS) + "; then echo '局域网设置补丁缺失'; exit 1; fi"));
-        all.add(new Check(6, "groups", "Android 用户组", "id -Gn"));
+        all.add(new Check(6, "groups", com.deepseekharness.app.util.UiText.text("Android 用户组"), "id -Gn"));
         if (selected != 0) all.removeIf(check -> check.step != selected);
         return all;
     }
@@ -90,9 +93,9 @@ public final class InstallProbe {
         public synchronized String detail(int step) {
             StringBuilder out = new StringBuilder();
             for (Check check : checks) if (check.step == step) {
-                if (out.length() > 0) out.append("；");
+                if (out.length() > 0) out.append(com.deepseekharness.app.util.UiText.text("；"));
                 Integer code = codes.get(check.key);
-                out.append(check.label).append(code == null ? "：未收到结果" : code == 0 ? "：正常" : "：失败（退出码 " + code + "）");
+                out.append(check.label).append(code == null ? com.deepseekharness.app.util.UiText.text("：未收到结果") : code == 0 ? com.deepseekharness.app.util.UiText.text("：正常") : com.deepseekharness.app.util.UiText.text("：失败（退出码 ") + code + com.deepseekharness.app.util.UiText.text("）"));
             }
             return out.toString();
         }
@@ -100,16 +103,6 @@ public final class InstallProbe {
 
     /** 只改已知补丁位置，不遍历工作区、会话数据或运行全量 l2s 修复。 */
     public static String patchScript() {
-        return "python3 -B -u -c " + ShellQuote.arg(patchPython(List.of(SESSION_TOP, SESSION_NESTED), SETTINGS, "/etc/resolv.conf"));
-    }
-
-    /** 生成补丁 python 源码；路径可注入，测试用临时目录 fixture 验证真实行为。 */
-    static String patchPython(List<String> sessionPaths, String settingsPath, String dnsPath) {
-        StringBuilder session = new StringBuilder();
-        for (int i = 0; i < sessionPaths.size(); i++) {
-            if (i > 0) session.append("','");
-            session.append(pyStr(sessionPaths.get(i)));
-        }
         String python = "import os, stat, tempfile\n"
                 + "def write(path, text):\n"
                 + " mode=stat.S_IMODE(os.stat(path).st_mode) if os.path.exists(path) else 0o644\n"
@@ -121,35 +114,22 @@ public final class InstallProbe {
                 + "  if os.path.exists(tmp): os.unlink(tmp)\n"
                 + "def read(path):\n"
                 + " with open(path) as f: return f.read()\n"
-                + "p='" + pyStr(dnsPath) + "'\n"
+                + "p='/etc/resolv.conf'\n"
                 + "s=read(p) if os.path.isfile(p) else ''\n"
                 + "import re\n"
                 + "if not re.search(r'^\\s*nameserver\\s+[^\\s#]+',s,re.M): write(p,s+'\\nnameserver 8.8.8.8\\nnameserver 223.5.5.5\\n'); print('已补齐 DNS',flush=True)\n"
-                + "for p in ['" + session + "']:\n"
+                + "for p in ['" + SESSION_TOP + "','" + SESSION_NESTED + "']:\n"
                 + " if not os.path.isfile(p): continue\n"
                 + " s=read(p)\n"
                 + " if 'await link(tmp, finalPath)' in s and '" + SESSION_PUBLISH_IMPORT + "' not in s:\n"
-                + "  if 'await link(tmp, finalPath);' not in s: raise RuntimeError('会话写入调用形式已变化，保留原文件：'+p)\n"
-                + "  fixed=False; out=[]\n"
-                + "  for ln in s.splitlines(keepends=True):\n"
-                + "   if ln.startswith('import {') and 'from \"node:fs/promises\"' in ln:\n"
-                + "    a,b,c=ln.partition('import {'); x,y,z=c.partition('}')\n"
-                + "    names=[n.strip() for n in x.split(',') if n.strip()]\n"
-                + "    if not names: raise RuntimeError('会话模块 import 结构已变化，保留原文件：'+p)\n"
-                + "    if 'rename' not in names: names.insert(1,'rename')\n"
-                + "    ln=a+'import { '+', '.join(names)+'}'+z; fixed=True\n"
-                + "   out.append(ln)\n"
-                + "  if not fixed: raise RuntimeError('会话模块 import 结构已变化，保留原文件：'+p)\n"
-                + "  s=''.join(out).replace('await link(tmp, finalPath);','await rename(tmp, finalPath);')\n"
+                + "  old='import { link, mkdir, mkdtemp, open,'\n"
+                + "  if old not in s or 'await link(tmp, finalPath);' not in s: raise RuntimeError('会话模块结构已变化，保留原文件：'+p)\n"
+                + "  s=s.replace('await link(tmp, finalPath);','await rename(tmp, finalPath);').replace(old,'import { mkdir, mkdtemp, open, rename,')\n"
                 + "  write(p,s); print('已修复会话写入：'+p,flush=True)\n"
-                + "p='" + pyStr(settingsPath) + "'\n"
+                + "p='" + SETTINGS + "'\n"
                 + "if os.path.isfile(p):\n"
                 + " s=read(p); old='const persistence = ctx.remote.$host.isLoopback ? \"host\" : \"memory\";'\n"
                 + " if old in s: write(p,s.replace(old,'const persistence = \"host\"; // DeepSeekHarness patch: LAN')); print('已修复局域网设置',flush=True)\n";
-        return python;
-    }
-
-    private static String pyStr(String s) {
-        return s.replace("\\", "\\\\").replace("'", "\\'");
+        return "python3 -B -u -c " + ShellQuote.arg(python);
     }
 }

@@ -5,8 +5,18 @@ import java.nio.charset.StandardCharsets;
 public final class WebPageScripts {
     private WebPageScripts() { }
     public static String compatibility(Context context) {
-        return read(context, "web-integration/compat.js") + "\n" + read(context, "web-integration/startup.js")
-                + "\n" + read(context, "web-integration/theme.js");
+        String section="";
+        if(context instanceof android.app.Activity){String url=((android.app.Activity)context).getIntent().getStringExtra("url");
+            if(((android.app.Activity)context).getIntent().getBooleanExtra("DeepSeekHarness_open_models",false)||(url!=null&&url.endsWith("#deepseekharness-models")))section="window.__DEEPSEEK_HARNESS_OPEN_MODELS__=true;window.dispatchEvent(new Event('deepseekharness-open-models'));\n";}
+        return "window.__DEEPSEEK_HARNESS_NATIVE_PLUGINS__=true;\n"+section + language(context) + "\n" + read(context, "web-integration/es-compat.js") + "\n"
+                + read(context, "web-integration/compat.js") + "\n"
+                + read(context, "web-integration/theme.js") + "\n"
+                + read(context, "web-integration/startup.js");
+    }
+    public static String language(Context context) {
+        String id=new com.deepseekharness.app.core.ConfigStore(context).getUiLanguage();
+        return "window.__DeepSeekHarness_LANGUAGE__='"+id+"';window.dispatchEvent(new CustomEvent('deepseekharness-language'));"
+            +"if(!window.__deepseekharnessLanguageSelectionBound){window.__deepseekharnessLanguageSelectionBound=true;window.addEventListener('deepseekharness-language-selected',e=>{if(e.detail==='en'||e.detail==='zh')window.DeepSeekHarnessLanguage?.postMessage(e.detail);});}";
     }
     private static String read(Context context, String path) {
         try (InputStream in = context.getAssets().open(path)) {

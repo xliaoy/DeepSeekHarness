@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- iOS 原生风格色板（不透明）：systemGroupedBackground 浅灰底 + 纯白卡片 + hairline 分隔。
-     毛玻璃质感由「不透明渐变 + 描边 + 柔和层叠阴影」实现，不使用半透明/模糊。 -->
+<!-- 本 fork 视觉色板（iOS 原生风格，不透明）：systemGroupedBackground 浅灰底 + 纯白卡片 + hairline 分隔。
+     毛玻璃质感由「不透明渐变 + 描边 + 柔和层叠阴影」实现，不使用半透明/模糊。
+
+     上游 v0.1.7-alpha2 新增了 panel_top / panel_bottom / panel_outline 等键，键名全部保留
+     （上游 layout/drawable 在引用），取值统一归拢到本 fork 的灰阶设计语言：
+     顶栏与页面同色（panel_top = panel_bottom = 卡片白），描边沿用 fork 的 line。 -->
 <resources>
+    <!-- ===== 上游新增的面板/顶栏 token：保留键名，配色并入 fork 视觉 ===== -->
+    <color name="panel_top">#FFFFFF</color>
+    <color name="panel_bottom">#FFFFFF</color>
+    <color name="panel_outline">#E5E5EA</color>
+
     <color name="primary">#000000</color>
     <color name="primary_dark">#1C1C1E</color>
     <color name="accent_on">#FFFFFF</color>

@@ -1,0 +1,23 @@
+<resources>
+    <string name="plugin_sort_title">Sort plugins</string>
+    <string name="plugin_sort_az">Name A–Z</string>
+    <string name="plugin_sort_za">Name Z–A</string>
+    <string name="plugin_sort_enabled">Enabled first</string>
+    <string name="plugin_sort_updates">Updates first</string>
+
+    <!-- Plugin page (market-free build): list + install online + install via CLI.
+         Semantic names match the reference implementation for easy diffing. -->
+    <string name="plugins_title">Plugin manager</string>
+    <string name="plugins_search_hint">Search plugin name or description</string>
+    <string name="plugins_sort_name">Sort by name</string>
+    <string name="plugins_sync_status">Sync local install status</string>
+    <string name="update_check">Check for updates</string>
+    <string name="plugin_install_title">Install Plugin</string>
+    <string name="plugins_tip">Usage tips</string>
+    <string name="plugins_online_install">Install online</string>
+    <string name="plugins_cli_install">Install via CLI</string>
+    <string name="plugins_safe_mode">Safe mode: restore previously enabled third-party plugins</string>
+    <string name="plugins_list">Plugin list</string>
+    <string name="plugins_import">Import</string>
+    <string name="plugins_export">Export</string>
+</resources>

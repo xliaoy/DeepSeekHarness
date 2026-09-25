@@ -17,7 +17,7 @@ final class LanAuth {
     static final int AUTH_OK_SET_COOKIE = 2;
 
     /** Cookie owned by the DeepSeekHarness LAN proxy, never by dsh itself. */
-    static final String COOKIE_NAME = "deepseekharness_lan";
+    static final String COOKIE_NAME = "DeepSeekHarness_lan";
 
     private LanAuth() {
     }

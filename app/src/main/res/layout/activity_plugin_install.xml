@@ -1,107 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  插件安装确认页：iOS 拟态分组排版。
-  顶部导航行 + 两张白色大圆角卡片：请求信息（状态 / 真实包信息）、操作。
--->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/surface"
-    android:fillViewport="true">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="@dimen/page_pad"
-        android:paddingTop="@dimen/gap_control"
-        android:paddingEnd="@dimen/page_pad"
-        android:paddingBottom="@dimen/gap_section">
-
-        <!-- 导航行 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:minHeight="@dimen/touch_min"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/link_install_close"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
-                android:layout_width="44dp"
-                android:layout_height="wrap_content"
-                android:contentDescription="@string/common_back"
-                android:text="‹"
-                android:textSize="@dimen/text_display" />
-
-            <TextView
-                style="@style/DeepSeekHarnessText.PageTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/gap_tight"
-                android:layout_weight="1"
-                android:text="@string/plugin_install_title" />
-        </LinearLayout>
-
-        <!-- ================= 请求信息 ================= -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_block">
-
-            <TextView
-                android:id="@+id/link_install_status"
-                style="@style/DeepSeekHarnessText.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textIsSelectable="true"
-                android:textStyle="bold" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/stroke"
-                android:layout_marginTop="@dimen/gap_control"
-                android:background="@color/line" />
-
-            <TextView
-                android:id="@+id/link_install_details"
-                style="@style/DeepSeekHarnessText.Label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_control"
-                android:textIsSelectable="true" />
-        </LinearLayout>
-
-        <!-- ================= 操作 ================= -->
-        <LinearLayout
-            style="@style/DeepSeekHarnessCard"
-            android:background="@drawable/bg_card"
-            android:elevation="2dp"
-            android:orientation="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section">
-
-            <Button
-                android:id="@+id/link_install_confirm"
-                style="@style/Widget.DeepSeekHarness.PrimaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="@dimen/btn_height"
-                android:text="@string/plugin_install_parse_link" />
-
-            <Button
-                android:id="@+id/link_install_manage"
-                style="@style/Widget.DeepSeekHarness.TextButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/gap_tight"
-                android:text="@string/common_open_plugin_manager" />
-        </LinearLayout>
+<?xml version='1.0' encoding='utf-8'?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/surface" android:fillViewport="true">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical" android:orientation="horizontal">
+      <androidx.appcompat.widget.AppCompatImageButton android:id="@+id/link_install_close" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_ui_back" android:contentDescription="@string/ui_m0201" app:tint="@color/text" />
+      <TextView style="@style/DeepSeekHarnessText.PageTitle" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/ui_m0106" />
     </LinearLayout>
+    <TextView android:id="@+id/link_install_status" style="@style/DeepSeekHarnessText.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:textIsSelectable="true" />
+    <TextView android:id="@+id/link_install_details" style="@style/DeepSeekHarnessText.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:textIsSelectable="true" />
+    <Button android:id="@+id/link_install_confirm" style="@style/Widget.DEEPSEEK_HARNESS_PrimaryButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/ui_m0185" />
+    <Button android:id="@+id/link_install_manage" style="@style/Widget.DEEPSEEK_HARNESS_TextButton" android:layout_marginTop="8dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_m0013" />
+  </LinearLayout>
 </ScrollView>

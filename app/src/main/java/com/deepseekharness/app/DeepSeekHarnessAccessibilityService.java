@@ -37,11 +37,12 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
 
     /** 读到配对信息后的回调（在无障碍服务线程上调用，实现方自己切主线程） */
     public interface PairInfoListener {
-        void onPairInfo(String code, String ip, String port);
+        void onPairInfo(String code, String ip, String port, String connectPort);
     }
 
     private static volatile long watchUntil = 0L;
     private static volatile PairInfoListener listener;
+    private static volatile String observedConnectHost="",observedConnectPort="";
 
     /** 三态：YES 确认已开 / NO 确认未开 / UNKNOWN 读不到设置（别当成未开）。
      *
@@ -95,6 +96,7 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
 
     /** 打开监听窗口（120 秒，一次性）。只有这段时间内才会去读设置页的内容。 */
     public static void startWatch(PairInfoListener l) {
+        observedConnectHost="";observedConnectPort="";
         listener = l;
         watchUntil = System.currentTimeMillis() + WATCH_MS;
     }
@@ -123,23 +125,16 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
             StringBuilder sb = new StringBuilder();
             collectText(root, sb, 0);
             String all = sb.toString();
-            // 必须出现「配对码」字样才继续 —— 否则设置页里任何 6 位数字
-            // （流量、时长、序列号片段）都可能被误当成配对码
-            if (!all.contains("配对码") && !all.toLowerCase().contains("pairing code")) return;
-            Matcher mc = CODE.matcher(all);
-            if (!mc.find()) return;
-            String code = mc.group(1);
-            String ip = "";
-            String port = "";
-            Matcher ma = ADDR.matcher(all);
-            if (ma.find()) {
-                ip = ma.group(1);
-                port = ma.group(2);
-            }
+            var connection=com.deepseekharness.app.util.AdbPairingInfo.connection(all);
+            if(connection!=null){observedConnectHost=connection.host;observedConnectPort=connection.port;}
+            var pair=com.deepseekharness.app.util.AdbPairingInfo.pairing(all);
+            if(pair==null)return;
+            String code=pair.code,ip=pair.host,port=pair.port;
+            String connectPort=ip.equals(observedConnectHost)?observedConnectPort:"";
             PairInfoListener l = listener;
             stopWatch(); // 一次性：读到就收工，不再继续读屏
             Log.i(TAG, "已从配对弹窗读到配对码（端口 " + (port.isEmpty() ? "未识别" : port) + "）");
-            if (l != null) l.onPairInfo(code, ip, port);
+            if (l != null) l.onPairInfo(code, ip, port, connectPort);
         } catch (Throwable t) {
             Log.w(TAG, "读配对码失败：" + SensitiveData.redact(String.valueOf(t)));
         } finally {
@@ -183,6 +178,18 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
     // 服务自身不做任何持续记录（onAccessibilityEvent 里除了配对窗口一律直接返回）。
 
     private static volatile DeepSeekHarnessAccessibilityService instance;
+    public static boolean connected() { return instance != null; }
+
+    /** 授权弹窗关闭的短暂窗口切换期间只重试读取窗口，不重放点击或输入。 */
+    private static AccessibilityNodeInfo activeWindow(DeepSeekHarnessAccessibilityService service) {
+        for(int attempt=0;attempt<13;attempt++) {
+            AccessibilityNodeInfo root=service.getRootInActiveWindow();
+            if(root!=null)return root;
+            if(android.os.Looper.myLooper()==android.os.Looper.getMainLooper()||attempt==12)return null;
+            try{Thread.sleep(60);}catch(InterruptedException cancelled){Thread.currentThread().interrupt();return null;}
+        }
+        return null;
+    }
 
     @Override
     protected void onServiceConnected() {
@@ -193,8 +200,8 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
 
     /** 服务没开时统一的提示语：告诉 agent 该让用户做什么，而不是只丢一个错误码 */
     private static final String NOT_READY =
-            "[ERR] 无障碍服务未开启。请让用户在 DeepSeek Harness「配置」页点「屏幕操作权限」，"
-                    + "或到系统设置 → 无障碍 → DeepSeek Harness 配对助手 打开。";
+            "[ERR] 无障碍服务未开启。请让用户在 DeepSeekHarness「设置 → 设备能力授权」点「设置屏幕操作」，"
+                    + "或到系统设置 → 无障碍 → DeepSeekHarness 配对助手 打开。";
 
     /** 当前前台窗口的应用包名；取不到返回空串。授权闸门用它识别支付/银行类应用。 */
     public static String currentPackage() {
@@ -202,7 +209,7 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
         if (s == null) return "";
         AccessibilityNodeInfo root = null;
         try {
-            root = s.getRootInActiveWindow();
+            root = activeWindow(s);
             if (root == null) return "";
             CharSequence p = root.getPackageName();
             return p == null ? "" : p.toString();
@@ -218,13 +225,52 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
         }
     }
 
+    public static boolean isConnected() { return instance != null; }
+    public static org.json.JSONObject virtualControl(int displayId,String operation,org.json.JSONObject args){return com.deepseekharness.app.vscreen.VirtualScreenAccessibility.run(instance,displayId,operation,args);}
+
+    /** 只读取指定虚拟显示的窗口，绝不回退到手机主屏。 */
+    private static AccessibilityNodeInfo virtualRoot(int displayId) {
+        DeepSeekHarnessAccessibilityService service=instance;
+        if(service==null||android.os.Build.VERSION.SDK_INT<30||displayId<=0)return null;
+        var windows=service.getWindowsOnAllDisplays().get(displayId);
+        if(windows==null)return null;
+        AccessibilityNodeInfo result=null;
+        try {
+            for(var window:windows){
+                if(window.getType()!=android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION)continue;
+                AccessibilityNodeInfo root=window.getRoot();
+                if(root==null)continue;
+                if(result==null||window.isActive()){if(result!=null)result.recycle();result=root;}else root.recycle();
+                if(window.isActive())break;
+            }
+            return result;
+        } finally { for(var window:windows)window.recycle(); }
+    }
+    public static String virtualDump(int displayId) {
+        if(instance==null)return "ACCESSIBILITY_UNAVAILABLE";
+        AccessibilityNodeInfo root=null;
+        try{root=virtualRoot(displayId);if(root==null)return "VIRTUAL_WINDOW_UNAVAILABLE";
+            StringBuilder out=new StringBuilder();dumpNode(root,out,0,new int[]{0});return out.toString();
+        }catch(Throwable e){return "VIRTUAL_TREE_UNAVAILABLE";}finally{if(root!=null)root.recycle();}
+    }
+    public static String virtualInput(int displayId,String text) {
+        if(instance==null)return "ACCESSIBILITY_REQUIRED_FOR_UNICODE";
+        AccessibilityNodeInfo root=null,target=null;
+        try{root=virtualRoot(displayId);if(root==null)return "VIRTUAL_WINDOW_UNAVAILABLE";
+            target=root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if(target==null||!target.isEditable())return "VIRTUAL_INPUT_NOT_FOCUSED";
+            android.os.Bundle args=new android.os.Bundle();args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,text);
+            return target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,args)?"OK":"VIRTUAL_INPUT_REJECTED";
+        }catch(Throwable e){return "VIRTUAL_INPUT_RESULT_UNKNOWN";}finally{if(target!=null)target.recycle();if(root!=null)root.recycle();}
+    }
+
     /** 读当前屏幕：输出带序号、文本、可点击性与坐标的清单，供 agent 决定下一步点哪个。 */
     public static String uiDump() {
         DeepSeekHarnessAccessibilityService s = instance;
         if (s == null) return NOT_READY;
         try {
-            AccessibilityNodeInfo root = s.getRootInActiveWindow();
-            if (root == null) return "[ERR] 取不到当前窗口（可能停在锁屏或系统弹窗上）";
+            AccessibilityNodeInfo root = activeWindow(s);
+            if (root == null) return com.deepseekharness.app.util.UiText.text("[ERR] 取不到当前窗口（可能停在锁屏或系统弹窗上）");
             StringBuilder sb = new StringBuilder();
             CharSequence pkg = root.getPackageName();
             sb.append("窗口应用: ").append(pkg == null ? "未知" : pkg).append('\n');
@@ -240,7 +286,7 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
             if (n[0] == 0) sb.append("（没有可读节点）\n");
             return sb.toString();
         } catch (Throwable t) {
-            return "[ERR] 读屏失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 读屏失败：") + SensitiveData.redact(String.valueOf(t));
         }
     }
 
@@ -297,13 +343,13 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
     public static String uiTapText(String text) {
         DeepSeekHarnessAccessibilityService s = instance;
         if (s == null) return NOT_READY;
-        if (text == null || text.isEmpty()) return "[ERR] 要点的文字不能为空";
+        if (text == null || text.isEmpty()) return com.deepseekharness.app.util.UiText.text("[ERR] 要点的文字不能为空");
         AccessibilityNodeInfo root = null;
         try {
-            root = s.getRootInActiveWindow();
-            if (root == null) return "[ERR] 取不到当前窗口";
+            root = activeWindow(s);
+            if (root == null) return com.deepseekharness.app.util.UiText.text("[ERR] 取不到当前窗口");
             AccessibilityNodeInfo hit = findClickableByText(root, text, 0);
-            if (hit == null) return "[ERR] 屏幕上找不到可点击的「" + text + "」（先用 dump 看看实际文字）";
+            if (hit == null) return com.deepseekharness.app.util.UiText.text("[ERR] 屏幕上找不到可点击的「") + text + "」（先用 dump 看看实际文字）";
             boolean ok;
             try {
                 ok = hit.performAction(AccessibilityNodeInfo.ACTION_CLICK);
@@ -313,9 +359,9 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
                 } catch (Throwable ignored) {
                 }
             }
-            return ok ? "OK 已点击「" + text + "」" : "[ERR] 点击被系统拒绝（控件可能不可用）";
+            return ok ? com.deepseekharness.app.util.UiText.text("OK 已点击「") + text + "」" : com.deepseekharness.app.util.UiText.text("[ERR] 点击被系统拒绝（控件可能不可用）");
         } catch (Throwable t) {
-            return "[ERR] 点击失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 点击失败：") + SensitiveData.redact(String.valueOf(t));
         } finally {
             if (root != null) {
                 try {
@@ -361,14 +407,14 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
     public static String uiInput(String text) {
         DeepSeekHarnessAccessibilityService s = instance;
         if (s == null) return NOT_READY;
-        if (text == null) return "[ERR] 文本不能为空";
+        if (text == null) return com.deepseekharness.app.util.UiText.text("[ERR] 文本不能为空");
         AccessibilityNodeInfo root = null;
         try {
-            root = s.getRootInActiveWindow();
-            if (root == null) return "[ERR] 取不到当前窗口";
+            root = activeWindow(s);
+            if (root == null) return com.deepseekharness.app.util.UiText.text("[ERR] 取不到当前窗口");
             AccessibilityNodeInfo target = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
             if (target == null) target = findEditable(root, 0);
-            if (target == null) return "[ERR] 屏幕上没有输入框（先点一下要输入的位置）";
+            if (target == null) return com.deepseekharness.app.util.UiText.text("[ERR] 屏幕上没有输入框（先点一下要输入的位置）");
             android.os.Bundle args = new android.os.Bundle();
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
             boolean ok;
@@ -380,9 +426,9 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
                 } catch (Throwable ignored) {
                 }
             }
-            return ok ? "OK 已输入 " + text.length() + " 个字符" : "[ERR] 输入被系统拒绝";
+            return ok ? com.deepseekharness.app.util.UiText.text("OK 已输入 ") + text.length() + " 个字符" : com.deepseekharness.app.util.UiText.text("[ERR] 输入被系统拒绝");
         } catch (Throwable t) {
-            return "[ERR] 输入失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 输入失败：") + SensitiveData.redact(String.valueOf(t));
         } finally {
             if (root != null) {
                 try {
@@ -423,17 +469,17 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
             case "notifications": case "notification": action = GLOBAL_ACTION_NOTIFICATIONS; break;
             case "quicksettings": case "quick": action = GLOBAL_ACTION_QUICK_SETTINGS; break;
             case "lock":
-                if (android.os.Build.VERSION.SDK_INT < 28) return "[ERR] 锁屏需要 Android 9+";
+                if (android.os.Build.VERSION.SDK_INT < 28) return com.deepseekharness.app.util.UiText.text("[ERR] 锁屏需要 Android 9+");
                 action = GLOBAL_ACTION_LOCK_SCREEN;
                 break;
             default:
-                return "[ERR] 不认识的按键「" + name
+                return com.deepseekharness.app.util.UiText.text("[ERR] 不认识的按键「") + name
                         + "」（可用：back/home/recents/notifications/quicksettings/lock）";
         }
         try {
-            return s.performGlobalAction(action) ? "OK 已发送 " + k : "[ERR] 系统拒绝了 " + k;
+            return s.performGlobalAction(action) ? com.deepseekharness.app.util.UiText.text("OK 已发送 ") + k : com.deepseekharness.app.util.UiText.text("[ERR] 系统拒绝了 ") + k;
         } catch (Throwable t) {
-            return "[ERR] 按键失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 按键失败：") + SensitiveData.redact(String.valueOf(t));
         }
     }
 
@@ -482,17 +528,17 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
                     latch.countDown();
                 }
             }, null);
-            if (!accepted) return "[ERR] 手势未被接受（" + what + "）";
+            if (!accepted) return com.deepseekharness.app.util.UiText.text("[ERR] 手势未被接受（") + what + "）";
             if (!latch.await(6, java.util.concurrent.TimeUnit.SECONDS)) {
-                return "[ERR] 手势超时（" + what + "）";
+                return com.deepseekharness.app.util.UiText.text("[ERR] 手势超时（") + what + "）";
             }
-            return ok[0] ? "OK 已" + what : "[ERR] 手势被取消（" + what + "，可能被其它手势打断）";
+            return ok[0] ? com.deepseekharness.app.util.UiText.text("OK 已") + what : com.deepseekharness.app.util.UiText.text("[ERR] 手势被取消（") + what + "，可能被其它手势打断）";
         } catch (Throwable t) {
-            return "[ERR] 手势失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 手势失败：") + SensitiveData.redact(String.valueOf(t));
         }
     }
 
-    /** 截屏（Android 11+）。存成 PNG 落到 Download/DeepSeek Harness 并返回路径 ——
+    /** 截屏（Android 11+）。存成 PNG 落到 Android/data/<applicationId>/files/Pictures/DeepSeekHarness 并返回路径 ——
      *  直接回 base64 会把一张几百 KB 的图塞进会话，把上下文撑爆。
      *  agent 拿到路径后可以走附件机制看图，或让用户自己打开。 */
     @android.annotation.TargetApi(30)
@@ -500,11 +546,11 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
         DeepSeekHarnessAccessibilityService s = instance;
         if (s == null) return NOT_READY;
         if (android.os.Build.VERSION.SDK_INT < 30) {
-            return "[ERR] 截屏需要 Android 11 及以上（当前 API "
+            return com.deepseekharness.app.util.UiText.text("[ERR] 截屏需要 Android 11 及以上（当前 API ")
                     + android.os.Build.VERSION.SDK_INT + "）";
         }
         final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
-        final String[] out = {"[ERR] 截屏无结果"};
+        final String[] out = {com.deepseekharness.app.util.UiText.text("[ERR] 截屏无结果")};
         try {
             s.takeScreenshot(android.view.Display.DEFAULT_DISPLAY,
                     java.util.concurrent.Executors.newSingleThreadExecutor(),
@@ -515,13 +561,13 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
                                 android.graphics.Bitmap bmp = android.graphics.Bitmap.wrapHardwareBuffer(
                                         result.getHardwareBuffer(), result.getColorSpace());
                                 if (bmp == null) {
-                                    out[0] = "[ERR] 截屏数据无法解析";
+                                    out[0] = com.deepseekharness.app.util.UiText.text("[ERR] 截屏数据无法解析");
                                 } else {
                                     out[0] = saveShot(bmp);
                                     bmp.recycle();
                                 }
                             } catch (Throwable t) {
-                                out[0] = "[ERR] 保存截屏失败："
+                                out[0] = com.deepseekharness.app.util.UiText.text("[ERR] 保存截屏失败：")
                                         + SensitiveData.redact(String.valueOf(t));
                             } finally {
                                 try {
@@ -535,39 +581,41 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
                         @Override
                         public void onFailure(int errorCode) {
                             // 5 = 频率限制：系统对连续截屏有节流
-                            out[0] = "[ERR] 截屏被系统拒绝（错误码 " + errorCode
+                            out[0] = com.deepseekharness.app.util.UiText.text("[ERR] 截屏被系统拒绝（错误码 ") + errorCode
                                     + (errorCode == 5 ? "，太频繁了，隔一秒再试" : "") + "）";
                             latch.countDown();
                         }
                     });
             if (!latch.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
-                return "[ERR] 截屏超时";
+                return com.deepseekharness.app.util.UiText.text("[ERR] 截屏超时");
             }
             return out[0];
         } catch (Throwable t) {
-            return "[ERR] 截屏失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 截屏失败：") + SensitiveData.redact(String.valueOf(t));
         }
     }
 
-    /** 存到 Download/DeepSeek Harness —— 这个目录 rootfs 里也看得到，agent 能直接拿文件 */
+    /** 保存到本应用的外部私有目录，截屏无需再申请“所有文件访问”。guest 可读取相同挂载。 */
     private static String saveShot(android.graphics.Bitmap bmp) {
         try {
-            java.io.File dir = new java.io.File(
-                    android.os.Environment.getExternalStoragePublicDirectory(
-                            android.os.Environment.DIRECTORY_DOWNLOADS), "DeepSeekHarness");
+            DeepSeekHarnessAccessibilityService service=instance;
+            if(service==null)return NOT_READY;
+            java.io.File base=service.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES);
+            if(base==null)return com.deepseekharness.app.util.UiText.choose("[ERR] 截屏存储暂不可用，请检查设备存储。","[ERR] Screenshot storage is unavailable. Check device storage.");
+            java.io.File dir = new java.io.File(base,"DeepSeekHarness");
             if (!dir.isDirectory() && !dir.mkdirs()) {
-                return "[ERR] 建不了目录 " + dir;
+                return com.deepseekharness.app.util.UiText.text("[ERR] 建不了目录 ") + dir;
             }
             java.io.File f = new java.io.File(dir, "screen-"
                     + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.ROOT)
-                    .format(new java.util.Date()) + ".png");
+                    .format(new java.util.Date()) + "-" + java.util.UUID.randomUUID().toString().substring(0,8) + ".png");
             try (java.io.FileOutputStream fo = new java.io.FileOutputStream(f)) {
-                bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, fo);
+                if(!bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, fo))throw new java.io.IOException("PNG_ENCODING_FAILED");
             }
-            return "OK 截屏已保存：" + f.getAbsolutePath()
+            return com.deepseekharness.app.util.UiText.text("OK 截屏已保存：") + f.getAbsolutePath()
                     + "（" + bmp.getWidth() + "x" + bmp.getHeight() + "）";
         } catch (Throwable t) {
-            return "[ERR] 写截屏文件失败：" + SensitiveData.redact(String.valueOf(t));
+            return com.deepseekharness.app.util.UiText.text("[ERR] 写截屏文件失败：") + SensitiveData.redact(String.valueOf(t));
         }
     }
 
@@ -578,6 +626,7 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        HttpShellService.revokeScreenGrant();
         instance = null;
         stopWatch();
         super.onDestroy();

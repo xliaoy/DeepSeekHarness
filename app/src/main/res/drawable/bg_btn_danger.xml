@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/primary_ripple">
+<!-- 危险按钮（停止/清除/卸载）：实心告警色 + 按压涟漪 + 禁用变灰 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/primary_ripple">
+
     <item android:id="@android:id/mask">
         <shape android:shape="rectangle">
             <solid android:color="#FFFFFFFF" />
             <corners android:radius="@dimen/radius_control" />
         </shape>
     </item>
+
     <item>
         <selector>
             <item android:state_enabled="false">

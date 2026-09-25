@@ -4,7 +4,9 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 mkdir -p /tmp /var/tmp
 chmod 1777 /tmp /var/tmp
-cd /root/.deepseekharness-bundled-tools
+install_dir="${1:-/root/.deepseekharness-bundled-tools}"
+[[ "$install_dir" =~ ^/root/\.deepseekharness-bundled-tools(-[a-f0-9-]{36})?$ ]] || exit 64
+cd "$install_dir"
 sha256sum --status -c SHA256SUMS
 dpkg --force-confold --unpack ./*.deb
 read -r -a packages < packages.txt
@@ -14,5 +16,5 @@ git --version
 cp version.txt /root/.deepseekharness-ubuntu-tools-version
 rm -f -- ./*.deb SHA256SUMS packages.txt version.txt
 cd /root
-rmdir .deepseekharness-bundled-tools
-printf '\nDeepSeekHarness_UBUNTU_TOOLS_READY\n'
+rmdir "$install_dir"
+printf '\nDEEPSEEK_HARNESS_UBUNTU_TOOLS_READY\n'

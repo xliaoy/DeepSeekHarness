@@ -6,13 +6,13 @@
     <item
         android:id="@+id/nav_launch"
         android:icon="@drawable/ic_launch"
-        android:title="@string/nav_launch" />
+        android:title="@string/ui_m0005" />
     <item
         android:id="@+id/nav_plugins"
         android:icon="@drawable/ic_plugins"
-        android:title="@string/nav_plugins" />
+        android:title="@string/ui_m0016" />
     <item
         android:id="@+id/nav_terminal"
         android:icon="@drawable/ic_terminal"
-        android:title="@string/nav_terminal" />
+        android:title="@string/ui_m0021" />
 </menu>

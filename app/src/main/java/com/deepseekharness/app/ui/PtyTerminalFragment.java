@@ -26,13 +26,12 @@ import com.deepseekharness.app.R;
 import com.deepseekharness.app.core.HarnessController;
 import com.deepseekharness.app.util.SensitiveData;
 import com.deepseekharness.app.util.TerminalTabs;
-import com.deepseekharness.app.util.UiText;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
 
 /**
- * 真 PTY 终端页（多标签）：Termux 拆出的 {@code TerminalView}（Apache 2.0）接在 {@link PtySession} 上，
+ * 真 PTY 终端页：Termux 拆出的 {@code TerminalView}（Apache 2.0）接在 {@link PtySession} 上，
  * vim / htop / tmux / top 都能跑（旧简易终端没有 TERM / 光标定位，TUI 全是乱码）。
  *
  * <p>两页并存、可随时互切：右上角「简易」退回旧终端页（万一 PTY 在某些机型出问题，
@@ -73,7 +72,7 @@ public final class PtyTerminalFragment extends Fragment
             {"-", "-"},
     };
 
-    /** 会话跨页面/旋转存活，所以是静态的（与旧终端的 static shell 同思路）。 */
+    /** 会话跨页面存活，所以是静态的（与旧终端的 static shell 同思路）。 */
     private static final TerminalTabs<PtySession> sessions = new TerminalTabs<>();
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -103,14 +102,15 @@ public final class PtyTerminalFragment extends Fragment
             try {
                 tab.value.finish();
             } catch (Throwable error) {
-                android.util.Log.w("DeepSeekHarness", UiText.text("终端尚未停止，保留会话与环境保护：") + SensitiveData.redact(String.valueOf(error)));
+                android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("终端尚未停止，保留会话与环境保护：") + SensitiveData.redact(String.valueOf(error)));
             }
         }
     }
 
     /** 维护时先结束持久终端，等待真实退出与工作锁释放；不能阻塞主线程回调。 */
     public static void shutdownAndWait(long timeoutMs) throws java.io.IOException, InterruptedException {
-        if (Looper.myLooper() == Looper.getMainLooper()) throw new java.io.IOException(UiText.text("请在维护线程等待终端退出"));
+        if (Looper.myLooper() == Looper.getMainLooper()) throw new java.io.IOException(com.deepseekharness.app.util.UiText.text("请在维护线程等待终端退出"));
+        PtySession.closeAllForMaintenance(timeoutMs);
         for (var tab : sessions.snapshot()) {
             tab.value.finishAndWait(timeoutMs);
             sessions.remove(tab.id);
@@ -140,9 +140,8 @@ public final class PtyTerminalFragment extends Fragment
         root.findViewById(R.id.terminal_new).setOnClickListener(v -> startTerminal());
 
         if (!c.proot().isEnvironmentReady()) {
-            title.setText(UiText.text("环境未就绪 —— 先到「安装」页装完再回来"));
-            root.findViewById(R.id.terminal_new).setEnabled(false);
-            renderTabs();
+            title.setText(com.deepseekharness.app.util.UiText.text("环境未就绪 —— 先到「安装」页装完再回来"));
+            root.findViewById(R.id.terminal_new).setEnabled(false);renderTabs();
             return;
         }
         if (!sessions.wasInitialized()) startTerminal(); else attachSelected();
@@ -151,8 +150,8 @@ public final class PtyTerminalFragment extends Fragment
     /** 已有会话就接回去（切页面回来不丢历史），没有就起一个。 */
     private void startTerminal() {
         try {
-            if (com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy())
-                throw new IllegalStateException(UiText.text("正在维护环境，请完成后再启动终端"));
+            String blocked=TerminalFragment.terminalBlockMessage(c.proot());
+            if(!blocked.isEmpty()){title.setText(blocked);return;}
             // 初始 80x24 只是占位：attachSession 之后 TerminalView 会按控件实测的字宽
             // 重新算行列并通知 PTY（否则 TUI 的边框会错位）。
             PtySession ns = PtySession.start(c.proot(), 80, 24, null);
@@ -160,15 +159,15 @@ public final class PtyTerminalFragment extends Fragment
             attachSelected();
         } catch (Throwable e) {
             String safe = SensitiveData.redact(String.valueOf(e));
-            title.setText(UiText.text("终端启动失败：") + safe);
+            title.setText(com.deepseekharness.app.util.UiText.text("终端启动失败：") + safe);
             com.deepseekharness.app.core.DiagnosticLog.record(requireContext(), "PTY_START", safe);
-            android.util.Log.w("DeepSeekHarness", UiText.text("PTY 启动失败：") + safe);
+            android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("PTY 启动失败：") + safe);
         }
     }
 
     private void attachSelected() {
         if (view == null || title == null || getView() == null) return;
-        boolean ready = c != null && c.proot().isEnvironmentReady();
+        boolean ready=c!=null&&c.proot().isEnvironmentReady();
         if (attachedSession != null) attachedSession.detachListener(sessionListener);
         attachedSession = null; sessionListener = null;
         ctrlDown = false; altDown = false; paintModifiers();
@@ -176,59 +175,49 @@ public final class PtyTerminalFragment extends Fragment
         View empty = getView().findViewById(R.id.pty_empty);
         empty.setVisibility(tab == null ? View.VISIBLE : View.GONE);
         view.setVisibility(tab == null ? View.INVISIBLE : View.VISIBLE);
-        view.setEnabled(ready && tab != null && !tab.isClosing());
+        view.setEnabled(ready&&tab!=null&&!tab.isClosing());
         getView().findViewById(R.id.terminal_new).setEnabled(ready);
-        if (tab == null) title.setText(UiText.text("暂无终端"));
+        if (tab == null) title.setText(com.deepseekharness.app.util.UiText.text("暂无终端"));
         else {
-            PtySession selected = tab.value;
-            attachedSession = selected;
+            PtySession selected = tab.value; attachedSession = selected;
             // 每次绑定捕获会话身份；旧会话排队中的回调不能改写新标签。
             sessionListener = new PtySession.Listener() {
                 private boolean active() { return attachedSession == selected; }
-                public void onOutput() { if (active()) PtyTerminalFragment.this.onOutput(); }
-                public void onTitle(String value) { if (active()) PtyTerminalFragment.this.onTitle(value); }
-                public void onExit(int status) { if (active()) PtyTerminalFragment.this.onExit(status); }
-                public void onCopy(String value) { if (active()) PtyTerminalFragment.this.onCopy(value); }
-                public void onPasteRequest() { if (active()) PtyTerminalFragment.this.onPasteRequest(); }
-                public void onBell() { if (active()) PtyTerminalFragment.this.onBell(); }
+                public void onOutput() { if(active())PtyTerminalFragment.this.onOutput(); }
+                public void onTitle(String value) { if(active())PtyTerminalFragment.this.onTitle(value); }
+                public void onExit(int status) { if(active())PtyTerminalFragment.this.onExit(status); }
+                public void onCopy(String value) { if(active())PtyTerminalFragment.this.onCopy(value); }
+                public void onPasteRequest() { if(active())PtyTerminalFragment.this.onPasteRequest(); }
+                public void onBell() { if(active())PtyTerminalFragment.this.onBell(); }
             };
-            if (isResumed()) selected.attachListener(sessionListener);
-            view.attachSession(selected.session());
-            view.onScreenUpdated();
-            title.setText(selected.isRunning() ? displayTitle(selected.session()) : UiText.text("会话已结束"));
+            if(isResumed())selected.attachListener(sessionListener);view.attachSession(selected.session());view.onScreenUpdated();
+            title.setText(selected.isRunning() ? displayTitle(selected.session()) : com.deepseekharness.app.util.UiText.text("会话已结束"));
         }
-        if (!ready) title.setText(UiText.text("环境未就绪 —— 先到「安装」页装完再回来"));
+        if(!ready)title.setText(com.deepseekharness.app.util.UiText.text("环境未就绪 —— 先到「安装」页装完再回来"));
         renderTabs();
     }
 
     private void renderTabs() {
-        if (getView() == null) return;
-        TerminalTabBar.render(getView(), sessions, new TerminalTabBar.Actions() {
-            public void select(long id) { if (sessions.select(id)) attachSelected(); }
+        if(getView()==null)return;
+        TerminalTabBar.render(getView(),sessions,new TerminalTabBar.Actions() {
+            public void select(long id) { if(sessions.select(id))attachSelected(); }
             public void close(long id) { closeTerminal(id); }
         });
     }
 
     private void closeTerminal(long id) {
-        var tab = sessions.find(id);
-        if (tab == null || !sessions.beginClose(id)) return;
-        attachSelected();
-        final Context app = requireContext().getApplicationContext();
-        new Thread(() -> {
-            String failure = null;
-            try {
-                tab.value.finishAndWait(5000);
-                sessions.remove(id);
-            } catch (Exception error) {
-                sessions.closeFailed(id);
-                failure = SensitiveData.redact(String.valueOf(error.getMessage()));
-            }
-            final String problem = failure;
-            main.post(() -> {
-                if (problem != null) Toast.makeText(app, UiText.text("关闭失败，会话仍保留：") + problem, Toast.LENGTH_LONG).show();
-                if (getView() != null) attachSelected();
+        var tab=sessions.find(id);if(tab==null||!sessions.beginClose(id))return;attachSelected();
+        final Context app=requireContext().getApplicationContext();
+        new Thread(()->{
+            String failure=null;
+            try { tab.value.finishAndWait(5000);sessions.remove(id); }
+            catch(Exception error) { sessions.closeFailed(id);failure=SensitiveData.redact(String.valueOf(error.getMessage())); }
+            final String problem=failure;
+            main.post(()->{
+                if(problem!=null)Toast.makeText(app,com.deepseekharness.app.util.UiText.text("关闭失败，会话仍保留：")+problem,Toast.LENGTH_LONG).show();
+                if(getView()!=null)attachSelected();
             });
-        }, "dsha-close-terminal").start();
+        },"deepseekharness-close-terminal").start();
     }
 
     private String displayTitle(TerminalSession s) {
@@ -244,7 +233,7 @@ public final class PtyTerminalFragment extends Fragment
         box.removeAllViews();
         for (String[] k : KEYS) {
             TextView b = new TextView(requireContext());
-            b.setText(k[0]);
+            b.setText(com.deepseekharness.app.util.UiText.text(k[0]));
             b.setMinHeight(dp(44)); b.setMinWidth(dp(44));
             b.setGravity(Gravity.CENTER);
             b.setBackgroundResource(R.drawable.bg_chip);
@@ -291,14 +280,14 @@ public final class PtyTerminalFragment extends Fragment
     }
 
     private void send(String seq) {
-        if (!inputAllowed()) return;
+        if(!inputAllowed())return;
         PtySession s = attachedSession;
         if (s == null || !s.isRunning()) {
-            Toast.makeText(requireContext(), UiText.text("会话已结束，请点击「新建」"), Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), com.deepseekharness.app.util.UiText.text("会话已结束，请点击「新建」"), Toast.LENGTH_SHORT).show();
             return;
         }
-        var selected = sessions.current();
-        if (selected == null || selected.isClosing()) return;
+        var selected=sessions.current();
+        if(selected==null||selected.isClosing())return;
         s.write(seq);
         // 修饰键是一次性的：发完就灭，跟物理键盘的手感一致
         if (ctrlDown || altDown) {
@@ -330,15 +319,15 @@ public final class PtyTerminalFragment extends Fragment
 
     private void switchToSimple() {
         prefs(requireContext()).edit().putBoolean(KEY_PTY, false).apply();
-        Toast.makeText(requireContext(), UiText.text("已切到简易终端（PTY 会话仍在后台）"), Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), com.deepseekharness.app.util.UiText.text("已切到简易终端（PTY 会话仍在后台）"), Toast.LENGTH_SHORT).show();
         try {
             // 容器 id 动态取，不硬编码 MainActivity 的布局细节
             int containerId = ((ViewGroup) requireView().getParent()).getId();
-            getParentFragmentManager().beginTransaction()
+            UiMotion.page(requireContext(),getParentFragmentManager().beginTransaction())
                     .replace(containerId, new TerminalFragment())
                     .commit();
         } catch (Throwable e) {
-            Toast.makeText(requireContext(), UiText.text("请退出终端页再进来"), Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), com.deepseekharness.app.util.UiText.text("请退出终端页再进来"), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -357,15 +346,8 @@ public final class PtyTerminalFragment extends Fragment
 
     // ==================== PtySession.Listener ====================
 
-    @Override public void onResume() {
-        super.onResume();
-        if (view != null && c != null) attachSelected();
-    }
-
-    @Override public void onPause() {
-        if (attachedSession != null) attachedSession.detachListener(sessionListener);
-        super.onPause();
-    }
+    @Override public void onResume() { super.onResume();if(view!=null&&c!=null)attachSelected(); }
+    @Override public void onPause() { if(attachedSession!=null)attachedSession.detachListener(sessionListener);super.onPause(); }
 
     @Override
     public void onDestroyView() {
@@ -420,7 +402,7 @@ public final class PtyTerminalFragment extends Fragment
         final PtySession exited = attachedSession;
         main.post(() -> {
             if (isAdded() && target != null && title == target && attachedSession == exited) {
-                target.setText(UiText.text("会话已结束（退出码 ") + status + UiText.text("）"));
+                target.setText(com.deepseekharness.app.util.UiText.text("会话已结束（退出码 ") + status + com.deepseekharness.app.util.UiText.text("）"));
             }
         });
     }
@@ -437,7 +419,7 @@ public final class PtyTerminalFragment extends Fragment
                 if (cm != null && text != null) {
                     cm.setPrimaryClip(android.content.ClipData.newPlainText("term",
                             SensitiveData.redact(text)));
-                    Toast.makeText(requireContext(), UiText.text("已复制"), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), com.deepseekharness.app.util.UiText.text("已复制"), Toast.LENGTH_SHORT).show();
                 }
             } catch (Throwable ignored) {
             }
@@ -511,11 +493,7 @@ public final class PtyTerminalFragment extends Fragment
     public boolean isTerminalViewSelected() {
         return inputAllowed();
     }
-
-    private boolean inputAllowed() {
-        var tab = sessions.current();
-        return view != null && tab != null && !tab.isClosing() && c != null && c.proot().isEnvironmentReady();
-    }
+    private boolean inputAllowed(){var tab=sessions.current();return view!=null&&tab!=null&&!tab.isClosing()&&c!=null&&c.proot().isEnvironmentReady();}
 
     @Override
     public void copyModeChanged(boolean copyMode) {

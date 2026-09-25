@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 插件页：iOS 拟态卡片分组（分段控件 + 同步卡 + 安装卡 + 提示卡 + 列表） -->
+<!-- 插件页：拟态卡片分组（搜索筛选卡 + 安装卡 + 列表）
+     ★ 结构 = 无商城版本（用户明确要求"不要有在线商城的那个"）
+       · 已删除：分段控件（btnMarket/btnInstalled）、在线商城卡（pluginMarketCard）、
+         社区入口（pluginWebsiteSection/btnPluginWebsite）
+       · 保留：插件列表 + 在线安装 + 命令行安装
+         （用户原话"只留插件列表和命令行安装，在线安装这个就行"）
+     ★ 视觉 token 沿用本仓库命名形态（Widget.DEEPSEEK_HARNESS_*），
+       不照抄参考实现的 Widget.DeepSeekHarness.*：
+       本仓库 14 个 Widget.* 全部是大写下划线形态，混入驼峰会造出同族不一致（K7），
+       且那 3 个驼峰名在本仓库并不存在 ⇒ 照抄必然 aapt2 编译失败。 -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/pluginScroll"
     android:layout_width="match_parent"
@@ -12,7 +21,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="@dimen/page_pad">
+        android:paddingLeft="18dp"
+        android:paddingRight="18dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="22dp">
         <!-- 组标题：插件管理 -->
         <TextView
             style="@style/DeepSeekHarnessText.Caption"
@@ -21,6 +33,7 @@
             android:layout_marginStart="@dimen/gap_hair"
             android:layout_marginBottom="@dimen/gap_tight"
             android:text="@string/plugins_title"
+            android:includeFontPadding="false"
             android:textStyle="bold" />
 
         <!-- 管理与筛选卡（搜索 + 筛选 + 同步/检测更新） -->
@@ -28,7 +41,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_card"
-            android:elevation="2dp"
             android:orientation="vertical"
             android:padding="@dimen/card_pad">
 
@@ -42,10 +54,13 @@
                 android:singleLine="true"
                 android:imeOptions="actionSearch"
                 android:inputType="text"
+                android:importantForAutofill="no"
                 android:padding="@dimen/gap_control"
                 android:textColor="@color/text"
                 android:textColorHint="@color/text_muted"
-                android:textSize="@dimen/text_body" />
+                android:textSize="13sp"
+                android:drawableStart="@drawable/ic_ui_search"
+                android:drawablePadding="12dp" />
 
             <View
                 android:layout_width="match_parent"
@@ -65,11 +80,12 @@
                     style="@style/DeepSeekHarnessText.Caption"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false" />
 
                 <TextView
                     android:id="@+id/btnSort"
-                    style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                    style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:singleLine="true"
@@ -79,7 +95,7 @@
 
                 <TextView
                     android:id="@+id/btnRefresh"
-                    style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                    style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:singleLine="true"
@@ -88,9 +104,9 @@
                     android:layout_marginStart="@dimen/gap_tight"
                     android:text="@string/plugins_sync_status" />
 
-                <Button
+                <TextView
                     android:id="@+id/btnPluginUpdates"
-                    style="@style/Widget.DeepSeekHarness.TextButton"
+                    style="@style/Widget.DEEPSEEK_HARNESS_TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="0dp"
@@ -98,12 +114,13 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 安装插件卡：在线安装 / 命令行安装 弹窗入口 -->
+        <!-- 安装插件卡：在线安装 / 命令行安装 -->
         <LinearLayout
             style="@style/DeepSeekHarnessCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/gap_section">
+            android:layout_marginTop="@dimen/gap_section"
+            android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -116,13 +133,17 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:includeFontPadding="false"
                     android:text="@string/plugin_install_title" />
 
                 <TextView
                     android:id="@+id/btnPluginHelp"
-                    style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                    style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    android:gravity="center"
                     android:text="？"
                     android:contentDescription="@string/plugins_tip" />
             </LinearLayout>
@@ -134,34 +155,34 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <Button
+                <TextView
                     android:id="@+id/btnOnlineInstall"
-                    style="@style/Widget.DeepSeekHarness.Button"
+                    style="@style/Widget.DEEPSEEK_HARNESS_Button"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
+                    android:minHeight="52dp"
                     android:text="@string/plugins_online_install" />
 
-                <Button
+                <TextView
                     android:id="@+id/btnCommandInstallBtn"
-                    style="@style/Widget.DeepSeekHarness.Button"
+                    style="@style/Widget.DEEPSEEK_HARNESS_Button"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/gap_tight"
                     android:layout_weight="1"
-                    android:minHeight="@dimen/btn_height"
+                    android:minHeight="52dp"
                     android:text="@string/plugins_cli_install" />
             </LinearLayout>
         </LinearLayout>
 
-
-        <Button
+        <TextView
             android:id="@+id/btnPluginRestore"
-            style="@style/Widget.DeepSeekHarness.Button"
+            style="@style/Widget.DEEPSEEK_HARNESS_Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_section"
+            android:minHeight="52dp"
             android:visibility="gone"
             android:text="@string/plugins_safe_mode" />
 
@@ -172,7 +193,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gap_section"
             android:background="@drawable/bg_card"
-            android:elevation="2dp"
             android:padding="@dimen/card_pad"
             android:gravity="center"
             android:visibility="gone"
@@ -192,22 +212,27 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="@dimen/gap_hair"
+                android:includeFontPadding="false"
                 android:text="@string/plugins_list"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/btnImport"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:drawableStart="@drawable/ic_ui_import"
+                android:drawablePadding="6dp"
                 android:text="@string/plugins_import" />
 
             <TextView
                 android:id="@+id/btnExport"
-                style="@style/Widget.DeepSeekHarness.ToolbarAction"
+                style="@style/Widget.DEEPSEEK_HARNESS_ToolbarAction"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/gap_tight"
+                android:drawableStart="@drawable/ic_ui_export"
+                android:drawablePadding="6dp"
                 android:text="@string/plugins_export" />
         </LinearLayout>
 

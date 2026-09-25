@@ -29,7 +29,7 @@
 
             <Button
                 android:id="@+id/recovery_back"
-                style="@style/Widget.DeepSeekHarness.TextButton"
+                style="@style/Widget.DEEPSEEK_HARNESS_TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minHeight="44dp"
@@ -91,7 +91,7 @@
 
             <Button
                 android:id="@+id/recovery_retry"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/btn_height"
@@ -99,7 +99,7 @@
 
             <Button
                 android:id="@+id/recovery_safe"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
@@ -108,7 +108,7 @@
 
             <Button
                 android:id="@+id/recovery_new_config"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
@@ -117,7 +117,7 @@
 
             <Button
                 android:id="@+id/recovery_repair_interrupted"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
@@ -227,7 +227,7 @@
 
             <Button
                 android:id="@+id/recovery_tools_env"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/btn_height"
@@ -235,7 +235,7 @@
 
             <Button
                 android:id="@+id/recovery_tools_logs"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"
@@ -244,7 +244,7 @@
 
             <Button
                 android:id="@+id/recovery_tools_refresh"
-                style="@style/Widget.DeepSeekHarness.Button"
+                style="@style/Widget.DEEPSEEK_HARNESS_Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/gap_tight"

@@ -1,6 +1,7 @@
 package com.deepseekharness.app.ui;
 
 import android.app.Activity;
+import android.graphics.Color;
 import android.view.View;
 
 import androidx.core.graphics.ColorUtils;
@@ -11,9 +12,6 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.deepseekharness.app.R;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /** 两种网页内核共用安全显示区；系统栏、挖孔和输入法都不能覆盖正文。 */
 public final class WebFullscreenUi {
@@ -26,10 +24,13 @@ public final class WebFullscreenUi {
         // 旧 Android 的 FLAG_FULLSCREEN 会阻止 adjustResize，不能依赖输入法出现时再取消全屏。
         activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
         WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), false);
-        // DeepSeekHarness：状态栏透明，状态栏区域透出 content 背景（随网页主题色）。
         View content = activity.findViewById(android.R.id.content);
         content.setBackgroundColor(activity.getColor(R.color.surface));
         ViewCompat.setOnApplyWindowInsetsListener(content, (view, insets) -> {
+            if (PictureInPictureActivity.showing(activity)) {
+                view.setPadding(0, 0, 0, 0);
+                return WindowInsetsCompat.CONSUMED;
+            }
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                     | WindowInsetsCompat.Type.displayCutout());
             // 顶部保留稳定安全区，避免 ROM 在键盘/焦点切换时短暂报告状态栏不可见而把正文顶上去。
@@ -37,9 +38,6 @@ public final class WebFullscreenUi {
                     | WindowInsetsCompat.Type.displayCutout() | WindowInsetsCompat.Type.captionBar());
             Insets safe = Insets.max(bars, stableTop);
             int keyboard = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
-            // DeepSeekHarness：顶部保留安全区 —— 内容（含 fixed 定位的顶部按钮/弹窗）
-            // 整体位于状态栏下方；状态栏区域由 content 背景色渲染（applyThemeColor
-            // 跟随网页背景色，读取失败时带轮询重试）。底部保留导航栏/键盘安全区。
             view.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, keyboard));
             return WindowInsetsCompat.CONSUMED;
         });
@@ -48,6 +46,7 @@ public final class WebFullscreenUi {
     }
 
     public static void applySystemBars(Activity activity) {
+        if (PictureInPictureActivity.showing(activity)) return;
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(
                 activity.getWindow(), activity.getWindow().getDecorView());
         controller.setAppearanceLightStatusBars(androidx.core.graphics.ColorUtils.calculateLuminance(
@@ -80,47 +79,20 @@ public final class WebFullscreenUi {
             if (v.charAt(0) == '#') {
                 if (v.length() == 4) {
                     int r = hexDigit(v.charAt(1)), g = hexDigit(v.charAt(2)), b = hexDigit(v.charAt(3));
-                    if (r < 0 || g < 0 || b < 0) return 0;
-                    return 0xFF000000 | (r << 20) | (r << 16) | (g << 12) | (g << 8) | (b << 4) | b;
+                    return Color.rgb(r, g, b);
                 }
-                return android.graphics.Color.parseColor(v);
+                if (v.length() == 7) return Color.parseColor(v);
+                if (v.length() == 9) return Color.parseColor(v);
+                return 0;
             }
-            if (v.startsWith("rgb")) {
-                Matcher m = RGB.matcher(v);
-                if (m.find()) {
-                    String[] parts = m.group(1).split(",");
-                    if (parts.length >= 3) {
-                        int r = channel(parts[0]), g = channel(parts[1]), b = channel(parts[2]);
-                        int a = 255;
-                        if (parts.length >= 4) a = alpha(parts[3]);
-                        return (a << 24) | (r << 16) | (g << 8) | b;
-                    }
-                }
-            }
-            return android.graphics.Color.parseColor(v);
-        } catch (Exception | LinkageError error) {
+            if (v.startsWith("rgb(") || v.startsWith("rgba(")) return Color.parseColor(v);
             return 0;
-        }
+        } catch (Exception ignored) { return 0; }
     }
-
-    private static final Pattern RGB = Pattern.compile("rgba?\\(([^)]+)\\)");
-
     private static int hexDigit(char c) {
         if (c >= '0' && c <= '9') return c - '0';
-        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-        return -1;
-    }
-
-    private static int channel(String s) {
-        String t = s.trim();
-        if (t.endsWith("%")) {
-            return Math.round(Float.parseFloat(t.substring(0, t.length() - 1).trim()) / 100f * 255f);
-        }
-        return Math.max(0, Math.min(255, Math.round(Float.parseFloat(t))));
-    }
-
-    private static int alpha(String s) {
-        return Math.max(0, Math.min(255, Math.round(Float.parseFloat(s.trim()) * 255f)));
+        if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+        if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+        return 0;
     }
 }

@@ -1,5 +1,5 @@
 - insert:
-    - id: dsha-computer-use-service
+    - id: deepseekharness-computer-use-service
       name: '@deepseek-ai/dsh-computer-use'
-    - id: dsha-computer-use-android
+    - id: deepseekharness-computer-use-android
       name: dsh-computer-use-android
