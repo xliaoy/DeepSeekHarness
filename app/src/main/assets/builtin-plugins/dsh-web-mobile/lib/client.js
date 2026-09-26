@@ -8024,7 +8024,7 @@ function installSessionMenuDelete(ctx) {
             const rename = wsT('rename');
             const fork = wsT('menu.fork');
             const archive = wsT('menu.archiveSession');
-            return labels.length === 3 && labels.includes(rename) && labels.includes(fork) && labels.includes(archive);
+            return labels.length >= 3 && labels.includes(rename) && labels.includes(fork) && labels.includes(archive);
         };
         const closeDialog = () => {
             if (closeDialogOnKey !== null) {
