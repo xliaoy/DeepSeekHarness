@@ -155,6 +155,9 @@ final class RuntimeTools {
             if (name.equals("dsh-balance-panel"))
                 for (String file : new String[]{"lib/client.js", "lib/host.js", "LICENSE", "README.md"})
                     install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
+            if (name.equals("dsh-deliverable-mobile"))
+                for (String file : new String[]{"lib/client.js", "LICENSE", "README.md"})
+                    install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
         }
         installPresetPlugin(context, rootfs);
         install(context, rootfs, "deepseekharness-plugin.sh", "root/dsh-bin/deepseekharness-plugin", true);

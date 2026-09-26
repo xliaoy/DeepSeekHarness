@@ -1,4 +1,0 @@
-# dsh-memento bundle patch: mount the memory capability seam plugin.
-- insert:
-    - id: memento
-      name: dsh-memento

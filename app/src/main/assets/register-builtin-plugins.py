@@ -67,6 +67,7 @@ DEFAULT_BUILTINS = (
     "dsh-computer-use-android",
     "dsh-auto-review",
     "dsh-tool-vscreen",
+    "dsh-deliverable-mobile",
 )
 
 # 预装第三方插件：随包内置但保持第三方身份（插件页可在线更新 / 删除）。

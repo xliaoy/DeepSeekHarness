@@ -7,3 +7,4 @@ dsh-balance-panel
 dsh-computer-use-android
 dsh-auto-review
 dsh-tool-vscreen
+dsh-deliverable-mobile

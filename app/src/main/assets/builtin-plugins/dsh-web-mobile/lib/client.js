@@ -5288,6 +5288,62 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     }
   }
 
+  /* --- DeepSeekHarness: extreme-narrow (<360px) general containment ---
+     Small phones (320-359px) crowd when the host lays out desktop-ish rows:
+     composer lanes, stats bars and modal sheets exceed the viewport and force
+     horizontal overflow. These rules keep the whole surface inside the
+     viewport regardless of upstream hash bumps, matching the existing
+     359px-header rule above. */
+  @media (max-width: 359px) {
+    html[data-mobile-nav="frame"],
+    html[data-mobile-nav="frame"] body {
+      overflow-x: hidden !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] [class*="_composerSeat"],
+    [data-mobile-nav="frame"] [data-phase] [class*="_inputbar"],
+    [data-mobile-nav="frame"] [data-dsh-inputbar] {
+      max-width: calc(100vw - 8px) !important;
+      box-sizing: border-box !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] header [class*="_crumbs"],
+    [data-mobile-nav="frame"] [data-phase] header [class*="_titleCluster"] {
+      min-width: 0 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    [data-mobile-nav="frame"] [data-phase] header [class*="_headerActions"] {
+      max-width: 40vw !important;
+      overflow: hidden !important;
+    }
+    [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])) {
+      left: 4px !important;
+      right: 4px !important;
+      width: calc(100vw - 8px) !important;
+      max-width: calc(100vw - 8px) !important;
+    }
+  }
+
+  /* --- DeepSeekHarness: keep the workspace sidebar header visible ---
+     The archived-sessions entry lives in the workspace sidebar's ⋯ view-options
+     menu (show-archived / only-archived). On narrow phones the sidebar column
+     can crowd, so pin the header row and its icon buttons inside the column
+     and never let them shrink away. */
+  [data-mobile-nav="frame"] [data-pane="sidebar"] [class*="_sectionHeader"],
+  [data-mobile-nav="frame"] [class*="sidebarCol"] [class*="_sectionHeader"] {
+    min-height: 36px !important;
+    flex-wrap: nowrap !important;
+    overflow: visible !important;
+  }
+  [data-mobile-nav="frame"] [data-pane="sidebar"] [class*="_sectionHeader"] [class*="_iconButton"],
+  [data-mobile-nav="frame"] [class*="sidebarCol"] [class*="_sectionHeader"] [class*="_iconButton"] {
+    flex: none !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
   /* --- Header popovers on mobile (dsh-client-ui-jobs / dsh-client-ui-subagent) --- */
   /* Both entries sit in the session header and both anchor their panel to the
      trigger's left edge (left:0 inside their own root), so clamp them to the

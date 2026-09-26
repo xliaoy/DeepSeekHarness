@@ -1,0 +1,6 @@
+# dsh-deliverable-mobile bundle patch: one loader row.
+# Host half registers /api/deliverable.mobile-export; client half injects a
+# "手机查看" action into the deliverables file card.
+- insert:
+    - id: dsh-deliverable-mobile
+      name: 'dsh-deliverable-mobile'
