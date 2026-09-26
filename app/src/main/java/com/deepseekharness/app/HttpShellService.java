@@ -547,6 +547,8 @@ public final class HttpShellService {
                 result = DeviceSense.torch(ctx, !"0".equals(on) && !"off".equalsIgnoreCase(on));
             } else if (route.equals("/app/export")) {
                 result = appExport(path);
+            } else if (route.equals("/app/openfile")) {
+                result = appOpenFile(path);
             } else if (cmd.isEmpty()) {
                 result = "[NO_CMD]";
             } else if (route.equals("/confirm")) {
@@ -1448,6 +1450,61 @@ public final class HttpShellService {
             String out = BackupManager.exportToDownloads(ctx, f, name);
             return out == null ? com.deepseekharness.app.util.UiText.text("ERROR: 导出失败（存储权限或空间不足）")
                     : "OK: " + SensitiveData.redact(out);
+        } catch (Throwable e) {
+            return "ERROR: " + safeError(e);
+        }
+    }
+
+    /** /app/openfile?path=/root/x.md ：导出到公共 Download 并唤起系统「打开方式」选择器
+     *  （QQ/微信同款：ACTION_VIEW + createChooser，用户可选 MT 管理器 / 文件管理器 / 其它应用直接打开）。 */
+    private String appOpenFile(String path) {
+        try {
+            String q = queryOf(path);
+            String src = getParam(q, "path", "");
+            if (src.isEmpty()) return "NO_PATH";
+            // 与 appExport 相同的安全校验：凭据/运行时内部状态不可放行。
+            if (com.deepseekharness.app.util.BridgePathPolicy.denied(src))
+                return "FORBIDDEN: " + com.deepseekharness.app.util.BridgePathPolicy.reason();
+            String name = getParam(q, "name", "");
+            java.io.File f = new java.io.File(src);
+            if (!f.isFile()) {
+                // 允许传 rootfs 内的 guest 路径（/root/... → 映射到 App 私有目录）
+                try {
+                    HarnessController hc = HarnessController.get(ctx);
+                    java.io.File guess = new java.io.File(hc.getProot().getRootfsDir(),
+                            src.startsWith("/") ? src.substring(1) : src);
+                    if (guess.isFile()) f = guess;
+                } catch (Throwable ignored) {
+                }
+            }
+            if (!f.isFile()) return "NOT_FOUND: " + SensitiveData.redact(src);
+            if (exportDeniedByCanonical(f)) return "FORBIDDEN: " + com.deepseekharness.app.util.BridgePathPolicy.reason();
+            if (f.length() > 64L * 1024 * 1024) return "TOO_LARGE: " + f.length();
+            if (name.isEmpty()) name = f.getName();
+            if (name.contains("/") || name.contains("..")) return "BAD_NAME";
+
+            // 1. 导出到公共 Download/DeepSeekHarness（MediaStore content URI 或 file URI）。
+            com.deepseekharness.app.data.DownloadsExport.Result saved;
+            try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin("数据维护")) {
+                saved = com.deepseekharness.app.data.DownloadsExport.write(ctx, f, name);
+            }
+            if (saved == null || saved.uri == null)
+                return com.deepseekharness.app.util.UiText.text("ERROR: 导出失败（存储权限或空间不足）");
+
+            // 2. 唤起系统「打开方式」选择器（MT 管理器 / 文件管理器 / 其它应用）。
+            android.net.Uri uri = saved.uri;
+            android.content.Intent view = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+            String mime = java.net.URLConnection.guessContentTypeFromName(name);
+            if (mime == null || mime.isEmpty()) mime = "application/octet-stream";
+            view.setDataAndType(uri, mime);
+            view.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    | android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            android.content.Intent chooser = android.content.Intent.createChooser(view,
+                    com.deepseekharness.app.util.UiText.text("用其他应用打开"));
+            chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(chooser);
+            return com.deepseekharness.app.util.UiText.text("OK: 已唤起打开方式选择器：") + SensitiveData.redact(name);
         } catch (Throwable e) {
             return "ERROR: " + safeError(e);
         }

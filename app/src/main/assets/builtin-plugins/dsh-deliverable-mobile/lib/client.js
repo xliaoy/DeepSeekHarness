@@ -11,7 +11,7 @@
 
         var inject = ["slots"];
 
-        var EXPORT_ROUTE = "/api/deliverable.mobile-export";
+        var OPEN_ROUTE = "/api/deliverable.mobile-open";
 
         var STYLE = {
           display: "inline-flex",
@@ -49,22 +49,22 @@
               var seq = coords ? coords.get("seq") : null;
               var index = coords ? coords.get("index") : null;
               if (!sessionId || !seq || !index) throw new Error("交付文件坐标缺失");
-              var response = await fetch(EXPORT_ROUTE + "?sessionId=" + encodeURIComponent(sessionId)
+              var response = await fetch(OPEN_ROUTE + "?sessionId=" + encodeURIComponent(sessionId)
                   + "&seq=" + encodeURIComponent(seq) + "&index=" + encodeURIComponent(index), {
                 method: "GET",
                 signal: AbortSignal.timeout(90000),
               });
               var payload = await response.json().catch(() => null);
               if (!response.ok || payload === null || payload.ok !== true) {
-                var message = payload && payload.error && payload.error.message ? payload.error.message : "导出失败";
+                var message = payload && payload.error && payload.error.message ? payload.error.message : "唤起失败";
                 setPhase("error");
-                console.warn("[dsh-deliverable-mobile] export failed:", message);
+                console.warn("[dsh-deliverable-mobile] open failed:", message);
                 return;
               }
               setPhase("done");
             } catch (reason) {
               setPhase("error");
-              console.warn("[dsh-deliverable-mobile] export error:", reason);
+              console.warn("[dsh-deliverable-mobile] open error:", reason);
             }
           };
 
@@ -72,13 +72,13 @@
             return React.createElement("span", {
               style: Object.assign({}, STYLE, { borderColor: "var(--dsw-alias-state-success-secondary)", color: "var(--dsw-alias-state-success-primary)" }),
               "data-dsh-deliverable-mobile": "done",
-            }, "已导出到 下载/DeepSeekHarness");
+            }, "已唤起打开方式");
           }
           if (phase === "error") {
             return React.createElement("span", {
               style: Object.assign({}, STYLE, { borderColor: "var(--dsw-alias-state-error-secondary)", color: "var(--dsw-alias-state-error-primary)" }),
               "data-dsh-deliverable-mobile": "error",
-            }, "导出失败");
+            }, "唤起失败");
           }
           return React.createElement("button", {
             type: "button",
@@ -86,8 +86,8 @@
             disabled: phase === "busy" || !!pending,
             onClick: onClick,
             "data-dsh-deliverable-mobile": "open",
-            title: "导出到 Download/DeepSeekHarness，用手机文件管理器/MT 管理器打开",
-          }, phase === "busy" ? "导出中…" : "📱 手机查看");
+            title: "导出并选择用其他应用打开（MT 管理器 / 文件管理器等）",
+          }, phase === "busy" ? "打开中…" : "📱 用其他应用打开");
         }
 
         function apply(ctx) {
