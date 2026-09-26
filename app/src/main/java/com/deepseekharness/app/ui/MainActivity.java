@@ -621,7 +621,7 @@ public class MainActivity extends AppCompatActivity {
     private void showAboutDialog() {
         String msg = com.deepseekharness.app.util.UiText.text("DeepSeek Harness 手机端（DSHA 二开版）\n\n")
                 + com.deepseekharness.app.util.UiText.text("本软件完全免费开源，不收取任何费用，也没有会员、内购或任何付费功能。\n")
-                + com.deepseekharness.app.util.UiText.text("如果你是通过付费购买获得本软件，说明你被骗了，请立即退款，并到官方交流群反馈。\n\n")
+                + com.deepseekharness.app.util.UiText.text("如果你是通过付费购买获得本软件，说明你被骗了，请立即申请退款，并到官方交流群反馈。\n\n")
                 + com.deepseekharness.app.util.UiText.text("应用名称：DeepSeek Harness\n")
                 + com.deepseekharness.app.util.UiText.text("包名：") + getPackageName() + "\n"
                 + com.deepseekharness.app.util.UiText.text("版本：v") + appVersion() + "\n"
