@@ -104,6 +104,8 @@ export function apply(ctx) {
     path: OPEN_ROUTE,
     methods: ['GET'],
     requestBody: 'buffered',
-    fetch: (request) => handleOpen(ctx, new Request(request)),
+    fetch: (request) => handleOpen(ctx, request),
   });
 }
+
+export { inject };

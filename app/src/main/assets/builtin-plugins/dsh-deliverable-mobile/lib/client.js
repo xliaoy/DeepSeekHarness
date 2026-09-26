@@ -39,6 +39,7 @@
           var state = React.useState("idle");
           var phase = state[0];
           var setPhase = state[1];
+          var errorMessage = "";
 
           var onClick = async () => {
             if (phase === "busy") return;
@@ -56,13 +57,15 @@
               });
               var payload = await response.json().catch(() => null);
               if (!response.ok || payload === null || payload.ok !== true) {
-                var message = payload && payload.error && payload.error.message ? payload.error.message : "唤起失败";
+                var message = payload && payload.error && payload.error.message ? payload.error.message : "唤起失败(HTTP " + response.status + ")";
+                errorMessage = message;
                 setPhase("error");
                 console.warn("[dsh-deliverable-mobile] open failed:", message);
                 return;
               }
               setPhase("done");
             } catch (reason) {
+              errorMessage = reason && reason.message ? String(reason.message) : String(reason);
               setPhase("error");
               console.warn("[dsh-deliverable-mobile] open error:", reason);
             }
@@ -75,10 +78,12 @@
             }, "已唤起打开方式");
           }
           if (phase === "error") {
+            var errorText = typeof errorMessage === "string" && errorMessage ? errorMessage : "唤起失败";
             return React.createElement("span", {
               style: Object.assign({}, STYLE, { borderColor: "var(--dsw-alias-state-error-secondary)", color: "var(--dsw-alias-state-error-primary)" }),
               "data-dsh-deliverable-mobile": "error",
-            }, "唤起失败");
+              title: errorText,
+            }, "唤起失败：" + errorText.slice(0, 40));
           }
           return React.createElement("button", {
             type: "button",
