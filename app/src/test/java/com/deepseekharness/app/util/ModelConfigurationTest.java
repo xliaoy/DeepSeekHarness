@@ -4,7 +4,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 public class ModelConfigurationTest {
     @Test public void customHeadersRoundTripAndRejectAmbiguousOrInjectedFields(){
-        JsonObject configured=JsonParser.parseString("{\"x-opencode-session\":\"session-123\",\"User-Agent\":\"DEEPSEEK_HARNESS/1.0\"}").getAsJsonObject();
+        JsonObject configured=JsonParser.parseString("{\"x-opencode-session\":\"session-123\",\"User-Agent\":\"DSHA/1.0\"}").getAsJsonObject();
         assertEquals(configured,ModelConfiguration.headers(ModelConfiguration.headerRows(configured)));
         for(String invalid:new String[]{
                 "[{\"name\":\"X-Session\",\"value\":\"a\"},{\"name\":\"x-session\",\"value\":\"b\"}]",

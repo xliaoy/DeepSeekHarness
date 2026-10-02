@@ -108,12 +108,9 @@ public final class LayoutAuditInstrumentation extends Instrumentation {
         if(view instanceof android.widget.CompoundButton || view instanceof EditText)return false;
         if(view instanceof android.widget.Button)return true;
         int id=view.getId();
-        // 无商城版插件页：btnMarket/btnInstalled 分段控件、btnPluginPaste/btnPluginInstall 内联安装
-        // 均已随在线商城一并移除，此处白名单同步换成新布局的操作 id。
         return id==R.id.settings_language || id==R.id.config_overlay_style || id==R.id.config_workspace_entry
-                || id==R.id.environment_recovery_banner || id==R.id.pty_title
-                || id==R.id.btnRefresh || id==R.id.btnOnlineInstall || id==R.id.btnCommandInstallBtn
-                || id==R.id.btnPluginHelp || id==R.id.btnImport
+                || id==R.id.environment_recovery_banner || id==R.id.pty_title || id==R.id.btnMarket || id==R.id.btnInstalled
+                || id==R.id.btnRefresh || id==R.id.btnPluginPaste || id==R.id.btnPluginInstall || id==R.id.btnImport
                 || id==R.id.btnExport || id==R.id.pluginActions || id==R.id.pty_font_dec || id==R.id.pty_font_inc || id==R.id.pty_simple;
     }
     private void alignment(TextView view,String scene) {
@@ -192,10 +189,10 @@ public final class LayoutAuditInstrumentation extends Instrumentation {
         } finally { if(dialog[0]!=null)ui(()->dialog[0].dismiss());prefs.edit().clear().commit(); }
     }
     private void navigation() throws Exception {
-        shell("am start -W -n com.deepseek.harness/com/deepseekharness.app.ui.MainActivity");
+        shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
         until(()->MainActivity.current!=null && MainActivity.current.getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED),"主页面未就绪");
         ConfigStore store=new ConfigStore(getTargetContext());String port=store.getPort();
-        ui(()->MainActivity.current.openSettings());
+        ui(()->((com.google.android.material.bottomnavigation.BottomNavigationView)MainActivity.current.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_settings));
         until(()->MainActivity.current.findViewById(R.id.settings_tabs)!=null,"设置页未打开");
         ui(()->((ViewGroup)MainActivity.current.findViewById(R.id.settings_tabs)).getChildAt(1).performClick());
         until(()->MainActivity.current.findViewById(R.id.config_save)!=null,"配置页未打开");
@@ -223,7 +220,7 @@ public final class LayoutAuditInstrumentation extends Instrumentation {
                     if(type==0)builder.setTitle(com.deepseekharness.app.util.UiText.choose("界面语言","Interface language"))
                         .setSingleChoiceItems(new String[]{com.deepseekharness.app.util.UiText.choose("简体中文","Simplified Chinese"),"English"},0,(d,w)->{});
                     else if(type==1)builder.setTitle(com.deepseekharness.app.util.UiText.text("持续允许读取短信？"))
-                        .setMessage(com.deepseekharness.app.util.UiText.text("当前 DEEPSEEK_HARNESS 环境内的助手和插件将能通过已授权的 root 或 ADB 查询短信，包括正文、号码和可能存在的验证码。\n\n后续短信查询不再逐条询问。可随时回到本页关闭，恢复逐次确认。"))
+                        .setMessage(com.deepseekharness.app.util.UiText.text("当前 DSHA 环境内的助手和插件将能通过已授权的 root 或 ADB 查询短信，包括正文、号码和可能存在的验证码。\n\n后续短信查询不再逐条询问。可随时回到本页关闭，恢复逐次确认。"))
                         .setPositiveButton(com.deepseekharness.app.util.UiText.text("允许短信读取"),(d,w)->{});
                     else builder.setTitle(com.deepseekharness.app.util.UiText.text("导出插件包"))
                         .setMultiChoiceItems(new String[]{"example-plugin-one","example-plugin-two"},new boolean[]{false,true},(d,w,c)->{})
@@ -244,7 +241,7 @@ public final class LayoutAuditInstrumentation extends Instrumentation {
         Activity active=null;
         try {
             boolean devices="devices".equals(args.getString("mode"));
-            shell("am start -W -n com.deepseek.harness/com/deepseekharness.app.ui.MainActivity"+(devices?" --ez limited_entry true":""));
+            shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity"+(devices?" --ez limited_entry true":""));
             if(!devices) {
                 long readyDeadline=System.currentTimeMillis()+120000;
                 com.deepseekharness.app.core.HarnessController controller=com.deepseekharness.app.core.HarnessController.get(getTargetContext());

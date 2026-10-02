@@ -611,7 +611,7 @@ public final class LanProxyService {
                 result.append("Sec-Fetch-Site: same-origin\r\n");
                 secFetchSite = true;
             } else if (lower.equals("referer") || lower.equals("cookie") || lower.equals("authorization")
-                    || (lower.contains("DeepSeekHarness") && lower.contains("token"))) {
+                    || (lower.contains("deepseekharness") && lower.contains("token"))) {
                 // Never pass a LAN credential, a stale external cookie, or a
                 // similarly named compatibility header to dsh.
             } else {

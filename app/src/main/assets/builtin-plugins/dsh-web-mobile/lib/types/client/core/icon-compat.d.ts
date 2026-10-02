@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
  * 宿主 `@deepseek-ai/dsh-client-ui-primitives` 的图标命名有两代（真机取证 2026-09-23）：
  *
  *   · `0.1.0-rc.6`（本仓库锁文件 → CI 的 `pnpm verify` 按它 typecheck）：`IconXxxOutline16`
- *   · `0.1.7-alpha.1`（DEEPSEEK_HARNESS 真机宿主）：`IconXxxOutlineRegular`
+ *   · `0.1.7-alpha.1`（DSHA 真机宿主）：`IconXxxOutlineRegular`
  *
  * 仓库声明的 peer 范围（`^0.1.0-rc.6 || >=0.1.1-rc.0 <0.2.0 || >=0.1.2-a <0.2.0`）同时覆盖两代，
  * 但两边**导出的名字互不相交**：写死任何一代，另一代拿到的就是 `undefined`，

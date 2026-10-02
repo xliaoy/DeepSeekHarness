@@ -23,6 +23,8 @@ public final class TerminalSession {
         /** 必须在任何环境准备和进程创建之前原子登记；清理成功之前不得释放。 */
         default AutoCloseable beginLifetime() throws Exception { return null; }
         Process open() throws Exception;
+        /** Validate the fixed bootstrap's birth identity before accepting any user command. */
+        default void onReady(Process process, TerminalReady identity) throws Exception { }
         /** 必须终止本会话的进程组并确认启动器退出；失败抛异常，不能假报重启成功。 */
         void terminate(Process process, long processGroup) throws Exception;
         /** 宿主可在写入前原子取得短环境凭据；被门禁拒绝时必须保证一个字节都未发送。 */
@@ -60,11 +62,9 @@ public final class TerminalSession {
     private volatile State state = State.STOPPED;
     private volatile boolean permanentlyClosing, disposed;
 
-    /** 与单元测试 TerminalSessionTest 的期望逐字一致；\u001e 是控制符 sentinel。 */
-    static final String SENTINEL = "\036DeepSeekHarness_";
     private static final class Run {
-        final String prefix = SENTINEL + UUID.randomUUID().toString().replace("-", "") + ":";
-        final String resultVariable = "__deepseekharness_exit_" + prefix.substring(SENTINEL.length(), prefix.length() - 1);
+        final String prefix = "\036DeepSeekHarness_" + UUID.randomUUID().toString().replace("-", "") + ":";
+        final String resultVariable = "__deepseekharness_exit_" + prefix.substring(6, prefix.length() - 1);
         final StringBuilder incoming = new StringBuilder();
         final long openedAt = System.nanoTime();
         Process process;
@@ -133,18 +133,40 @@ public final class TerminalSession {
         } finally {if(!disposed)permanentlyClosing=false;}
     }
 
-    /** 强制终止当前进程组并标记已停止（关闭标签超时兜底：挂起 shell 不等优雅退出）。 */
+    /** 关闭等不到进程确认时强制终止进程组并立即释放；不再保留会话（多终端并行时
+     *  disposeAndWait 可能超过超时，等待会阻塞用户，超时后应当强制收尾而不是报错）。 */
     public void forceStop() {
-        Run run = active;
-        if (run != null && run.process != null) {
-            try { backend.terminate(run.process, run.group); } catch (Exception ignored) { }
-            try { releaseLifetime(run); } catch (Exception ignored) { }
-            active = null;
-            change(State.STOPPED);
-            emit(com.deepseekharness.app.util.UiText.text("[会话已强制结束]\n"));
-        } else {
-            change(State.STOPPED);
+        if (disposed || permanentlyClosing) return;
+        permanentlyClosing = true;
+        try {
+            boolean sent = submitControl(() -> {
+                Run run = active;
+                if (run == null || run.uncertainStart) {
+                    change(State.STOPPED);
+                } else {
+                    try {
+                        if (run.process != null) backend.terminate(run.process, run.group);
+                    } catch (Exception ignored) {
+                        try { run.process.destroyForcibly(); } catch (Exception ignored2) {}
+                    }
+                    releaseQuietly(run);
+                    active = null;
+                    change(State.STOPPED);
+                }
+                disposed = true;
+            });
+            if (sent) {
+                try { control.shutdown(); } catch (SecurityException ignored) {}
+            } else {
+                disposed = true;
+            }
+        } finally {
+            permanentlyClosing = false;
         }
+    }
+
+    private static void releaseQuietly(Run run) {
+        try { releaseLifetime(run); } catch (Exception ignored) {}
     }
 
     private void deliverExit(Run run, Exception failure) {
@@ -169,7 +191,11 @@ public final class TerminalSession {
             run.lifetime = backend.beginLifetime();
             run.process = backend.open();
             // 不改运行时环境：沿用 Backend 的交互入口，仅给此 shell 建立独立 session/group。
-            String script = "printf '" + escapedPrefix(run) + "READY:%s\\037' \"$$\"; "
+            String script = "IFS= read -r __deepseekharness_stat < /proc/$$/stat && "
+                    + "__deepseekharness_tail=${__deepseekharness_stat##*) } && "
+                    + "read -r -a __deepseekharness_fields <<< \"$__deepseekharness_tail\" && "
+                    + "[[ ${__deepseekharness_fields[19]} =~ ^[1-9][0-9]*$ ]] && "
+                    + "printf '" + escapedPrefix(run) + "READY:%s:%s\\037' \"$$\" \"${__deepseekharness_fields[19]}\" && "
                     + "exec /bin/bash --noprofile --norc";
             write(run, "exec /usr/bin/setsid /bin/bash --noprofile --norc -c " + ShellQuote.arg(script) + "\n");
             Thread reader = new Thread(() -> read(run), "terminal-output");
@@ -283,9 +309,16 @@ public final class TerminalSession {
             String message = run.incoming.substring(run.prefix.length(), end);
             run.incoming.delete(0, end + 1);
             if (message.startsWith("READY:") && !run.ready) {
-                try { run.group = Long.parseLong(message.substring(6)); }
-                catch (NumberFormatException ignored) { continue; }
-                if (run.group <= 1) { run.group = 0; continue; }
+                TerminalReady identity = TerminalReady.parse(message);
+                if (identity == null) continue;
+                run.group = identity.session;
+                try { backend.onReady(run.process, identity); }
+                catch (Exception invalid) {
+                    run.stopRequested = true;
+                    change(State.FAILED);
+                    emit(com.deepseekharness.app.util.UiText.text("[无法核验终端本次进程身份，保留环境占用：") + invalid + "]\n");
+                    return;
+                }
                 run.ready = true;
                 if (run.stopRequested) { stop(run); return; }
                 change(State.READY);

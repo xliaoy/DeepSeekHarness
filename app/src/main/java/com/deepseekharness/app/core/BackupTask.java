@@ -51,6 +51,7 @@ public final class BackupTask {
         try {
             state.restore(saved.getLong("id", 0), saved.getString("kind", ""),
                     Status.valueOf(saved.getString("status", "IDLE")), saved.getString("detail", ""));
+            state.restoreStage(saved.getString("last_stage", ""));
             if (!state.busy()) persistedCompletion = state.snapshot().id;
         } catch (RuntimeException e) {
             state.restore(0, com.deepseekharness.app.util.UiText.text("任务记录"), Status.INTERRUPTED, com.deepseekharness.app.util.UiText.text("上次任务记录无法读取，请检查数据状态。"));
@@ -59,7 +60,7 @@ public final class BackupTask {
     public BackupTaskState.Snapshot snapshot() { return state.snapshot(); }
     /** 执行入口使用的同步、不可缓存维护门禁。 */
     public boolean pendingMaintenance() {
-        boolean value = BackupManager.hasPendingMaintenance(controller);
+        boolean value = MaintenanceCoordinator.pending(controller);
         synchronized (pendingCacheLock) {
             pendingCacheValue = value;
             pendingCacheAt = android.os.SystemClock.elapsedRealtime();
@@ -77,7 +78,7 @@ public final class BackupTask {
         synchronized (pendingCacheLock) {
             now = android.os.SystemClock.elapsedRealtime();
             if (!pendingCacheValid || now - pendingCacheAt >= UI_PENDING_CACHE_MILLIS) {
-                pendingCacheValue = BackupManager.hasPendingMaintenance(controller);
+                pendingCacheValue = MaintenanceCoordinator.pending(controller);
                 pendingCacheAt = now;
                 pendingCacheValid = true;
             }
@@ -87,13 +88,13 @@ public final class BackupTask {
     private void invalidatePendingCache() {
         synchronized (pendingCacheLock) { pendingCacheValid = false; }
     }
-    public boolean busy() { return state.busy() || BackupManager.isEnvironmentTaskBusy(); }
+    public boolean busy() { return state.busy() || MaintenanceCoordinator.isEnvironmentTaskBusy(); }
     /** 顶部维护提示只反映数据任务；启动、终端和插件查询也使用执行锁，不能冒充维护。 */
-    public boolean maintenanceBusy() { return state.busy() || BackupManager.isRestoring(); }
+    public boolean maintenanceBusy() { return state.busy() || MaintenanceCoordinator.isExclusive(); }
     private synchronized void persist() throws IOException {
         BackupTaskState.Snapshot s = state.snapshot();
         if (!saved.edit().putLong("id", s.id).putString("kind", s.kind).putString("status", s.status.name())
-                .putString("detail", s.detail).commit()) throw new IOException(com.deepseekharness.app.util.UiText.text("无法保存任务状态，已停止操作"));
+                .putString("detail", s.detail).putString("last_stage", s.lastStage).commit()) throw new IOException(com.deepseekharness.app.util.UiText.text("无法保存任务状态，已停止操作"));
     }
     private void progress(long id, String detail) {
         state.update(id, Status.RUNNING, detail);
@@ -114,15 +115,17 @@ public final class BackupTask {
         catch (IOException e) { state.update(id, Status.FAILED, e.getMessage()); lease.close(); return false; }
         synchronized (decision) { accepted = null; }
         var cancellation=new com.deepseekharness.app.backup.BackupControl(null);activeCancellation=cancellation;
-        try{com.deepseekharness.app.backup.DataProtectionService.start(app);}
+        final com.deepseekharness.app.backup.DataProtectionService.StartTicket protection;
+        try{protection=com.deepseekharness.app.backup.DataProtectionService.start(app);}
         catch(IOException error){state.update(id,Status.FAILED,error.getMessage());lease.close();activeCancellation=null;try{persist();}catch(IOException ignored){}return false;}
         Thread worker = new Thread(() -> {
             OWNER_CONTROL.set(cancellation);
             try (lease) {
             try {
+                protection.await();
                 String result = lease.run(() -> {
                     progress(id, stopWeb ? com.deepseekharness.app.util.UiText.text("正在停止 Web，等待运行队列完成…") : com.deepseekharness.app.util.UiText.text("正在准备数据快照…"));
-                    return stopWeb ? BackupManager.runDataTask(controller, () -> work.run(id)) : work.run(id);
+                    return stopWeb ? MaintenanceCoordinator.exclusive(controller, () -> work.run(id)) : work.run(id);
                 });
                 state.update(id, Status.SUCCEEDED, result);
             } catch (Cancelled e) { state.update(id, Status.CANCELLED, com.deepseekharness.app.util.UiText.text("已取消恢复，当前数据未覆盖。")); }
@@ -146,7 +149,7 @@ public final class BackupTask {
     public boolean backup(int scope) {
         return start(com.deepseekharness.app.util.UiText.text("创建备份"), false, false, id -> {
             progress(id, com.deepseekharness.app.util.UiText.text("正在打包并校验备份…"));
-            String result = BackupManager.runSnapshotTask(controller, () -> BackupManager.backupToExternal(app, controller, scope));
+            String result = MaintenanceCoordinator.snapshot(controller, () -> BackupManager.backupToExternal(app, controller, scope));
             if (result == null) throw new IOException(BackupManager.lastError());
             return com.deepseekharness.app.util.UiText.text("备份成功，归档与导出文件已校验。\n") + result;
         });
@@ -154,7 +157,7 @@ public final class BackupTask {
     public boolean prepareRestore(Uri uri) {
         return start(com.deepseekharness.app.util.UiText.text("恢复备份"), false, false, id -> {
             progress(id, com.deepseekharness.app.util.UiText.text("正在读取独立副本并检查归档…"));
-            try (BackupManager.PreparedRestore prepared = BackupManager.runSnapshotTask(controller,
+            try (BackupManager.PreparedRestore prepared = MaintenanceCoordinator.snapshot(controller,
                     () -> BackupManager.prepareRestore(app, controller, uri))) {
                 // 预检结束即释放归档锁/CPU 工作锁；等待确认时仅持任务 Lease。
                 state.update(id, Status.PREVIEW, com.deepseekharness.app.util.UiText.text("确认恢复将停止 Web，并中断正在执行的任务。\n\n") + prepared.summary); persist();
@@ -163,7 +166,7 @@ public final class BackupTask {
                     if (!accepted) throw new Cancelled();
                 }
                 progress(id, com.deepseekharness.app.util.UiText.text("已确认恢复，正在停止 Web 并等待退出…"));
-                return BackupManager.runDataTask(controller, () -> BackupManager.restoreWithinDataTask(controller, prepared));
+                return MaintenanceCoordinator.exclusive(controller, () -> BackupManager.restoreWithinDataTask(controller, prepared));
             }
         });
     }
@@ -190,7 +193,9 @@ public final class BackupTask {
             com.deepseekharness.app.backup.AutomaticBackups.suspendForFactoryReset(app,control);
             java.util.concurrent.atomic.AtomicBoolean destructive=new java.util.concurrent.atomic.AtomicBoolean();
             try{
-                com.deepseekharness.app.backup.FactoryReset.Result result=BackupManager.runDataTask(controller,()->{
+                // 应急实例与普通维护独立，但完整格式化会删除它的私有根，必须先确认退出。
+                com.deepseekharness.app.recovery.RecoveryController.get(app).stopAndWaitForReset();
+                com.deepseekharness.app.backup.FactoryReset.Result result=MaintenanceCoordinator.exclusive(controller,()->{
                     destructive.set(true);
                     return com.deepseekharness.app.backup.FactoryReset.eraseApplicationData(app,control);
                 });
@@ -205,7 +210,7 @@ public final class BackupTask {
                 // 允许用户在同一页面重试并避免后台任务写入部分清理的目录。
                 if(!destructive.get())com.deepseekharness.app.backup.AutomaticBackups.abortFactoryReset(app);
                 throw failure;
-            }
+            } finally { com.deepseekharness.app.recovery.RecoveryController.get(app).releaseResetGate(); }
         });
     }
     private static String formatProgress(String stage,long entries,long bytes){

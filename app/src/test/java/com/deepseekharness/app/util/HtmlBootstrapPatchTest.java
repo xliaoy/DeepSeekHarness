@@ -9,17 +9,17 @@ public class HtmlBootstrapPatchTest {
     }
     @Test public void repeatedPreparationAndAssetUpgradeUseOneOwnedBlock() {
         String first=HtmlBootstrapPatch.apply(PAGE,"versionOne()");assertEquals(first,HtmlBootstrapPatch.apply(first,"versionOne()"));
-        String next=HtmlBootstrapPatch.apply(first,"versionTwo()");assertFalse(next.contains("versionOne()"));assertEquals(2,next.split("DeepSeekHarness_BROWSER_COMPAT_BEGIN",-1).length);
+        String next=HtmlBootstrapPatch.apply(first,"versionTwo()");assertFalse(next.contains("versionOne()"));assertEquals(2,next.split("DSHA_BROWSER_COMPAT_BEGIN",-1).length);
     }
     @Test public void scriptClosingTextCannotTerminateTheInjectedElement() {
         String html=HtmlBootstrapPatch.apply(PAGE,"var text='</script><p>value</p>';");
         assertTrue(html.contains("<\\/script>"));assertFalse(html.contains("text='</script>"));
     }
     @Test public void rejectsAmbiguousHeadOrDamagedOwnedMarkers() {
-        for(String page:new String[]{"<body/>","<head><head>",PAGE+"<!-- DeepSeekHarness_BROWSER_COMPAT_BEGIN -->"})try{HtmlBootstrapPatch.apply(page,"test()");fail();}catch(IllegalArgumentException expected){}
+        for(String page:new String[]{"<body/>","<head><head>",PAGE+"<!-- DSHA_BROWSER_COMPAT_BEGIN -->"})try{HtmlBootstrapPatch.apply(page,"test()");fail();}catch(IllegalArgumentException expected){}
     }
     @Test public void retainsTheEarlyCharsetDeclaration() {
         String html=HtmlBootstrapPatch.apply(PAGE.replace("<head>","<head><meta charset=\"utf-8\" />"),"compatibility()");
-        assertTrue(html.indexOf("charset=")<html.indexOf("DeepSeekHarness_BROWSER_COMPAT_BEGIN"));
+        assertTrue(html.indexOf("charset=")<html.indexOf("DSHA_BROWSER_COMPAT_BEGIN"));
     }
 }

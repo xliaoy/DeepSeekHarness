@@ -24,6 +24,15 @@ keystore.properties
 # 大体积运行时资源（bin / 压缩包，走 Release 分发；小文件与插件源码正常入库）
 app/src/main/assets/*.bin
 app/src/main/assets/*.tar.gz
+tools/recovery-runtime/archives/*.bin
+
+# 发卡系统（另一项目，含站点/数据库信息，不入库）
+README_销量修改说明.md
+backup_acg_faka/
+backup_acg_faka.sh
+ftp_acg_faka/
+upload_acg_faka.sh
+calculator.html
 
 # Python 缓存
 __pycache__/

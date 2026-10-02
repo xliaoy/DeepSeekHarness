@@ -34,6 +34,8 @@ public final class RuntimeDescriptor {
         if(value instanceof List){List<Object> result=new ArrayList<>();for(Object child:(List<?>)value)result.add(freeze(child));return Collections.unmodifiableList(result);}return value;
     }
     public String id(){return (String)value.get("runtimeId");}
+    /** 已装运行时的 DSH 版本；随包升级（含 alpha→rc）时用于判断是否需要重装环境。 */
+    public String dshVersion(){Object v=value.get("dshVersion");return v instanceof String?(String)v:"";}
     public boolean latest(RuntimeDescriptor expected){return id().equals(expected.id())&&Objects.equals(value.get("inputs"),expected.value.get("inputs"))&&compatible(expected);}
     public boolean compatible(RuntimeDescriptor expected){
         return Objects.equals(value.get("baseVersion"),expected.value.get("baseVersion"))

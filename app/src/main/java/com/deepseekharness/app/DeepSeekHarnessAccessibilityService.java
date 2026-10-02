@@ -538,7 +538,7 @@ public class DeepSeekHarnessAccessibilityService extends AccessibilityService {
         }
     }
 
-    /** 截屏（Android 11+）。存成 PNG 落到 Android/data/<applicationId>/files/Pictures/DeepSeekHarness 并返回路径 ——
+    /** 截屏（Android 11+）。存成 PNG 落到 Download/DeepSeekHarness 并返回路径 ——
      *  直接回 base64 会把一张几百 KB 的图塞进会话，把上下文撑爆。
      *  agent 拿到路径后可以走附件机制看图，或让用户自己打开。 */
     @android.annotation.TargetApi(30)

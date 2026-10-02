@@ -2,9 +2,11 @@ package com.deepseekharness.app.ui;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.os.Build;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.os.LocaleListCompat;
 import com.deepseekharness.app.core.ConfigStore;
+import com.deepseekharness.app.util.AppLocaleDispatch;
 import com.deepseekharness.app.util.UiLanguagePreference;
 import com.deepseekharness.app.util.UiText;
 import java.util.Locale;
@@ -31,7 +33,20 @@ public final class LanguageController {
         configuration.setLocale(locale);
         // 通知、悬浮界面和后台任务使用 Application 资源；Activity 由 AppCompat 更新。
         app.getResources().updateConfiguration(configuration, app.getResources().getDisplayMetrics());
-        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(language));
+        AppLocaleDispatch.apply(Build.VERSION.SDK_INT,language,new AppLocaleDispatch.Writer(){
+            @Override public void platform(String value){Api33.setApplicationLocales(app,value);}
+            @Override public void compat(String value){AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(value));}
+        });
+    }
+
+    /** Loaded only on API 33+, where Application can write the locale before any AppCompat Activity exists. */
+    private static final class Api33 {
+        static void setApplicationLocales(Context context,String language) {
+            if (Build.VERSION.SDK_INT < 33) throw new IllegalStateException("LOCALE_MANAGER_API");
+            android.app.LocaleManager manager=context.getSystemService(android.app.LocaleManager.class);
+            if(manager==null)throw new IllegalStateException("LOCALE_MANAGER_UNAVAILABLE");
+            manager.setApplicationLocales(new android.os.LocaleList(Locale.forLanguageTag(language)));
+        }
     }
 
     /**

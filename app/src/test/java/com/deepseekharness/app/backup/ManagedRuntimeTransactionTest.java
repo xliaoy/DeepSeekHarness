@@ -25,6 +25,30 @@ public class ManagedRuntimeTransactionTest {
         var previous=health(descriptor(old));previous.put("managedHashes",Map.of(RUNTIME,BackupTree.digest(fs,new File(temp.getRoot(),RUNTIME),new BackupControl(null))));
         task.prepare(List.of(RUNTIME),descriptor(next),descriptor(old),previous,new BackupControl(null));return task;
     }
+    @Test public void completedRuntimeHistoryDoesNotIncreaseStablePendingCost()throws Exception{
+        for(int count:new int[]{0,65,1000}){
+            File files=temp.newFolder(),home=new File(files,ManagedRuntimeTransaction.HOME),completed=new File(home,"completed");
+            Files.createDirectories(completed.toPath());
+            Map<String,Object> candidate=descriptor('a').json();
+            for(int index=0;index<count;index++){
+                String id=UUID.randomUUID().toString();File entry=new File(completed,id);Files.createDirectory(entry.toPath());
+                Files.writeString(new File(entry,"finalized").toPath(),id+"\nfinalized\n");
+                Files.write(new File(entry,"runtime-mapping.json").toPath(),BackupJson.write(Map.of("version",1L,"id",id,
+                        "paths",Map.of("runtime-0",RUNTIME),"candidateDescriptor",candidate,"createdAt",1L),BackupLimits.MANIFEST));
+                Files.write(new File(entry,"plan.json").toPath(),BackupJson.write(Map.of("version",1L,"id",id),4096));
+            }
+            JvmBackupFileSystem delegate=new JvmBackupFileSystem();int[] calls={0},historyLists={0};
+            BackupFileSystem counted=(BackupFileSystem)java.lang.reflect.Proxy.newProxyInstance(BackupFileSystem.class.getClassLoader(),
+                    new Class[]{BackupFileSystem.class},(proxy,method,args)->{calls[0]++;
+                        if(method.getName().equals("list")&&((File)args[0]).equals(completed))historyLists[0]++;
+                        try{return method.invoke(delegate,args);}catch(java.lang.reflect.InvocationTargetException error){throw error.getCause();}});
+            assertTrue(ManagedRuntimeTransaction.pending(counted,files).isEmpty());assertEquals(1,historyLists[0]);
+            calls[0]=historyLists[0]=0;long start=System.nanoTime();
+            for(int i=0;i<5;i++)assertTrue(ManagedRuntimeTransaction.pending(counted,files).isEmpty());
+            long elapsed=System.nanoTime()-start;assertEquals(0,historyLists[0]);assertTrue(calls[0]<160);
+            System.out.println("RUNTIME_HISTORY_STABLE count="+count+" fsCalls="+calls[0]+" elapsedNanos="+elapsed);
+        }
+    }
     @Test public void webFailureRestoresOldFilesAndRetainsFailedCandidate()throws Exception{
         var task=prepare('a','b');assertThrows(IOException.class,()->task.commit(new BackupControl(null),()->{throw new IOException("WEB_FAILED");},()->true));
         assertEquals("a",read(temp.getRoot(),RUNTIME+"/lib/bin.js"));assertEquals("b",read(task.directory(),"failed/runtime-0/lib/bin.js"));
@@ -46,6 +70,39 @@ public class ManagedRuntimeTransactionTest {
         assertEquals("new chat",read(temp.getRoot(),"linux/ubuntu/root/.dsh/sessions/chat"));assertEquals("b",read(temp.getRoot(),RUNTIME+"/lib/bin.js"));
         ManagedRuntimeTransaction.trimOlder(fs,temp.getRoot(),next,health(next));assertEquals("a",read(task.directory(),"previous/runtime-0/lib/bin.js"));
     }
+    @Test public void readOnlyPendingCannotMoveCommittedWorkBeforeCleanup()throws Exception{
+        var task=prepare('a','b');var current=descriptor('b');task.commit(new BackupControl(null),()->health(current),()->true);
+        File active=task.directory();assertTrue(ManagedRuntimeTransaction.pending(fs,temp.getRoot()).isEmpty());
+        assertTrue("caller still owns its work until trim finishes",active.isDirectory());
+        ManagedRuntimeTransaction.trimOlder(fs,temp.getRoot(),current,health(current));
+        assertTrue(task.directory().isDirectory());assertEquals("completed",task.directory().getParentFile().getName());
+        assertEquals("a",read(task.directory(),"previous/runtime-0/lib/bin.js"));
+        put(temp.getRoot(),"linux/ubuntu/root/.dsh/sessions/chat","later user conversation");
+        assertTrue(task.hasHealthyPrevious());task.recover();
+        assertEquals("later user conversation",read(temp.getRoot(),"linux/ubuntu/root/.dsh/sessions/chat"));
+    }
+    @Test public void legacyVersionOneWithoutSealKeepsExplicitRollbackAfterFullPreflight()throws Exception{
+        var task=prepare('a','b');var current=descriptor('b');task.commit(new BackupControl(null),()->health(current),()->true);
+        File mapping=new File(task.directory(),"runtime-mapping.json");
+        var record=BackupJson.read(Files.readAllBytes(mapping.toPath()),BackupLimits.MANIFEST);
+        record.put("version",1L);Files.write(mapping.toPath(),BackupJson.write(record,BackupLimits.MANIFEST));
+        Files.delete(new File(task.directory(),"archive-seal.json").toPath());
+        assertEquals(1,ManagedRuntimeTransaction.rollbackOptions(fs,temp.getRoot(),current,current).size());
+        assertEquals("a",read(task.directory(),"previous/runtime-0/lib/bin.js"));
+        ManagedRuntimeTransaction.archiveCompleted(fs,temp.getRoot());
+        assertEquals("legacy original remains in active location without an invented seal",
+                new File(temp.getRoot(),ManagedRuntimeTransaction.HOME),task.directory().getParentFile());
+        put(task.directory(),"previous/runtime-0/lib/bin.js","user changed previous bytes");
+        assertTrue(ManagedRuntimeTransaction.rollbackOptions(fs,temp.getRoot(),current,current).isEmpty());
+        assertThrows(IOException.class,()->ManagedRuntimeTransaction.prepareRollback(fs,temp.getRoot(),task.directory().getName(),current,current,health(current),new BackupControl(null)));
+    }
+    @Test public void newVersionTwoWithoutSealCannotBorrowLegacyCompatibility()throws Exception{
+        var task=prepare('a','b');var current=descriptor('b');task.commit(new BackupControl(null),()->health(current),()->true);
+        Files.delete(new File(task.directory(),"archive-seal.json").toPath());
+        assertTrue(ManagedRuntimeTransaction.rollbackOptions(fs,temp.getRoot(),current,current).isEmpty());
+        ManagedRuntimeTransaction.archiveCompleted(fs,temp.getRoot());
+        assertEquals(new File(temp.getRoot(),ManagedRuntimeTransaction.HOME),task.directory().getParentFile());
+    }
     @Test public void healthCheckCannotMutateManagedCandidate()throws Exception{
         var task=prepare('a','b');var next=descriptor('b');assertThrows(IOException.class,()->task.commit(new BackupControl(null),()->{
             Files.writeString(new File(temp.getRoot(),RUNTIME+"/lib/bin.js").toPath(),"unexpected mutation");return health(next);
@@ -58,10 +115,7 @@ public class ManagedRuntimeTransactionTest {
         for(int index=0;index<4;index++){
             char old=(char)('a'+index),next=(char)(old+1);var task=prepare(old,next);var candidate=descriptor(next);
             task.commit(new BackupControl(null),()->health(candidate),()->true);
-            File mappingFile=new File(task.directory(),"runtime-mapping.json");
-            var mapping=BackupJson.read(Files.readAllBytes(mappingFile.toPath()),BackupLimits.MANIFEST);
-            mapping.put("createdAt",100L+index);Files.write(mappingFile.toPath(),BackupJson.write(mapping,BackupLimits.MANIFEST));
-            history.add(task);
+            history.add(task);Thread.sleep(2);
         }return history;
     }
     @Test public void cleanupRechecksBytesAndRetainsTwoVerifiedPredecessors()throws Exception{
@@ -102,6 +156,67 @@ public class ManagedRuntimeTransactionTest {
         for(int i=0;i<32;i++)assertTrue(new File(home,UUID.randomUUID().toString()).mkdirs());
         var task=ManagedRuntimeTransaction.create(fs,temp.getRoot());
         assertNotNull(task);assertEquals(33,fs.list(home).size());
+    }
+    @Test public void sixtyFifthOperationDoesNotHitHistoricalDirectoryLimit()throws Exception{
+        File home=new File(temp.getRoot(),ManagedRuntimeTransaction.HOME);assertTrue(home.mkdirs());
+        // Unknown but valid historical records are retained; they no longer make
+        // the next signed-runtime transaction permanently unavailable.
+        File first=null;
+        for(int i=0;i<64;i++){
+            File record=new File(home,UUID.randomUUID().toString());assertTrue(record.mkdir());
+            Files.writeString(new File(record,"retained-unknown.bin").toPath(),"preserve-"+i);
+            if(i==0)first=record;
+        }
+        var next=ManagedRuntimeTransaction.create(fs,temp.getRoot());
+        assertNotNull(next);assertEquals(65,fs.list(home).size());
+        assertEquals("preserve-0",Files.readString(new File(first,"retained-unknown.bin").toPath()));
+    }
+    @Test public void onlyExplicitlyCreatedEmptyPlaceholderIsPruned()throws Exception{
+        File home=new File(temp.getRoot(),ManagedRuntimeTransaction.HOME);assertTrue(home.mkdirs());
+        var empty=ManagedRuntimeTransaction.create(fs,temp.getRoot());File emptySlot=empty.directory();
+        var next=ManagedRuntimeTransaction.create(fs,temp.getRoot());
+        assertFalse(emptySlot.exists());assertTrue(next.directory().isDirectory());
+
+        var partial=ManagedRuntimeTransaction.create(fs,temp.getRoot());File partialStage=new File(partial.stage(),"linux/ubuntu/lib/partial.bin");
+        Files.createDirectories(partialStage.toPath().getParent());Files.writeString(partialStage.toPath(),"unverified stage bytes");
+        var following=ManagedRuntimeTransaction.create(fs,temp.getRoot());
+        assertTrue(partialStage.isFile());assertTrue(following.directory().isDirectory());
+    }
+    @Test public void completedSignedRuntimeHistoryRemainsAuditablePastSixtyFour()throws Exception{
+        char old='a';put(temp.getRoot(),RUNTIME+"/lib/bin.js",String.valueOf(old));
+        List<String> ids=new ArrayList<>();
+        for(int index=0;index<70;index++){
+            char next=(char)('A'+index%26);var task=prepare(old,next);var candidate=descriptor(next);
+            task.commit(new BackupControl(null),()->health(candidate),()->true);
+            String originalKey=fs.stat(task.directory()).key;
+            ManagedRuntimeTransaction.trimOlder(fs,temp.getRoot(),candidate,health(candidate));
+            assertEquals(originalKey,fs.stat(task.directory()).key);ids.add(task.directory().getName());
+            old=next;
+        }
+        File home=new File(temp.getRoot(),ManagedRuntimeTransaction.HOME);
+        assertEquals(70,fs.list(new File(home,"completed")).size());
+        for(String id:ids){var retained=ManagedRuntimeTransaction.open(fs,temp.getRoot(),id,null);
+            assertEquals("completed",retained.directory().getParentFile().getName());assertTrue(new File(retained.directory(),"plan.json").isFile());}
+        assertEquals(String.valueOf(old),read(temp.getRoot(),RUNTIME+"/lib/bin.js"));
+        assertEquals("original chat",read(temp.getRoot(),"linux/ubuntu/root/.dsh/sessions/chat"));
+        assertTrue("the direct healthy predecessor remains rollbackable",
+                ManagedRuntimeTransaction.rollbackOptions(fs,temp.getRoot(),descriptor(old),descriptor(old)).size()>=1);
+        var next=ManagedRuntimeTransaction.create(fs,temp.getRoot());
+        assertNotNull("no historical total-count cliff after seventy completed updates",next);
+        assertEquals(70,fs.list(new File(home,"completed")).size());assertTrue(next.directory().isDirectory());
+    }
+    @Test public void modifiedCompletedJournalIsNeverAutomaticallyDeleted()throws Exception{
+        var task=prepare('a','b');var candidate=descriptor('b');
+        task.commit(new BackupControl(null),()->health(candidate),()->true);
+        File mapping=new File(task.directory(),"runtime-mapping.json");
+        var edited=BackupJson.read(Files.readAllBytes(mapping.toPath()),BackupLimits.MANIFEST);
+        edited.put("createdAt",123456789L);Files.write(mapping.toPath(),BackupJson.write(edited,BackupLimits.MANIFEST));
+        File extra=new File(task.directory(),"retained-user-evidence.bin");Files.writeString(extra.toPath(),"keep this original");
+        ManagedRuntimeTransaction.trimOlder(fs,temp.getRoot(),candidate,health(candidate));
+        assertTrue(task.directory().isDirectory());assertEquals("keep this original",Files.readString(extra.toPath()));
+        assertTrue(mapping.isFile());
+        assertEquals(new File(temp.getRoot(),ManagedRuntimeTransaction.HOME),task.directory().getParentFile());
+        assertTrue(ManagedRuntimeTransaction.rollbackOptions(fs,temp.getRoot(),candidate,candidate).isEmpty());
     }
     @Test public void processDeathAtHealthAndAgainDuringRollbackRetainsOriginal()throws Exception{
         var task=prepare('a','b');killAt(task,"validation-complete",false);

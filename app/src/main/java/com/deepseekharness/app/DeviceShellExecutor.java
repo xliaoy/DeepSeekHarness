@@ -1,5 +1,6 @@
 package com.deepseekharness.app;
 
+import android.content.Context;
 import com.deepseekharness.app.util.DeviceAppPolicy;
 import com.deepseekharness.app.util.DeviceShellPolicy;
 import com.deepseekharness.app.util.SensitiveData;
@@ -21,6 +22,7 @@ public final class DeviceShellExecutor {
         if (plan.kind == DeviceShellPolicy.Kind.SENSITIVE_READ)
             return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 短信读取请使用 ADB 通道，并在 DeepSeekHarness 授权\n[EXIT=126]");
         try {
+            if (android.os.Process.myUid() == 0) validateRootReadPaths(plan);
             if (plan.kind == DeviceShellPolicy.Kind.STOP) {
                 String users = checked(runner.run(Arrays.asList("pm", "list", "packages", "-U", "-3")));
                 String systems = checked(runner.run(Arrays.asList("pm", "list", "packages", "-U", "-s")));
@@ -48,6 +50,57 @@ public final class DeviceShellExecutor {
         } catch (IOException | IllegalArgumentException error) {
             return "[POLICY_BLOCKED] " + SensitiveData.redact(error.getMessage()) + "\n[EXIT=126]";
         }
+    }
+
+    /** Privileged typed entry used only by VirtualScreenManager, never by generic shell text. */
+    static String executeVirtualScreen(String command, Runner runner) {
+        int uid = android.os.Process.myUid();
+        if (uid != 0 && uid != 2000)
+            return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 虚拟屏启动仅允许特权设备通道\n[EXIT=126]");
+        try {
+            DeviceShellPolicy.Plan plan = DeviceShellPolicy.inspectVirtualScreenLaunch(command, installedDshaApkPath());
+            if (!plan.allowed()) return plan.reason + "\n[EXIT=126]";
+            return runner.run(plan.argv);
+        } catch (IOException | IllegalArgumentException error) {
+            return "[POLICY_BLOCKED] " + SensitiveData.redact(error.getMessage()) + "\n[EXIT=126]";
+        }
+    }
+
+    /** Resolve the installed application source from PackageManager inside the privileged process. */
+    static String installedDshaApkPath() throws IOException {
+        try {
+            Context system = com.deepseekharness.app.runtime.PrivilegedPackageContext.systemContext();
+            android.content.pm.ApplicationInfo info = system.getPackageManager().getApplicationInfo("com.dsh.client", 0);
+            File source = new File(info.sourceDir);
+            String canonical = source.getCanonicalPath();
+            if (!source.isFile() || !source.getPath().equals(canonical)
+                    || !DeviceShellPolicy.canonicalApkPath(canonical))
+                throw new IOException("DeepSeekHarness_APK_PATH_INVALID");
+            return canonical;
+        } catch (IOException error) {
+            throw error;
+        } catch (Throwable error) {
+            throw new IOException("DeepSeekHarness_APK_UNVERIFIED", error);
+        }
+    }
+
+    /** Recheck SMS-provider file reads at the privileged execution boundary. */
+    static void validateRootReadPaths(DeviceShellPolicy.Plan plan) throws IOException {
+        boolean recursive = DeviceShellPolicy.rootReadMayDescend(plan);
+        for (String path : DeviceShellPolicy.rootReadPaths(plan)) {
+            if (isSmsReadPath(path, recursive))
+                throw new IOException("短信数据库仅允许经原生授权的当前用户 content query");
+            final String canonical;
+            try { canonical = new File(path).getCanonicalPath(); }
+            catch (IOException unreadable) { throw new IOException("无法核验 Root 读取路径", unreadable); }
+            if (isSmsReadPath(canonical, recursive))
+                throw new IOException("短信数据库仅允许经原生授权的当前用户 content query");
+        }
+    }
+
+    private static boolean isSmsReadPath(String path, boolean recursive) {
+        return DeviceShellPolicy.smsProviderPath(path)
+                || recursive && DeviceShellPolicy.smsProviderDescendant(path);
     }
 
     private static String checked(String output) throws IOException {

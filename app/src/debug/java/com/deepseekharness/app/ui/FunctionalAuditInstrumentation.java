@@ -145,7 +145,7 @@ public final class FunctionalAuditInstrumentation extends Instrumentation {
                 require(config.getApiKey().equals(new String(keyBytes,StandardCharsets.UTF_8).trim()),"测试凭据加密读回失败");
                 java.util.Arrays.fill(keyBytes,(byte)0);changedKey=true;require(keyFile.delete(),"测试临时文件未清理");
             }
-            shell("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
             note("主页面已请求打开");
             long mainDeadline=System.currentTimeMillis()+15000;
             while(MainActivity.current==null&&System.currentTimeMillis()<mainDeadline)Thread.sleep(100);
@@ -199,7 +199,7 @@ public final class FunctionalAuditInstrumentation extends Instrumentation {
                     require(clickVisibleLabel(getUiAutomation().getRootInActiveWindow(), "打开侧边栏")
                             || clickVisibleLabel(getUiAutomation().getRootInActiveWindow(), "打开目录"), "Gecko 侧边栏入口不可见");
                     Thread.sleep(700);
-                    String previewFolder = args.getString("preview_folder", "DEEPSEEK_HARNESS-alpha2-preview-check");
+                    String previewFolder = args.getString("preview_folder", "DSHA-alpha2-preview-check");
                     String previewFile = args.getString("preview_file", "alpha2-preview.pdf");
                     String sessionLabel = args.getString("session_label", "你好");
                     boolean openedUngrouped = false;
@@ -236,7 +236,7 @@ public final class FunctionalAuditInstrumentation extends Instrumentation {
             WebView view=(WebView)field.get(webPage);require(view!=null,"系统 WebView 未创建");
             deadline=System.currentTimeMillis()+90000;boolean ready=false;
             while(System.currentTimeMillis()<deadline) {
-                String state=js(view,"(function(){if(window.__DSH_BOOT_READY__)window.__DSH_BOOT_READY__.promise.then(()=>window.__auditBoot=true);return !!window.__auditBoot&&document.documentElement.getAttribute('data-deepseekharness-integration')==='ready';})()");
+                String state=js(view,"(function(){if(window.__DSH_BOOT_READY__)window.__DSH_BOOT_READY__.promise.then(()=>window.__auditBoot=true);return !!window.__auditBoot&&document.documentElement.getAttribute('data-dsha-integration')==='ready';})()");
                 if("true".equals(state)){ready=true;break;}Thread.sleep(250);
             }
             require(ready,"页面未完成启动与原生适配");note("Web UI 启动与鉴权通过");
@@ -274,7 +274,7 @@ public final class FunctionalAuditInstrumentation extends Instrumentation {
                         WebView active=(WebView)field.get(webPage);
                         if(active==null){Thread.sleep(200);continue;}
                         String status;
-                        try {status=js(active,"location.port==='"+port+"'&&document.documentElement.getAttribute('data-deepseekharness-integration')==='ready'");}
+                        try {status=js(active,"location.port==='"+port+"'&&document.documentElement.getAttribute('data-dsha-integration')==='ready'");}
                         catch(TimeoutException rebuilding){Thread.sleep(200);continue;}
                         if("true".equals(status)){recovered=true;break;}Thread.sleep(200);
                     }

@@ -1,4 +1,4 @@
-import {mkdirSync,writeFileSync,readFileSync,readdirSync,openSync,fsyncSync,closeSync} from 'node:fs';
+import {mkdirSync,writeFileSync,readFileSync,readdirSync,openSync,fsyncSync,closeSync,unlinkSync} from 'node:fs';
 import {join,basename} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {createRequire} from 'node:module';
@@ -51,7 +51,12 @@ export async function apply(ctx){
  const nonce=process.env.DeepSeekHarness_RUNTIME_TRIAL_NONCE,home=process.env.DSH_HOME;
  if(!nonce||!/^[a-f0-9]{32}$/.test(nonce)||!home)throw Error('Invalid isolated runtime trial');
  const file=join(home,'trial-data','probe.json');mkdirSync(join(home,'trial-data'),{recursive:true});
- const payload=JSON.stringify({nonce,kind:'deepseekharness-owned-trial'});writeFileSync(file,payload,{flag:'wx',mode:0o600});const fd=openSync(file,'r+');try{fsyncSync(fd)}finally{closeSync(fd)};
+ const payload=JSON.stringify({nonce,kind:'deepseekharness-owned-trial'});
+ // 失败轮次会留下旧 probe；本轮 guest 目录若被复用（或异常残留），旧文件必须
+ // 先移除再排他创建，否则 apply 抛 EEXIST 会让插件 did-not-activate，前端据此
+ // 把整个试运行误判为 TRIAL_RENDERER_FAILED。排他语义由下方写后回读校验保留。
+ try{writeFileSync(file,payload,{flag:'wx',mode:0o600});}catch(error){if(error&&error.code==='EEXIST'){unlinkSync(file);writeFileSync(file,payload,{flag:'wx',mode:0o600});}else throw error;}
+ const fd=openSync(file,'r+');try{fsyncSync(fd)}finally{closeSync(fd)};
  const read=readFileSync(file,'utf8');if(read!==payload)throw Error('Trial write/read mismatch');
  // 使用锁定版本的真实存储后端，关闭后重开，避免只验证普通文件 I/O 或内存值。
  const descriptor={name:'deepseekharness_trial_'+nonce,version:1,tables:['items'],hasGlobal:false,layout:'per-record'};
@@ -100,7 +105,7 @@ export async function apply(ctx){
   const rejection=ctx.connection.requestRejection(req);if(rejection!==undefined){res.writeHead(rejection);res.end();return}
   if(req.method==='POST'){
    let body='';for await(const chunk of req){body+=chunk;if(body.length>4096){res.writeHead(413);res.end();return}}
-   try{const value=JSON.parse(body);if(value.nonce!==nonce)throw Error('nonce');if(value.failure)failure='TRIAL_RENDERER_FAILED';else renderer=value.ready===true&&value.transport===true;}catch{res.writeHead(400);res.end();return}
+   try{const value=JSON.parse(body);if(value.nonce!==nonce)throw Error('nonce');console.error('TRIAL_PAGE_POST ready='+value.ready+' transport='+(value.transport===true)+' failure='+(value.failure||''));if(value.failure){failure=typeof value.failure==='string'&&value.failure?String(value.failure).slice(0,600):'TRIAL_RENDERER_FAILED';}else renderer=value.ready===true&&value.transport===true;}catch{res.writeHead(400);res.end();return}
   }
   res.setHeader('content-type','application/json');res.setHeader('cache-control','no-store');res.end(JSON.stringify({nonce,pid:process.pid,port:ctx.webServer.port,dataRead:read===payload,dataWrite:true,storageReopened:true,storageFreshReopened:true,sessionReopened:true,hash,renderer,failure}));
  }}));

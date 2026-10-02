@@ -171,6 +171,12 @@ public final class PluginRepository extends AndroidViewModel {
             return receivePreview(result(runManager(proot,"review-restored "+ShellQuote.arg(group)+" "+ShellQuote.arg(node))));
         });
     }
+    public void reviewLegacyPreset(String retainedKey){
+        submit("正在检查旧预设候选与当前依赖…",proot->{
+            String[] candidate=com.deepseekharness.app.backup.QuarantinedPluginReview.preparePreset(getApplication(),retainedKey,new com.deepseekharness.app.backup.BackupControl(null));
+            return receivePreview(result(runManager(proot,"review-restored "+ShellQuote.arg(candidate[0])+" "+ShellQuote.arg(candidate[1]))));
+        });
+    }
 
     public void selectionMessage(String message) {
         DiagnosticLog.record(getApplication(), "FILE_SELECTION", message);
@@ -227,8 +233,8 @@ public final class PluginRepository extends AndroidViewModel {
             state.setValue(new State(items, false, "已有环境任务启动，请稍后刷新或重试插件操作"));
             return;
         }
-        if (com.deepseekharness.app.BackupManager.hasPendingMaintenance(controller)
-                || com.deepseekharness.app.BackupManager.isRestoring()) {
+        if (com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller)
+                || com.deepseekharness.app.core.MaintenanceCoordinator.isExclusive()) {
             lease.close(); working.set(false);
             state.setValue(new State(items, false, "环境维护尚未完成，请先恢复维护，再刷新或操作插件"));
             return;
@@ -276,9 +282,9 @@ public final class PluginRepository extends AndroidViewModel {
     /** 只读门禁提示；已运行的 Web 不占用 EnvironmentTaskGate，不影响正常插件操作。 */
     public String environmentBlockMessage() {
         HarnessController controller = HarnessController.get(getApplication());
-        if (com.deepseekharness.app.BackupManager.hasPendingMaintenance(controller))
+        if (com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller))
             return "上次环境维护未完成，请到安装与修复页恢复维护，再刷新或操作插件";
-        if (com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy()) {
+        if (com.deepseekharness.app.core.MaintenanceCoordinator.isEnvironmentTaskBusy()) {
             String kind = com.deepseekharness.app.util.EnvironmentTaskGate.activeKind();
             return (kind.isEmpty() ? "正在执行环境任务" : "正在" + kind) + "，请稍后刷新或重试插件操作";
         }
@@ -293,8 +299,8 @@ public final class PluginRepository extends AndroidViewModel {
         try {
             completed = lease.run(() -> {
                 // 防止排队前检查与真正访问 rootfs 之间出现未完成的维护事务。
-                if (com.deepseekharness.app.BackupManager.hasPendingMaintenance(controller)
-                        || com.deepseekharness.app.BackupManager.isRestoring())
+                if (com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller)
+                        || com.deepseekharness.app.core.MaintenanceCoordinator.isExclusive())
                     throw new IOException("环境维护尚未完成，请先恢复维护，再刷新或操作插件");
                 ProotBootstrap proot = controller.proot();
                 String message;
@@ -305,7 +311,7 @@ public final class PluginRepository extends AndroidViewModel {
                         // 确认前的排队凭据已经完成职责；维护期间由原有屏障持有同步工作锁。
                         try(RuntimeTasks synchronous=RuntimeTasks.begin()){
                             runtimeWork.close();
-                            message=com.deepseekharness.app.BackupManager.runDataTask(controller,()->work.run(proot));
+                            message=com.deepseekharness.app.core.MaintenanceCoordinator.exclusive(controller,()->work.run(proot));
                         }
                     }else message = work.run(proot);
                     success[0] = true;
@@ -359,7 +365,14 @@ public final class PluginRepository extends AndroidViewModel {
     private String runManager(ProotBootstrap proot, String args) throws IOException {
         PluginTask task = activeTask;
         if (task != null) task.check();
-        return proot.runPluginManager(args, task == null ? "" : task.id);
+        try {
+            return com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(
+                    proot.runPluginManagerResult(args, task == null ? "" : task.id,
+                            new ConfigStore(getApplication()).getPluginDownloadSource()), "PLUGIN_MANAGER");
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new java.io.InterruptedIOException("PLUGIN_MANAGER_INTERRUPTED");
+        }
     }
 
     public void refresh() {
@@ -374,18 +387,23 @@ public final class PluginRepository extends AndroidViewModel {
         if (working.get()) return;
         Preview old = preview.getValue();
         submit("正在下载并解析：" + source.description(), proot -> {
-            discardPreview(proot, old);
+            if (old != null) { discardPreviewConfirmed(proot, old.id); preview.postValue(null); }
             JSONObject request = new JSONObject().put("command", source.command())
                     .put("sha256", sha256).put("name", name).put("version", version);
             return receivePreview(result(runManager(proot, "inspect " + ShellQuote.arg(request.toString()))));
-        }, null, true, () -> { installationSucceeded = false; preview.setValue(null); });
+        }, null, true, () -> installationSucceeded = false);
     }
 
     private String receivePreview(JSONObject output) throws Exception {
         if (!"ok".equals(output.optString("status"))) throw new IOException(output.optString("message"));
         if (activeTask != null && activeTask.requested()) {
-            HarnessController.get(getApplication()).proot().runPluginManager("discard-preview "
-                    + ShellQuote.arg(output.getJSONObject("preview").getString("previewId")));
+            Preview candidate = new Preview(output.getJSONObject("preview"));
+            try { discardPreviewConfirmed(HarnessController.get(getApplication()).proot(), candidate.id); }
+            catch (Exception failure) {
+                preview.postValue(candidate);
+                throw new IOException("已请求取消，但临时包清理未确认；预览原件仍可重试清理："
+                        + SensitiveData.redact(String.valueOf(failure.getMessage())), failure);
+            }
             throw new IOException("已取消解析并清理临时包");
         }
         preview.postValue(new Preview(output.getJSONObject("preview")));
@@ -413,13 +431,17 @@ public final class PluginRepository extends AndroidViewModel {
         Preview old = preview.getValue();
         if (old == null) return;
         submit("正在清理插件安装预览…", proot -> {
-            discardPreview(proot, old);
+            discardPreviewConfirmed(proot, old.id);
             return "插件安装预览已取消";
-        }, null, false, () -> preview.setValue(null));
+        }, () -> preview.setValue(null), false);
     }
 
-    private static void discardPreview(ProotBootstrap proot, Preview old) {
-        if (old != null) proot.runPluginManager("discard-preview " + ShellQuote.arg(old.id));
+    private static void discardPreviewConfirmed(ProotBootstrap proot, String id) throws Exception {
+        requireDiscardResult(proot.runPluginManagerResult("discard-preview " + ShellQuote.arg(id), ""));
+    }
+    static void requireDiscardResult(com.deepseekharness.app.util.BoundedProcessRunner.Result execution) throws Exception {
+        String text = com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(execution, "PLUGIN_DISCARD_PREVIEW");
+        com.deepseekharness.app.util.PluginOutput.requireDiscardSuccess(text);
     }
 
     public void checkUpdates(Item item) {
@@ -431,9 +453,9 @@ public final class PluginRepository extends AndroidViewModel {
         if (working.get() || !item.updateAvailable) return;
         Preview old = preview.getValue();
         submit("正在下载并核对更新包…", proot -> {
-            discardPreview(proot, old);
+            if (old != null) { discardPreviewConfirmed(proot, old.id); preview.postValue(null); }
             return receivePreview(result(runManager(proot, "prepare-update " + ShellQuote.arg(item.name))));
-        }, null, true, () -> preview.setValue(null));
+        }, null, true);
     }
 
     public void rollback(Item item) {
@@ -453,7 +475,7 @@ public final class PluginRepository extends AndroidViewModel {
         if (working.get()) return;
         Preview old = preview.getValue();
         submit("正在解析本地插件包，安装前需确认…", proot -> {
-            discardPreview(proot, old);
+            if (old != null) { discardPreviewConfirmed(proot, old.id); preview.postValue(null); }
             File temporary = File.createTempFile("plugin-import-", ".bin", getApplication().getCacheDir());
             String container = "/root/.dsh/plugin-upload-" + UUID.randomUUID() + ".bin";
             try {
@@ -468,7 +490,7 @@ public final class PluginRepository extends AndroidViewModel {
                 temporary.delete();
                 cleanup(proot, container);
             }
-        }, null, true, () -> { installationSucceeded = false; preview.setValue(null); });
+        }, null, true, () -> installationSucceeded = false);
     }
 
     public void exportArchives(List<String> names, Uri uri) {

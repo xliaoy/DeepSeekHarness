@@ -64,7 +64,7 @@ public final class OptimizationInstrumentation extends Instrumentation {
             require(info != null, "缺少有效测试 APK");
             UpdatePolicy.Release release = new UpdatePolicy.Release(info.versionCode, "1.2.0-validation", UpdatePolicy.PREVIEW,
                     BuildConfig.LOW_ANDROID ? "low" : "standard", BuildConfig.LOW_ANDROID ? 23 : 30,
-                    "arm64-v8a", "https://deepseekharness-test.invalid/owned.apk", hash, valid.length(), "仅测试，不安装", "https://deepseekharness-test.invalid/download/");
+                    "arm64-v8a", "https://dsha-test.invalid/owned.apk", hash, valid.length(), "仅测试，不安装", "https://dsha.cc/download/");
             AtomicLong resumed = new AtomicLong();
             UpdateEngine.Transport source = (url, offset) -> {
                 resumed.set(Math.max(resumed.get(), offset));
@@ -96,7 +96,7 @@ public final class OptimizationInstrumentation extends Instrumentation {
             previous = UpdateEngine.get(base);
             require(!previous.state().getValue().busy, "用户更新正在运行，不能覆盖测试");
             Context data = isolated;
-            require(data.getSharedPreferences("deepseekharness-updates", 0).edit().putString("channel", UpdatePolicy.PREVIEW).commit(), "夹具所选通道保存失败");
+            require(data.getSharedPreferences("dsha-updates", 0).edit().putString("channel", UpdatePolicy.PREVIEW).commit(), "夹具所选通道保存失败");
             runOnMainSync(() -> active = new UpdateEngine(data, source));
             Field candidate = UpdateEngine.class.getDeclaredField("candidate"); candidate.setAccessible(true); candidate.set(active, release);
             Field candidateChannel = UpdateEngine.class.getDeclaredField("candidateChannel"); candidateChannel.setAccessible(true); candidateChannel.set(active, UpdatePolicy.PREVIEW);
@@ -117,7 +117,7 @@ public final class OptimizationInstrumentation extends Instrumentation {
                 require(rejected, "未拒绝 " + bad);
             }
             phase("包名、版本和签名检查通过；开始真实前台下载服务");
-            shell("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
             page = startActivitySync(new Intent(base, UpdateActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             runOnMainSync(active::download);
             until(() -> active.state().getValue().downloaded > 131072 || !active.state().getValue().busy, "下载没有响应");
@@ -137,7 +137,7 @@ public final class OptimizationInstrumentation extends Instrumentation {
             singleton.set(null, active);
             require(UpdatePolicy.PREVIEW.equals(active.channel()) && UpdatePolicy.PREVIEW.equals(active.state().getValue().sourceChannel), "重建后夹具查询通道丢失");
             require(active.state().getValue().downloaded == savedBytes, "重建后进度丢失");
-            shell("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
             page = startActivitySync(new Intent(base, UpdateActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             runOnMainSync(active::download);
             until(() -> !active.state().getValue().busy, "续传未完成");
@@ -160,7 +160,7 @@ public final class OptimizationInstrumentation extends Instrumentation {
             if (singleton != null) try { singleton.set(null, previous); } catch (Exception ignored) { }
             if (filesOwned) { if (part != null) part.delete(); if (apk != null) apk.delete(); }
             if (isolated != null) {
-                isolated.getSharedPreferences("deepseekharness-updates", 0).edit().clear().commit();
+                isolated.getSharedPreferences("dsha-updates", 0).edit().clear().commit();
             }
             getTargetContext().getSystemService(android.app.NotificationManager.class).cancel(1004);
         }

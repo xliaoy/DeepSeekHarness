@@ -95,9 +95,10 @@ public final class PtySession implements TerminalSessionClient {
         try {
         try { proot.requireUserRuntime(); } catch (java.io.IOException error) { throw new IllegalStateException(error.getMessage(), error); }
         proot.ensureAndroidGroups(); // 登录 shell 的 $(groups) 依赖 /etc/group 里有 Android GID
-        String[] argv = proot.ptyArgv();
+        ProotBootstrap.PtyLaunch launch = proot.ptyLaunch();
+        String[] argv = launch.argv;
         ps.prootLauncher = com.deepseekharness.app.util.ProcessIdentity.isProot(argv[0]);
-        String[] env = proot.ptyEnv();
+        String[] env = launch.environment;
         // args 就是 argv（含 argv[0]）：查过 termux.c，Java 数组原样转成 argv 后
         // 直接 execvp(cmd, argv)，没有任何加工 —— 与 ProcessBuilder 的行为一致。
         TerminalSession s = new TerminalSession(argv[0], "/", argv, env, TRANSCRIPT_ROWS, ps);
@@ -106,13 +107,6 @@ public final class PtySession implements TerminalSessionClient {
         com.deepseekharness.app.runtime.NativeProcess.capturePtyIdentity(
                 value -> ps.identity = value,
                 () -> s.initializeEmulator(Math.max(4, cols), Math.max(2, rows)));
-        // 兜底：异步回调（JNI recordPtyIdentity）偶尔晚到或缺失；启动器已 fork 出 PID
-        // 就能同步读身份，保证用户立刻点「关闭」时 identity 已就绪（否则关闭会报
-        // 「无法确认终端身份」）。异步回调先到则保留其双重核验结果。
-        if (ps.identity == null) {
-            int pid = s.getPid();
-            if (pid != 0) ps.identity = readIdentity(pid);
-        }
         return ps;
         } catch (RuntimeException | Error e) {
             if (ps.session == null || (ps.session.getPid() == 0 && ps.identity == null)) ps.releaseWork();
@@ -169,30 +163,60 @@ public final class PtySession implements TerminalSessionClient {
         if (isRunning()) {
             com.deepseekharness.app.util.ProcessIdentity expected = identity;
             if (expected == null) {
-                // 身份未就绪：用启动器 PID 同步补读一次（fork 已完成即可读 /proc）。
-                int pid = session != null ? session.getPid() : -1;
-                if (pid > 0) expected = readIdentity(pid);
+                // 多终端并行初始化时 JNI 身份回调可能尚未到达。为「秒关闭」只做短暂等待，
+                // 仍无身份则按用户关闭意图直接收尾移除标签，进程留给容器生命周期回收。
+                long idDeadline = android.os.SystemClock.elapsedRealtime() + Math.min(300, Math.max(50, timeoutMs));
+                while (expected == null && android.os.SystemClock.elapsedRealtime() < idDeadline) {
+                    Thread.sleep(20);
+                    expected = identity;
+                }
+                if (expected == null) {
+                    android.util.Log.w(TAG, "PTY 关闭时身份尚未确认，按用户关闭意图直接收尾移除");
+                    releaseWork();
+                    return;
+                }
+                identity = expected;
             }
-            if (expected == null) {
-                // 身份确无法确认：PTY 是受管会话，直接 finish() 发信号强制终止，
-                // 不阻塞用户关闭（环境保护保持不变）。
-                finish();
-            } else {
+            // 回收尽力而为：只保留与用户历史版本一致的短暂预算（2 秒内），
+            // 核验失败也按用户关闭意图直接收尾移除，不抛异常阻塞关闭。
+            long stopBudget = Math.min(timeoutMs, 2000);
+            try {
                 // 启动方式在 fork 前由可信 argv 记录，PID 身份仍用出生握手与当前 stat 双重核验。
                 // /proc/PID/exe 在退出及非调试应用 exec 窗口可能不可读，不能把它当成永久维护故障。
                 if (prootLauncher) com.deepseekharness.app.runtime.TerminalProcessCloser.closeProot(expected);
-                else com.deepseekharness.app.runtime.TerminalProcessCloser.close(expected, timeoutMs);
+                else com.deepseekharness.app.runtime.TerminalProcessCloser.close(expected, stopBudget);
+            } catch (java.io.IOException error) {
+                android.util.Log.w(TAG, "PTY 关闭核验失败，按用户关闭意图直接收尾移除：" + SensitiveData.redact(String.valueOf(error)));
+                releaseWork();
+                return;
             }
         }
-        long deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs;
+        long deadline = android.os.SystemClock.elapsedRealtime() + Math.min(timeoutMs, 2000);
         while (isRunning() && android.os.SystemClock.elapsedRealtime() < deadline)
             Thread.sleep(20);
-        if (isRunning())
-            throw new java.io.IOException(com.deepseekharness.app.util.UiText.text("终端仍在退出，已保留原环境；请稍后重试"));
+        if (isRunning()) {
+            android.util.Log.w(TAG, "PTY 仍在退出，按用户关闭意图直接收尾移除");
+            releaseWork();
+            return;
+        }
+        // JNI 退出只证明启动器结束；proroot 的 guest 也必须全部退出（尽力复核，失败不阻塞关闭）。
+        if (identity == null) {
+            android.util.Log.w(TAG, "PTY 会话已结束但身份缺失，直接收尾移除");
+            releaseWork();
+            return;
+        }
+        try {
+            com.deepseekharness.app.runtime.TerminalProcessCloser.requireSessionEmpty(identity.pid);
+        } catch (java.io.IOException error) {
+            android.util.Log.w(TAG, "PTY 后台进程仍在退出，按用户关闭意图直接收尾移除：" + SensitiveData.redact(String.valueOf(error)));
+        }
         releaseWork();
-        } catch (java.io.IOException | InterruptedException | RuntimeException error) {
-            android.util.Log.w(TAG, com.deepseekharness.app.util.UiText.text("终端回收暂未确认，下次维护将重新核验：") + SensitiveData.redact(String.valueOf(error)));
+        } catch (InterruptedException error) {
             throw error;
+        } catch (RuntimeException error) {
+            // 任何意外都不再把「关闭失败」抛给界面：标签按用户意图移除，进程留给容器回收。
+            android.util.Log.w(TAG, com.deepseekharness.app.util.UiText.text("终端回收未完全确认，已按用户关闭意图收尾移除：") + SensitiveData.redact(String.valueOf(error)));
+            releaseWork();
         }
     }
 
@@ -203,17 +227,7 @@ public final class PtySession implements TerminalSessionClient {
         int pid = t.getPid();
         try {
             com.deepseekharness.app.util.ProcessIdentity expected = identity;
-            if (expected == null) expected = readIdentity(pid);
-            if (expected == null) {
-                // 身份无法确认（/proc 读取失败等）：PTY 是受管 proot 会话，直接发 HUP 终止，不阻塞关闭。
-                try { android.system.Os.kill(pid, android.system.OsConstants.SIGHUP); }
-                catch (android.system.ErrnoException e) {
-                    if (e.errno != android.system.OsConstants.ESRCH)
-                        throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("终端停止失败，后台任务仍保留保护"), e);
-                }
-                return;
-            }
-            if (!expected.sameProcess(readIdentity(pid)))
+            if (expected == null || !expected.sameProcess(readIdentity(pid)))
                 throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("无法确认本次终端进程身份，尚未停止"));
             String executable = android.system.Os.readlink("/proc/" + pid + "/exe");
             // proot 的 SIGQUIT 会先清理自己登记的全部 tracee；直接 KILL 会遗留后台 shell/命令。

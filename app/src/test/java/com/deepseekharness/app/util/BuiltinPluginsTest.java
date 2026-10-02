@@ -42,22 +42,22 @@ public class BuiltinPluginsTest {
     }
 
     @Test
-    public void entityDir_把dsh前缀换成DeepSeekHarness前缀() {
-        assertEquals("/root/deepseekharness-device-shell-guide",
+    public void entityDir_把dsh前缀换成dsha前缀() {
+        assertEquals("/root/dsha-device-shell-guide",
                 BuiltinPlugins.entityDir("dsh-device-shell-guide"));
-        assertEquals("/root/deepseekharness-web-mobile", BuiltinPlugins.entityDir("dsh-web-mobile"));
+        assertEquals("/root/dsha-web-mobile", BuiltinPlugins.entityDir("dsh-web-mobile"));
     }
 
     @Test
-    public void entityDir_非dsh前缀名字统一补DeepSeekHarness前缀() {
-        assertEquals("/root/deepseekharness-foo", BuiltinPlugins.entityDir("foo"));
+    public void entityDir_非dsh前缀名字统一补dsha前缀() {
+        assertEquals("/root/dsha-foo", BuiltinPlugins.entityDir("foo"));
     }
 
     @Test
     public void inBundlesSection_只在bundles数组里判定_不被dependencies干扰() {
         // dependencies 里有同名 link:，但 bundles 没有 → 未注册
         String manifest = "{\n"
-                + "  \"dependencies\": { \"dsh-device-shell-guide\": \"link:/root/deepseekharness-device-shell-guide\" },\n"
+                + "  \"dependencies\": { \"dsh-device-shell-guide\": \"link:/root/dsha-device-shell-guide\" },\n"
                 + "  \"dsh\": { \"profile\": { \"bundles\": [\"@deepseek-ai/dsh-base\"] } }\n"
                 + "}";
         assertFalse(BuiltinPlugins.inBundlesSection(manifest, "dsh-device-shell-guide"));

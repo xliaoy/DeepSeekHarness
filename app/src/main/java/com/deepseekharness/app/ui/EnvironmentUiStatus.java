@@ -11,7 +11,7 @@ final class EnvironmentUiStatus {
         long now=android.os.SystemClock.elapsedRealtime();
         if(!running&&(requested==0||now-requested>=2500)){
             running=true;requested=now;Context app=context.getApplicationContext();
-            IO.execute(()->{try{HarnessController controller=HarnessController.get(app);boolean ready=controller.isEnvironmentReady();value=new Snapshot(true,ready,!ready||com.deepseekharness.app.BackupManager.hasPendingMaintenance(controller),com.deepseekharness.app.core.StartupRepairs.pending(app));}
+            IO.execute(()->{try{HarnessController controller=HarnessController.get(app);boolean ready=controller.isEnvironmentReady();value=new Snapshot(true,ready,!ready||com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller),com.deepseekharness.app.core.StartupRepairs.pending(app));}
                 finally{synchronized(EnvironmentUiStatus.class){running=false;}}});
         }return value;
     }

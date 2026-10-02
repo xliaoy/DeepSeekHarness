@@ -51,7 +51,7 @@ public final class LanguageSettingsAudit extends Instrumentation {
     @Override public void onStart(){
         Bundle result=new Bundle();Context app=getTargetContext();var prefs=app.getSharedPreferences(Constants.PREFS,0);boolean had=prefs.contains("ui_language");String original=new ConfigStore(app).getUiLanguage();
         try{
-            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
+            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
             long end=System.currentTimeMillis()+120000;while(com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy()&&System.currentTimeMillis()<end)Thread.sleep(200);
             ui(()->{new ConfigStore(app).setUiLanguage("zh");LanguageController.apply(app);});
             ActivityMonitor monitor=addMonitor(FragmentSessionTestActivity.class.getName(),null,false);ui(()->app.startActivity(new Intent(app,FragmentSessionTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
@@ -68,9 +68,7 @@ public final class LanguageSettingsAudit extends Instrumentation {
             ui(()->repository.selectionMessage(UiText.text(detection)));
             mount(new SettingsFragment());choose("Simplified Chinese");check("zh".equals(new ConfigStore(app).getUiLanguage()),"中文选择未保存");check("设置".equals(page.getString(R.string.nav_settings)),"未返回中文资源");
             mount(new CachedPluginFragment());
-            // 无商城版移除了内联状态行 statusText。本项断言的真实意图是【英文缓存过的检测结果
-            // 切回中文后必须显示中文】，与“哪个 View 承载它”无关；改从 Repository 权威状态读取。
-            check(detection.equals(repository.state().getValue().message),"英文缓存的检测结果没有回到中文");
+            check(detection.equals(((TextView)page.findViewById(R.id.statusText)).getText().toString()),"英文缓存的检测结果没有回到中文");
             check(untranslated.isEmpty(),"未翻译的应用控件：\n"+String.join("\n",untranslated));result.putString("result","PASS");result.putInt("checks",checks);
         }catch(Throwable error){result.putString("failure",android.util.Log.getStackTraceString(error));}
         finally{if(page!=null)ui(page::finish);ui(()->{if(had)prefs.edit().putString("ui_language",original).commit();else prefs.edit().remove("ui_language").commit();LanguageController.apply(app);});finish(result.containsKey("failure")?1:0,result);}

@@ -35,7 +35,7 @@ public final class DeviceAppPolicy {
                 App old = apps.get(m.group(1));
                 if (old != null && (!old.uids.equals(uids) || old.system != system)) throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("应用归属冲突"));
                 App app = new App(m.group(1), uids, system); apps.put(app.name, app);
-                if (system || uids.stream().anyMatch(uid -> uid % 100000 < 10000) || app.name.equals("com.deepseek.harness")
+                if (system || uids.stream().anyMatch(uid -> uid % 100000 < 10000) || app.name.equals("com.dsh.client")
                         || app.name.equals("moe.shizuku.privileged.api")) protectedUids.addAll(uids);
             }
         }

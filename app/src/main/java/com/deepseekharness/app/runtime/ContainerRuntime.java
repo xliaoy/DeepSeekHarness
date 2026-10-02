@@ -108,9 +108,13 @@ public interface ContainerRuntime {
         private final boolean staticLoader;
 
         public Proroot(Context ctx, File dir) {
+            this(ctx, dir, RuntimeHostPorts.shared().settings().staticLoader);
+        }
+
+        public Proroot(Context ctx, File dir, boolean staticLoader) {
             this.ctx = ctx;
             this.dir = dir;
-            this.staticLoader = new com.deepseekharness.app.core.ConfigStore(ctx).isProrootStaticLoader();
+            this.staticLoader = staticLoader;
         }
 
         /**

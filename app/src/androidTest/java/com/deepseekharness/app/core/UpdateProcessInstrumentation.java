@@ -43,7 +43,7 @@ public final class UpdateProcessInstrumentation extends Instrumentation {
         Context base = getTargetContext();
         // 本夹具恢复/注入固定清单；打开主界面时不能被启动自动检查改写。
         Field startupChecked = UpdateEngine.class.getDeclaredField("startupChecked"); startupChecked.setAccessible(true); startupChecked.setBoolean(engine, true);
-        shell("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+        shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
         page = startActivitySync(new Intent(base, UpdateActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     }
     private JSONObject saved() throws Exception {
@@ -55,7 +55,7 @@ public final class UpdateProcessInstrumentation extends Instrumentation {
         JSONObject original = saved();
         String hash = original.getString("sha256");
         require(hash.matches("[a-f0-9]{64}"), "清理标识无效");
-        SharedPreferences preferences = base.getSharedPreferences("deepseekharness-updates", 0);
+        SharedPreferences preferences = base.getSharedPreferences("dsha-updates", 0);
         JSONObject task = new JSONObject(preferences.getString("task", "{}"));
         require(task.optString("sha256").equals(hash), "更新任务已改变，保留现场，不能覆盖");
         if (engine != null) {
@@ -90,9 +90,9 @@ public final class UpdateProcessInstrumentation extends Instrumentation {
                 require(!engine.state().getValue().busy && !engine.shouldResume(), "已有下载正在进行");
                 String hash = args.getString("sha256"), url = args.getString("url");
                 require(hash != null && hash.matches("[a-f0-9]{64}"), "测试摘要无效");
-                require(url != null && url.matches("https://DeepSeekHarness\\.cc/opt-https-[a-f0-9]{8}\\.apk"), "只允许本次测试地址");
+                require(url != null && url.matches("https://dsha\\.cc/opt-https-[a-f0-9]{8}\\.apk"), "只允许本次测试地址");
                 for (String suffix : new String[]{".part", ".apk"}) require(!new File(base.getFilesDir(), "updates/"+hash+suffix).exists(), "样本已存在，不能覆盖");
-                SharedPreferences prefs = base.getSharedPreferences("deepseekharness-updates", 0);
+                SharedPreferences prefs = base.getSharedPreferences("dsha-updates", 0);
                 JSONObject before = new JSONObject();
                 for (Map.Entry<String, ?> value : prefs.getAll().entrySet()) {
                     require(value.getValue() instanceof String, "不能备份未知更新设置类型"); before.put(value.getKey(), value.getValue());
@@ -103,7 +103,7 @@ public final class UpdateProcessInstrumentation extends Instrumentation {
                 Field channel = UpdateEngine.class.getDeclaredField("channel"); channel.setAccessible(true); channel.set(engine, UpdatePolicy.PREVIEW);
                 UpdatePolicy.Release release = new UpdatePolicy.Release(Integer.parseInt(args.getString("code")), "1.2.0-validation", UpdatePolicy.PREVIEW,
                         BuildConfig.LOW_ANDROID ? "low" : "standard", BuildConfig.LOW_ANDROID ? 23 : 30, "arm64-v8a", url,
-                        hash, Long.parseLong(args.getString("bytes")), "独立下载验收，禁止安装", "https://deepseekharness-test.invalid/download/");
+                        hash, Long.parseLong(args.getString("bytes")), "独立下载验收，禁止安装", "https://dsha.cc/download/");
                 Field candidate = UpdateEngine.class.getDeclaredField("candidate"); candidate.setAccessible(true); candidate.set(engine, release);
                 Field candidateChannel = UpdateEngine.class.getDeclaredField("candidateChannel"); candidateChannel.setAccessible(true); candidateChannel.set(engine, UpdatePolicy.PREVIEW);
                 Field verifiedApk = UpdateEngine.class.getDeclaredField("verifiedApk"); verifiedApk.setAccessible(true); verifiedApk.set(engine, null);
@@ -129,7 +129,7 @@ public final class UpdateProcessInstrumentation extends Instrumentation {
                 require(saved().getInt("pid") != android.os.Process.myPid(), "没有发生实际进程重建");
                 require(engine.hasTask(), "进程重建后任务丢失");
                 require(UpdatePolicy.PREVIEW.equals(engine.channel()) && UpdatePolicy.PREVIEW.equals(new JSONObject(
-                        base.getSharedPreferences("deepseekharness-updates", 0).getString("task", "{}")).optString("checkedChannel")), "进程重建后夹具查询通道丢失");
+                        base.getSharedPreferences("dsha-updates", 0).getString("task", "{}")).optString("checkedChannel")), "进程重建后夹具查询通道丢失");
                 require(engine.state().getValue().downloaded > 0, "进程重建后进度丢失");
                 long resumed = engine.state().getValue().downloaded;
                 open();

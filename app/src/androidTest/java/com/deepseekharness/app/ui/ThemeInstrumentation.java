@@ -140,7 +140,7 @@ public final class ThemeInstrumentation extends Instrumentation {
         Bundle output = new Bundle(); ConfigStore config = new ConfigStore(getTargetContext());
         String original = config.getUiTheme();
         try {
-            shell("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
             page = startActivitySync(new Intent(getTargetContext(),MainActivity.class).setAction("theme.test."+System.nanoTime()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             if ("probe".equals(args.getString("mode"))) {
                 require("dark".equals(config.getUiTheme()) && ThemeController.isDark(page),"重新启动未保留黑夜主题");
@@ -150,7 +150,7 @@ public final class ThemeInstrumentation extends Instrumentation {
             } else if ("lifecycle".equals(args.getString("mode"))) {
                 require("dark".equals(config.getUiTheme()) && ThemeController.isDark(page),"重新启动丢失主题选择");
                 MainActivity current = MainActivity.current;
-                runOnMainSync(() -> current.openSettings());
+                runOnMainSync(() -> ((com.google.android.material.bottomnavigation.BottomNavigationView)current.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_settings));
                 until(() -> MainActivity.current.findViewById(R.id.settings_tabs)!=null,"设置页未加载");
                 runOnMainSync(() -> audit(MainActivity.current.findViewById(android.R.id.content),"actual-settings"));
                 screenshot("dark-settings");
@@ -175,7 +175,7 @@ public final class ThemeInstrumentation extends Instrumentation {
                     until(() -> MainActivity.current != null && MainActivity.current.getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
                             && !MainActivity.current.getSupportFragmentManager().isStateSaved(), "主页面尚未回到前台");
                     MainActivity current = MainActivity.current;
-                    runOnMainSync(() -> current.openSettings());
+                    runOnMainSync(() -> ((com.google.android.material.bottomnavigation.BottomNavigationView)current.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_settings));
                     until(() -> MainActivity.current.findViewById(R.id.settings_tabs)!=null,"外观设置未加载");
                     runOnMainSync(() -> ThemeController.select(MainActivity.current,dark?"dark":"light"));
                     until(() -> MainActivity.current!=null && ThemeController.isDark(MainActivity.current)==dark && config.getUiTheme().equals(dark?"dark":"light"),"主题未生效");

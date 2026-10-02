@@ -41,7 +41,7 @@ public final class RecoveryEntryAudit extends Instrumentation {
             check(lease != null && !RuntimeTasks.isBusy() && !controller.isWebRunning() && !controller.isStarting(), "需结束运行任务再验证恢复入口");
             check(controller.isEnvironmentReady() && !saved.exists(), "只在现有健康环境验证，禁止覆盖旧测试标记");
             try (android.os.ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand(
-                    "am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+                    "am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
                  java.io.InputStream input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) { while (input.read() != -1) { } }
             check(marker.renameTo(saved), "临时保留原就绪标记"); moved = true;
             check(!controller.isEnvironmentReady(), "标记缺失时不能判断为就绪");
@@ -63,7 +63,7 @@ public final class RecoveryEntryAudit extends Instrumentation {
                 ui(() -> nav.setSelectedItemId(target));
                 until(() -> MainActivity.current.getSupportFragmentManager().findFragmentById(R.id.fragment_container) instanceof EnvironmentRecoveryFragment, "插件和终端展示恢复入口");
             }
-            ui(MainActivity.current::openSettings);
+            ui(() -> nav.setSelectedItemId(R.id.nav_settings));
             until(() -> MainActivity.current.findViewById(R.id.settings_tabs) != null, "受限状态可进入设置");
             boolean denied = false;
             try { controller.proot().requireUserRuntime(); } catch (java.io.IOException expected) { denied = true; }

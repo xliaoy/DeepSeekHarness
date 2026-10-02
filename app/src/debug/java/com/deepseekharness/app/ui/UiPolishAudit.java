@@ -48,7 +48,7 @@ public final class UiPolishAudit extends Instrumentation {
             check(!collected.contains("ui-polish-private-value") && !collected.contains("12345678901234567890") && !collected.contains("ui-polish-secret"), "导出统一脱敏");
             check(collected.length() < 300000, "大日志有界读取");
             // Android 16 会拦截后台 Activity 启动；先通过测试 shell 将自己的主页面置前。
-            try (android.os.ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            try (android.os.ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
                  InputStream input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) { while (input.read() != -1) { } }
             page = (DiagnosticActivity) startActivitySync(DiagnosticActivity.downloadLogs(app).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             DiagnosticActivity current = page;
@@ -65,7 +65,7 @@ public final class UiPolishAudit extends Instrumentation {
                 byte[] buffer = new byte[8192]; int n; while ((n=input.read(buffer))!=-1) output.write(buffer,0,n); bytes=output.toByteArray();
             }
             String saved = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
-            check(saved.startsWith("DeepSeekHarness 错误日志") && saved.contains("最近运行输出"), "实际下载 URI 可读且正文完整");
+            check(saved.startsWith("DSHA 错误日志") && saved.contains("最近运行输出"), "实际下载 URI 可读且正文完整");
             check(bytes.length < 400000, "导出文件大小有界");
             AtomicReference<ErrorLogRepository> reloaded = new AtomicReference<>();
             ui(() -> reloaded.set(new ErrorLogRepository((android.app.Application) app)));

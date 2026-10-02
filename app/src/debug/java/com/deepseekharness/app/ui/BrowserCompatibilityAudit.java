@@ -20,7 +20,7 @@ public final class BrowserCompatibilityAudit extends Instrumentation {
     private void shell(String command)throws Exception{try(var fd=getUiAutomation().executeShellCommand(command);var in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}}
     @Override public void onCreate(Bundle args){super.onCreate(args);headerAudit=args!=null&&"header".equals(args.getString("mode"));start();}
     private void header(WebView view,Bundle result)throws Exception{
-        String preset="document.querySelector('[data-deepseekharness-agent-preset=header]')";
+        String preset="document.querySelector('[data-dsha-agent-preset=header]')";
         long end=SystemClock.elapsedRealtime()+30000;
         while(!"true".equals(evaluate(view,"Boolean("+preset+")"))&&SystemClock.elapsedRealtime()<end)Thread.sleep(150);
         check("true".equals(evaluate(view,"Boolean("+preset+")")),"平板会话预设没有出现");
@@ -59,10 +59,10 @@ public final class BrowserCompatibilityAudit extends Instrumentation {
             compat = out.toString("UTF-8").trim().replace("\n", " ");
         }
         String prefix = "delete self.Iterator;delete Promise.withResolvers;\n" + compat + "\n";
-        String suffix = "\npostMessage({deepseekharnessPdfAudit:true,ok:typeof Iterator==='function'&&typeof Iterator.prototype.join==='function'&&new Set([1,2]).values().filter(x=>x>1).toArray()[0]===2});";
-        evaluate(view, "(()=>{window.__deepseekharnessPdfWorker=null;const u=URL.createObjectURL(new Blob(["+JSONObject.quote(prefix)+","+workerLiteral+","+JSONObject.quote(suffix)+"],{type:'text/javascript'})),w=new Worker(u,{type:'module'});const done=v=>{window.__deepseekharnessPdfWorker=v;w.terminate();URL.revokeObjectURL(u)};w.onmessage=e=>{if(e.data&&e.data.deepseekharnessPdfAudit)done(e.data.ok?'PASS':'FAIL')};w.onerror=e=>done('ERROR '+e.message);setTimeout(()=>{if(!window.__deepseekharnessPdfWorker)done('TIMEOUT')},10000)})()");
+        String suffix = "\npostMessage({dshaPdfAudit:true,ok:typeof Iterator==='function'&&typeof Iterator.prototype.join==='function'&&new Set([1,2]).values().filter(x=>x>1).toArray()[0]===2});";
+        evaluate(view, "(()=>{window.__dshaPdfWorker=null;const u=URL.createObjectURL(new Blob(["+JSONObject.quote(prefix)+","+workerLiteral+","+JSONObject.quote(suffix)+"],{type:'text/javascript'})),w=new Worker(u,{type:'module'});const done=v=>{window.__dshaPdfWorker=v;w.terminate();URL.revokeObjectURL(u)};w.onmessage=e=>{if(e.data&&e.data.dshaPdfAudit)done(e.data.ok?'PASS':'FAIL')};w.onerror=e=>done('ERROR '+e.message);setTimeout(()=>{if(!window.__dshaPdfWorker)done('TIMEOUT')},10000)})()");
         long until = SystemClock.elapsedRealtime() + 12000; String state;
-        do { Thread.sleep(150); state = evaluate(view, "window.__deepseekharnessPdfWorker"); } while ("null".equals(state) && SystemClock.elapsedRealtime() < until);
+        do { Thread.sleep(150); state = evaluate(view, "window.__dshaPdfWorker"); } while ("null".equals(state) && SystemClock.elapsedRealtime() < until);
         check("\"PASS\"".equals(state), "真实 PDF Worker 初始化失败：" + state);
     }
     @Override public void callActivityOnCreate(Activity page,Bundle state){super.callActivityOnCreate(page,state);page.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED|android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON|android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);}
@@ -71,7 +71,7 @@ public final class BrowserCompatibilityAudit extends Instrumentation {
         var prefs=getTargetContext().getSharedPreferences(Constants.PREFS,0);Map<String,?> before=prefs.getAll();String record="";
         Map<File,byte[]> records=new LinkedHashMap<>();
         try {
-            shell("input keyevent 224");shell("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            shell("input keyevent 224");shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
             long end=SystemClock.elapsedRealtime()+120000;while((!c.isEnvironmentReady()||BackupManager.isEnvironmentTaskBusy())&&SystemClock.elapsedRealtime()<end)Thread.sleep(150);
             check(c.isEnvironmentReady()&&!BackupManager.isEnvironmentTaskBusy(),"环境未就绪");BackupManager.stopWebForMaintenance(c);
             File directory=new File(getTargetContext().getFilesDir(),"startup-history");File[] existing=directory.listFiles();if(existing!=null)for(File file:existing)if(file.getName().endsWith(".properties"))records.put(file,Compat.readAllBytes(file));
@@ -80,7 +80,7 @@ public final class BrowserCompatibilityAudit extends Instrumentation {
             check(!c.getWebAuthUrl().isEmpty(),"正常启动失败");String cookie=c.exchangeDshAuthCookie();check(cookie!=null,"鉴权失败");
             String base=WebPreviewPolicy.loopbackBaseUrl(c.getWebAuthUrl());
             File index=new File(c.proot().getRootfsDir(),"usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-frontend/dist/index.html");
-            String html=Compat.readAll(index);check(html.indexOf("DeepSeekHarness_BROWSER_COMPAT_BEGIN")<html.indexOf("<script type=\"module\""),"HTML 补丁未在应用脚本之前");
+            String html=Compat.readAll(index);check(html.indexOf("DSHA_BROWSER_COMPAT_BEGIN")<html.indexOf("<script type=\"module\""),"HTML 补丁未在应用脚本之前");
             check(html.contains("AbortSignal"),"网页入口没有取消信号补丁");
             host=startActivitySync(new Intent(getTargetContext(),FragmentSessionTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));Activity activity=host;
             List<String> errors=Collections.synchronizedList(new ArrayList<>());
@@ -88,22 +88,22 @@ public final class BrowserCompatibilityAudit extends Instrumentation {
                 WebView view=new WebView(activity);browser[0]=view;view.getSettings().setJavaScriptEnabled(true);view.getSettings().setDomStorageEnabled(true);view.setWebViewClient(new WebViewClient());
                 view.setWebChromeClient(new WebChromeClient(){@Override public boolean onConsoleMessage(ConsoleMessage message){if(message.messageLevel()==ConsoleMessage.MessageLevel.ERROR)errors.add(message.message());return true;}});
                 activity.setContentView(view);
-                erase[0]=androidx.webkit.WebViewCompat.addDocumentStartJavaScript(view,"Object.defineProperty(AbortSignal,'any',{value:undefined,writable:true,configurable:true});Object.defineProperty(AbortSignal,'timeout',{value:undefined,writable:true,configurable:true});Object.defineProperty(crypto,'randomUUID',{value:undefined,writable:true,configurable:true});delete window.Iterator;window.__deepseekharnessMissingBeforeBootstrap=typeof AbortSignal.any==='undefined'&&typeof AbortSignal.timeout==='undefined';",Collections.singleton(base.substring(0,base.length()-1)));
+                erase[0]=androidx.webkit.WebViewCompat.addDocumentStartJavaScript(view,"Object.defineProperty(AbortSignal,'any',{value:undefined,writable:true,configurable:true});Object.defineProperty(AbortSignal,'timeout',{value:undefined,writable:true,configurable:true});Object.defineProperty(crypto,'randomUUID',{value:undefined,writable:true,configurable:true});delete window.Iterator;window.__dshaMissingBeforeBootstrap=typeof AbortSignal.any==='undefined'&&typeof AbortSignal.timeout==='undefined';",Collections.singleton(base.substring(0,base.length()-1)));
             });
             CountDownLatch readyCookie=new CountDownLatch(1);runOnMainSync(()->CookieManager.getInstance().setCookie(base,cookie+"; Path=/; HttpOnly; SameSite=Strict",ok->readyCookie.countDown()));check(readyCookie.await(10,TimeUnit.SECONDS),"Cookie 未写入");
             for(int round=0;round<2;round++){
                 runOnMainSync(()->browser[0].loadUrl(base));
                 end=SystemClock.elapsedRealtime()+60000;boolean ready=false;
                 while(SystemClock.elapsedRealtime()<end){
-                    ready="true".equals(evaluate(browser[0],"Boolean(window.__deepseekharnessMissingBeforeBootstrap&&typeof AbortSignal.any==='function'&&typeof AbortSignal.timeout==='function'&&typeof crypto.randomUUID==='function'&&typeof Iterator==='function'&&typeof Iterator.prototype.filter==='function'&&!document.querySelector('[data-dsh-boot]')&&(document.querySelector('[data-composer-input]')||document.getElementById('root')?.children.length))"));
+                    ready="true".equals(evaluate(browser[0],"Boolean(window.__dshaMissingBeforeBootstrap&&typeof AbortSignal.any==='function'&&typeof AbortSignal.timeout==='function'&&typeof crypto.randomUUID==='function'&&typeof Iterator==='function'&&typeof Iterator.prototype.filter==='function'&&!document.querySelector('[data-dsh-boot]')&&(document.querySelector('[data-composer-input]')||document.getElementById('root')?.children.length))"));
                     if(ready)break;Thread.sleep(250);
                 }
                 check(ready,"删除原生接口后的真实网页未就绪："+errors);
                 check("true".equals(evaluate(browser[0],"(()=>{const a=new AbortController(),b=new AbortController(),s=AbortSignal.any([a.signal,b.signal]);b.abort('expected-source-reason');return s.aborted&&s.reason==='expected-source-reason'})()")),"取消原因未传递");
-                evaluate(browser[0],"window.__deepseekharnessTimeout=AbortSignal.timeout(0)");
+                evaluate(browser[0],"window.__dshaTimeout=AbortSignal.timeout(0)");
                 long timerDeadline=SystemClock.elapsedRealtime()+3000; boolean timedOut=false;
                 while(SystemClock.elapsedRealtime()<timerDeadline){
-                    timedOut="true".equals(evaluate(browser[0],"window.__deepseekharnessTimeout.aborted&&window.__deepseekharnessTimeout.reason.name==='TimeoutError'"));
+                    timedOut="true".equals(evaluate(browser[0],"window.__dshaTimeout.aborted&&window.__dshaTimeout.reason.name==='TimeoutError'"));
                     if(timedOut)break;Thread.sleep(50);
                 }
                 check(timedOut,"超时取消未完成");

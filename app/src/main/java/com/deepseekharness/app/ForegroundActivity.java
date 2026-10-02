@@ -23,6 +23,8 @@ public final class ForegroundActivity implements Application.ActivityLifecycleCa
     @Override public void onActivityResumed(Activity activity) {
         if (activity instanceof FragmentActivity) CURRENT.resumed((FragmentActivity) activity);
         com.deepseekharness.app.vscreen.VirtualScreenForeground.resume(activity);
+        if (new com.deepseekharness.app.core.ConfigStore(activity).isLanMode())
+            HarnessService.ensureLanForeground(activity);
     }
 
     private void left(Activity activity) {

@@ -34,6 +34,24 @@ public final class RootShell {
         if (!plan.allowed()) return plan.reason + "\n[EXIT=126]";
         if (plan.kind == DeviceShellPolicy.Kind.SENSITIVE_READ && (authorizedSmsUser < 0 || !new com.deepseekharness.app.core.DeviceGrants(ctx).smsReadAllowed()))
             return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 短信读取尚未经过原生授权\n[EXIT=126]");
+        return runPrivileged(ctx, command, authorizedSmsUser, "");
+    }
+
+    /** Native-only launcher path. Generic RootShell.exec rejects app_process unconditionally. */
+    public static String execVirtualScreen(Context ctx, String command) {
+        if (!enabled(ctx)) return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 未允许 root shell\n[EXIT=126]");
+        try {
+            String source = ctx.getApplicationInfo().sourceDir;
+            String canonical = new File(source).getCanonicalPath();
+            if (!source.equals(canonical) || !DeviceShellPolicy.inspectVirtualScreenLaunch(command, canonical).allowed())
+                return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 虚拟屏启动参数无法核验\n[EXIT=126]");
+        } catch (Exception invalid) {
+            return com.deepseekharness.app.util.UiText.text("[POLICY_BLOCKED] 无法核验 DeepSeekHarness 安装包路径\n[EXIT=126]");
+        }
+        return runPrivileged(ctx, command, -1, "virtual-screen-start");
+    }
+
+    private static String runPrivileged(Context ctx, String command, int authorizedSmsUser, String operation) {
         String su = executable();
         if (su == null) return com.deepseekharness.app.util.UiText.text("[ROOT_UNAVAILABLE] 未找到 su\n[EXIT=124]");
         Process process = null;
@@ -43,7 +61,9 @@ public final class RootShell {
                     + " /system/bin/app_process /system/bin " + RootShellMain.class.getName();
             process = new ProcessBuilder(su, "-c", entry).redirectErrorStream(true).start();
             try (java.io.OutputStream input = process.getOutputStream()) {
-                input.write(new org.json.JSONObject().put("command", command).put("smsUser", authorizedSmsUser)
+                org.json.JSONObject request = new org.json.JSONObject().put("command", command).put("smsUser", authorizedSmsUser);
+                if (!operation.isEmpty()) request.put("operation", operation);
+                input.write(request
                         .toString().getBytes(StandardCharsets.UTF_8));
             }
             BoundedProcessRunner.Result result = BoundedProcessRunner.collect(process, 65_000, 400_000, Compat::destroy);

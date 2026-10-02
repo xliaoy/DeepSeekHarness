@@ -47,7 +47,7 @@ public final class DiagnosticPtyAudit extends Instrumentation {
         Bundle result = new Bundle(); Context app = getTargetContext();
         try {
             check(!RuntimeTasks.isBusy() && !EnvironmentTaskGate.isBusy(), "有其他环境工作，请稍后测试");
-            for (String cmd : new String[]{"input keyevent 224", "wm dismiss-keyguard", "am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity"}) {
+            for (String cmd : new String[]{"input keyevent 224", "wm dismiss-keyguard", "am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity"}) {
                 try (ParcelFileDescriptor fd = getUiAutomation().executeShellCommand(cmd);
                      InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) { while (in.read() != -1) { } }
             }
@@ -67,7 +67,7 @@ public final class DiagnosticPtyAudit extends Instrumentation {
             ui(page::finish); page = null;
 
             com.deepseekharness.app.runtime.ProotBootstrap proot = HarnessController.get(app).proot();
-            directory = new File(proot.getRootfsDir(), "root/.deepseekharness-pty-audit-" + UUID.randomUUID());
+            directory = new File(proot.getRootfsDir(), "root/.dsha-pty-audit-" + UUID.randomUUID());
             check(directory.mkdir(), "独立 PTY 目录未创建");
             String guest = "/root/" + directory.getName();
             try (EnvironmentTaskGate.Lease lease = EnvironmentTaskGate.tryAcquire("独立 PTY 验收")) {

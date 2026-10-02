@@ -63,13 +63,33 @@ public class PluginRestoreGraphTest {
         assertNotNull(fs.readLink(new File(root,"profiles/web/node_modules/user-plugin")));
         assertEquals(List.of("dsh-web-mobile"),report.get("ignoredSystemPlugins"));assertEquals(true,report.get("relationshipsRebuilt"));
     }
+    @Test public void rewrittenManifestPreservesButDoesNotReuseOldDependencySnapshot()throws Exception{
+        File root=fixture();String old="{\"format\":1,\"manifestSha256\":\"old-manifest\"}";
+        put(root,"packages/"+A+"/.dsha-dependencies.json",old);
+        var report=new PluginRestoreGraph(fs,root,(name,proof)->null).rebuild(graph(),new BackupControl(null));
+        assertFalse(new File(root,"packages/"+A+"/.dsha-dependencies.json").exists());
+        assertEquals(old,Files.readString(new File(root,"original-declarations/packages/"+A+"/.dsha-dependencies.json").toPath()));
+        assertTrue(((List<?>)report.get("warnings")).contains("DEPENDENCY_SNAPSHOT_REQUIRES_REVIEW"));
+        assertEquals(false,report.get("relationshipsRebuilt"));
+        Map<String,Object> rewritten=BackupJson.read(Files.readAllBytes(new File(root,"packages/"+A+"/package.json").toPath()),BackupLimits.MANIFEST);
+        assertTrue(((Map<?,?>)rewritten.get("dependencies")).get("helper").toString().startsWith("link:"));
+    }
+    @Test public void rebuiltLinkInvalidatesSnapshotEvenWhenManifestTextAlreadyMatches()throws Exception{
+        File root=fixture();String manifest="{\"name\":\"user-plugin\",\"dependencies\":{\"helper\":\"link:../"+B+"\"}}";
+        put(root,"packages/"+A+"/package.json",manifest);
+        put(root,"packages/"+A+"/.dsha-dependencies.json","old frozen snapshot");
+        var report=new PluginRestoreGraph(fs,root,(name,proof)->null).rebuild(graph(),new BackupControl(null));
+        assertEquals(manifest,Files.readString(new File(root,"packages/"+A+"/package.json").toPath()));
+        assertFalse(new File(root,"packages/"+A+"/.dsha-dependencies.json").exists());
+        assertTrue(((List<?>)report.get("warnings")).contains("DEPENDENCY_SNAPSHOT_REQUIRES_REVIEW"));
+    }
     @Test public void signedBuiltinStateUsesCurrentApkPathAndKeepsDisabledIntent()throws Exception{
         File root=fixture();put(root,"profiles/web/node_modules/dsh-web-mobile/package.json","{\"name\":\"dsh-web-mobile\",\"version\":\"old\"}");
         Map<String,Object> description=new LinkedHashMap<>(graph());description.put("systemPlugins",Map.of("web",Map.of("dsh-web-mobile",Map.of("enabled",false,"disabled",true))));
         var report=new PluginRestoreGraph(fs,root,(name,proof)->null).rebuild(description,new BackupControl(null));
         assertFalse(new File(root,"profiles/web/node_modules/dsh-web-mobile").exists());assertTrue(new File(root,"profiles/web/node_modules/dsh-web-mobile.disabled").isFile());
         Map<String,Object> profile=BackupJson.read(Files.readAllBytes(new File(root,"profiles/web/package.json").toPath()),BackupLimits.MANIFEST);
-        assertEquals("link:/root/deepseekharness-web-mobile",((Map<?,?>)profile.get("dependencies")).get("dsh-web-mobile"));
+        assertEquals("link:/root/dsha-web-mobile",((Map<?,?>)profile.get("dependencies")).get("dsh-web-mobile"));
         assertEquals(1L,report.get("systemPluginStatesApplied"));assertEquals(false,report.get("executed"));
     }
 }

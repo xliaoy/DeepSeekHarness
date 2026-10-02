@@ -164,6 +164,6 @@ public final class WebProcSel {
 
     private static boolean webArguments(String[] args, int index) {
         return args[index].equals("web") || (index + 1 < args.length && args[index].equals("--profile")
-                && args[index + 1].matches("deepseekharness-recovery-[0-9a-f]{16}"));
+                && args[index + 1].matches("(?:deepseekharness-recovery-[0-9a-f]{16}|deepseekharness-emergency-[0-9a-f]{32})"));
     }
 }

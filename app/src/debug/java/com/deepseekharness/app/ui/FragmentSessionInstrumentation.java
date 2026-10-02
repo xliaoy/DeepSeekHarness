@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * debug 注册入口：com.deepseekharness.app.ui.FragmentSessionInstrumentation，targetPackage=com.deepseek.harness。
+ * debug 注册入口：com.deepseekharness.app.ui.FragmentSessionInstrumentation，targetPackage=com.dsh.client。
  * 同时注册 FragmentSessionTestActivity（exported=false）。only=all（默认）/ui/terminal。
  * 不启动/停止真实 Web，不启用/禁用用户插件；终端只使用自己创建的进程与临时文件。
  */
@@ -43,7 +43,7 @@ public final class FragmentSessionInstrumentation extends Instrumentation {
     private final List<String> failures = new ArrayList<>();
     private final StringBuilder transcript = new StringBuilder();
     private static final long LAUNCH_TIMEOUT_MS = 15_000;
-    private static final String OWNER_EXTRA = "DeepSeekHarness_fragment_self_owner";
+    private static final String OWNER_EXTRA = "dsha_fragment_self_owner";
     private final String launchOwner = UUID.randomUUID().toString().replace("-", "");
     private MainActivity ownMain;
 
@@ -136,7 +136,7 @@ public final class FragmentSessionInstrumentation extends Instrumentation {
         FutureTask<String> command = new FutureTask<>(() -> {
             // 单独任务与随机标记保证只清理本次创建的 Main，不认领用户先前的 Activity。
             ParcelFileDescriptor opened = getUiAutomation().executeShellCommand(
-                    "am start -W -f 0x18000000 -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity --es "
+                    "am start -W -f 0x18000000 -n com.dsh.client/com.deepseekharness.app.ui.MainActivity --es "
                             + OWNER_EXTRA + " " + launchOwner);
             pipe.set(opened);
             try (InputStream input = new ParcelFileDescriptor.AutoCloseInputStream(opened)) {

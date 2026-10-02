@@ -36,13 +36,13 @@ public final class WebPortAudit extends Instrumentation {
         ServerSocket owner=null,second=null;Activity page=null;
         Map<File,byte[]> savedFiles=new LinkedHashMap<>();
         try{
-            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}
+            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}
             long end=SystemClock.elapsedRealtime()+120000;
             while((!c.isEnvironmentReady()||BackupManager.isEnvironmentTaskBusy())&&SystemClock.elapsedRealtime()<end)Thread.sleep(150);
             check(c.isEnvironmentReady()&&!BackupManager.isEnvironmentTaskBusy(),"环境未就绪");stopped(c);
             File history=new File(getTargetContext().getFilesDir(),"startup-history");File[] records=history.listFiles();
             if(records!=null)for(File file:records)if(file.getName().matches("[0-9a-f-]{36}\\.properties"))savedFiles.put(file,Compat.readAllBytes(file));
-            File checkpoint=new File(c.proot().getRootfsDir(),"root/.dsh/deepseekharness-startup-checkpoints");
+            File checkpoint=new File(c.proot().getRootfsDir(),"root/.dsh/dsha-startup-checkpoints");
             for(String name:new String[]{"healthy-1.json","healthy-2.json","healthy-3.json","before-1.json","before-2.json","before-3.json","candidate.json","pending.json","skip-healthy"}){
                 File file=new File(checkpoint,name);check(!Compat.isSymbolicLink(file),"不修改重定向的用户快照");savedFiles.put(file,file.isFile()?Compat.readAllBytes(file):null);
             }

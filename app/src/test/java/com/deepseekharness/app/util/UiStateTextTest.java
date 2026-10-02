@@ -27,7 +27,7 @@ public class UiStateTextTest {
             assertEquals(pair[0],pair[0].split("%s",-1).length,pair[1].split("%s",-1).length);
     }
     @Test public void cachedNativeResetResultChangesLanguageWithoutTranslatingItsPath() {
-        String path="/data/user/0/com.deepseek.harness/files/原件 English";
+        String path="/data/user/0/com.dsh.client/files/原件 English";
         String zh="配置已重置，对话及原生凭据保留。重置前配置原件：\n"+path;
         String en="Configuration reset; conversations and native credentials retained. Original configuration:\n"+path;
         UiText.setLanguage("en");assertEquals(en,UiStateText.render(zh));

@@ -25,12 +25,17 @@ public final class EnvironmentRecoveryFragment extends Fragment {
         hint.setText(com.deepseekharness.app.util.UiText.text("可以在设置中修改配置、查看数据维护记录和下载日志。环境恢复完成后，再使用插件和终端。个人数据与原环境继续保留。\n"));
         hint.setTextSize(15); hint.setTextColor(requireContext().getColor(R.color.text_secondary));
         content.addView(hint);
+        Button emergency = new androidx.appcompat.widget.AppCompatButton(requireContext());
+        emergency.setText(com.deepseekharness.app.util.UiText.choose("启动应急 DSH", "Start emergency DSH"));emergency.setTextSize(15);
+        emergency.setBackgroundResource(R.drawable.bg_btn_primary);emergency.setTextColor(requireContext().getColorStateList(R.color.button_primary_text));
+        emergency.setOnClickListener(v -> startActivity(new Intent(requireContext(),RecoveryActivity.class)));
+        content.addView(emergency,new LinearLayout.LayoutParams(-1,-2));
         Button repair = new Button(requireContext()); repair.setText(com.deepseekharness.app.util.UiText.text("查看维护进度与恢复选项"));
         repair.setOnClickListener(v -> startActivity(new Intent(requireContext(), ExtractActivity.class).putExtra("review_only", true)));
         content.addView(repair, new LinearLayout.LayoutParams(-1, -2));
         Button logs = new Button(requireContext()); logs.setText(com.deepseekharness.app.util.UiText.text("查看并下载诊断日志"));
         logs.setOnClickListener(v -> startActivity(DiagnosticActivity.downloadLogs(requireContext())));
         content.addView(logs, new LinearLayout.LayoutParams(-1, -2));
-        return content;
+        android.widget.ScrollView scroll=new android.widget.ScrollView(requireContext());scroll.setFillViewport(true);scroll.addView(content);return scroll;
     }
 }

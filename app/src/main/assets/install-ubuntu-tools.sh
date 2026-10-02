@@ -17,4 +17,4 @@ cp version.txt /root/.deepseekharness-ubuntu-tools-version
 rm -f -- ./*.deb SHA256SUMS packages.txt version.txt
 cd /root
 rmdir "$install_dir"
-printf '\nDEEPSEEK_HARNESS_UBUNTU_TOOLS_READY\n'
+printf '\nDeepSeekHarness_UBUNTU_TOOLS_READY\n'

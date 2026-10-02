@@ -1,0 +1,74 @@
+# 固定 rc2 应急 Profile；正式环境的 Profile 和用户插件不会参与。
+- id: tools
+  config:
+    mode: native
+- id: agent-preset-registry
+  config:
+    default: dsha-emergency
+- id: workspace-controller
+  config:
+    documentsDirectory: '@RECOVERY_HOME@/workspace'
+- id: preset-standard
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: plugin-manager
+  disabled: true
+- id: hmr
+  disabled: true
+- id: ptc-runtime
+  disabled: true
+- id: mcp-resources
+  disabled: true
+- id: terminal-controller
+  disabled: true
+- id: workspace-files
+  disabled: true
+- id: directory-picker
+  disabled: true
+- id: open-in-app
+  disabled: true
+- id: workspace-changes
+  disabled: true
+- id: cordis-host-runner
+  disabled: true
+- id: cordis-inspect-providers
+  disabled: true
+- id: cordis-client-runner
+  disabled: true
+- id: ui-cordis
+  disabled: true
+- id: ui-plugin-manager
+  disabled: true
+- id: ui-settings-plugin-inventory
+  disabled: true
+- id: ui-settings-plugins
+  disabled: true
+- id: ui-sidebar-terminal
+  disabled: true
+- id: ui-sidebar-files
+  disabled: true
+- id: ui-open-in-app
+  disabled: true
+- id: ui-deliverables
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- insert:
+    - id: dsha-recovery-agent
+      name: '@PLUGIN_ROOT@/recovery-agent.js'
+    - id: preset-dsha-emergency
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: dsha-emergency
+        order: 1
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: 'You are the DSHA emergency repair assistant. Use only the dsha recovery tools and explain native confirmation steps.'
+              suffix: ''

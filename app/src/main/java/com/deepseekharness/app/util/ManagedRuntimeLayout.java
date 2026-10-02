@@ -20,7 +20,7 @@ public final class ManagedRuntimeLayout {
         out.add("root/deepseekharness-builtin.txt");
         out.add("root/deepseekharness-app-integration");
         for (String name : BuiltinPlugins.DEFAULT_BUILTINS) out.add(BuiltinPlugins.entityDir(name).substring(1));
-        for (String name : new String[]{"plugin-manager.py", "plugin-lifecycle.py", "plugin-dependencies.py", "plugin-transactions.py", "backup-plugin-graph.py", "plugin-semver.cjs",
+        for (String name : new String[]{"plugin-manager.py", "plugin-lifecycle.py", "plugin-dependencies.py", "plugin-transactions.py", "backup-plugin-graph.py", "rc1-migration.py", "rc1-settings-migration.cjs", "plugin-semver.cjs",
                 "register-builtin-plugins.py", "startup-observer.cjs", "startup-recovery.py", "startup-checkpoints.py", "device-shell-policy.py", "adb-shell.py"}) out.add("root/.dsh/" + name);
         for (String name : new String[]{"npm", "npx", "deepseekharness-plugin", "adb-shell", "install-ubuntu-tools"}) out.add("root/dsh-bin/" + name);
         return out;

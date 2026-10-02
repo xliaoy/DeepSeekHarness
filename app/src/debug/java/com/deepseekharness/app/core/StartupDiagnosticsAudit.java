@@ -40,7 +40,7 @@ public final class StartupDiagnosticsAudit extends Instrumentation {
     }
     private void foreground() throws Exception {
         try (android.os.ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand(
-                "am start -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+                "am start -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
              java.io.InputStream in = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) {
             byte[] buffer = new byte[1024]; while (in.read(buffer) != -1) { }
         }

@@ -23,7 +23,7 @@ final class TerminalSessionSelfTest {
 
     static void run(ProotBootstrap proot, Consumer<String> transcript, Consumer<String> result) throws Exception {
         if (!proot.isEnvironmentReady()) throw new IOException("环境未就绪；自测不会安装或重置环境");
-        String name = "deepseekharness-terminal-self-" + UUID.randomUUID().toString().replace("-", "");
+        String name = "dsha-terminal-self-" + UUID.randomUUID().toString().replace("-", "");
         File parent = new File(proot.getRootfsDir(), "tmp").getCanonicalFile();
         File folder = new File(parent, name).getCanonicalFile();
         require(folder.getParentFile().equals(parent) && folder.mkdir(), "无法创建独立终端夹具目录");

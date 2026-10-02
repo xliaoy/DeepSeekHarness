@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/primary_ripple">
+<!-- 主按钮：实心主色 + 按压涟漪 + 禁用变灰。圆角与次级按钮统一（旧版 16 vs 14 差 2dp，
+     并排放时肉眼能看出不齐）。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/primary_ripple">
+
     <item android:id="@android:id/mask">
         <shape android:shape="rectangle">
             <solid android:color="#FFFFFFFF" />
             <corners android:radius="@dimen/radius_control" />
         </shape>
     </item>
+
     <item>
         <selector>
             <item android:state_enabled="false">
@@ -16,8 +21,7 @@
             </item>
             <item>
                 <shape android:shape="rectangle">
-                    <gradient android:type="linear" android:angle="270"
-                        android:startColor="@color/primary_dark" android:endColor="@color/primary" />
+                    <solid android:color="@color/primary" />
                     <corners android:radius="@dimen/radius_control" />
                 </shape>
             </item>

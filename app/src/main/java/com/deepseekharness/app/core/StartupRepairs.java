@@ -28,9 +28,13 @@ public final class StartupRepairs {
         } catch(JSONException error) { throw new IOException("RECOVERY_FORMAT",error); }
         throw new IOException(SensitiveData.redact(text));
     }
+    private static String pluginCommand(HarnessController controller,String args)throws IOException{
+        try{return GuestCommandOutcome.requireCompleted(controller.proot().runPluginManagerResult(args,""),"STARTUP_PLUGIN");}
+        catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new InterruptedIOException("STARTUP_PLUGIN_INTERRUPTED");}
+    }
     public static JSONObject checkpoint(HarnessController c,JSONObject request) throws IOException {
         var engine=snapshots(c.context());var control=BackupTask.currentControl(null);String command=request.optString("command");
-        if(java.util.List.of("new","restore","recover").contains(command)&&!com.deepseekharness.app.BackupManager.isDataTaskOwner())throw new IOException("RECOVERY_REQUIRES_MAINTENANCE");
+        if(java.util.List.of("new","restore","recover").contains(command)&&!com.deepseekharness.app.core.MaintenanceCoordinator.isOwner())throw new IOException("RECOVERY_REQUIRES_MAINTENANCE");
         try{
             switch(command){
                 case "list":return new JSONObject(engine.list(control));
@@ -48,7 +52,7 @@ public final class StartupRepairs {
         return checkpoint(c,new JSONObject().put("command","list"));
     }
     public static JSONObject plugins(HarnessController c) throws IOException {
-        return result(c.proot().runPluginManager("list"),"PLUGIN_RESULT: ");
+        return result(pluginCommand(c,"list"),"PLUGIN_RESULT: ");
     }
     public static String change(Context context,HarnessController c,JSONObject request) throws Exception {
         if("recover".equals(request.optString("command")))EnvironmentMaintenance.ensureSingleRecovery(c);
@@ -66,7 +70,7 @@ public final class StartupRepairs {
         for(int i=0;i<items.length();i++) { JSONObject item=items.getJSONObject(i);if(name.equals(item.optString("name"))&&item.optBoolean("deletable"))found=true; }
         if(!found)throw new IOException("RECOVERY_PLUGIN");
         checkpoint(c,new JSONObject().put("command","before"));
-        result(c.proot().runPluginManager("delete "+ShellQuote.arg(name)),"PLUGIN_RESULT: ");
+        result(pluginCommand(c,"delete "+ShellQuote.arg(name)),"PLUGIN_RESULT: ");
         return UiText.choose("插件已卸载，可重试启动：", "Plugin removed. You can retry startup: ")+name;
     }
     public static void healthy(Context context,HarnessController c,long generation) {

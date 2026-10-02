@@ -2,6 +2,15 @@ package com.deepseekharness.app.util;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class PowerPolicyTest {
+    @Test public void lanDoesNotDependOnScreenOrBrowserActivityAndStopsWithWeb() {
+        PowerPolicy p = new PowerPolicy();
+        for (long now : new long[]{0,60000,600000,3600000}) {
+            assertTrue(p.keepCpu(true,true,false,false,true,false,true,now));
+        }
+        assertFalse(p.keepCpu(true,false,false,false,true,false,true,3600001));
+        assertTrue(p.keepCpu(true,true,false,false,false,false,true,3600002));
+        assertFalse(p.keepCpu(true,true,false,false,false,false,true,3660002));
+    }
     @Test public void ecoWaitsForContinuousIdleAndResumesForWork() {
         PowerPolicy p = new PowerPolicy();
         assertTrue(p.keepCpu(true,true,false,false,false,false,true,0));

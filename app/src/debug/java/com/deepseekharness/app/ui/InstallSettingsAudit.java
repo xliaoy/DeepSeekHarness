@@ -39,7 +39,7 @@ public final class InstallSettingsAudit extends Instrumentation {
         try {
             check(!EnvironmentTaskGate.isBusy(),"真实环境任务尚未结束");
             try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand(
-                    "am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity --ez limited_entry true");
+                    "am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity --ez limited_entry true");
                 java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}
             ActivityMonitor monitor=addMonitor(FragmentSessionTestActivity.class.getName(),null,false);
             ui(()->app.startActivity(new Intent(app,FragmentSessionTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));

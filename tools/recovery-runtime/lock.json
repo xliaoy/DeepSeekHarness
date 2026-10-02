@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "dshVersion": "0.1.7-rc.2",
+  "baseVersion": "10",
+  "archives": [
+    {
+      "asset": "recovery-rootfs.bin",
+      "sha256": "8d443f1ea034369e9fec973be88c60c94b8333563479faafe23121e36d332e64",
+      "seed": "app/src/main/assets/offline-rootfs.bin"
+    },
+    {
+      "asset": "recovery-dsh-runtime.bin",
+      "sha256": "c1f2dd9ca7897e7167f0d0489cfe801fa31974b2ae1a038fa665a8971eee5b19",
+      "seed": "app/src/main/assets/dsh-runtime.bin"
+    }
+  ]
+}

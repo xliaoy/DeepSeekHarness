@@ -7,6 +7,10 @@ import com.deepseekharness.app.util.PluginInstallLink;
 final class PluginNavigation {
     private PluginNavigation(){}
     static boolean open(Activity activity,String url){
+        if(PluginInstallLink.management(url)){
+            PluginFragment.invalidateInstalledState();
+            activity.startActivity(new Intent(activity,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT).putExtra("open_plugins",true));return true;
+        }
         try{PluginInstallLink.parse(url);}catch(IllegalArgumentException ordinary){return false;}
         activity.startActivity(new Intent(activity,PluginInstallActivity.class).setData(Uri.parse(url)));return true;
     }

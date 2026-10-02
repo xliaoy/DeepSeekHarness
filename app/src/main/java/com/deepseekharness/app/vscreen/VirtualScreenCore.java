@@ -35,16 +35,17 @@ public final class VirtualScreenCore {
     public static void main(String[] args) {
         try {
             if (android.os.Build.VERSION.SDK_INT < 30) throw new UnsupportedOperationException("API_30_REQUIRED");
-            token = arg(args, "--token", "");
-            if (!token.matches("[a-f0-9]{48}")) throw new IllegalArgumentException("INVALID_TOKEN");
+            if (Arrays.asList(args).contains("--token")) throw new IllegalArgumentException("TOKEN_MUST_NOT_BE_IN_ARGV");
+            Context system = com.deepseekharness.app.runtime.PrivilegedPackageContext.systemContext();
             int port = Integer.parseInt(arg(args, "--port", "8998"));
             if (port < 8000 || port > 8999) throw new IllegalArgumentException("INVALID_PORT");
+            String classPath = System.getProperty("java.class.path", "");
+            if (!installedDshaApkPath(system).equals(classPath)) throw new SecurityException("INVALID_CLASSPATH");
             if (Arrays.asList(args).contains("--launch")) { launch(port); return; }
+            if (!Arrays.asList(args).contains("--server")) throw new IllegalArgumentException("SERVER_MODE_REQUIRED");
             if (android.os.Build.VERSION.SDK_INT < 30) throw new UnsupportedOperationException("API_30_REQUIRED");
-            Looper.prepareMainLooper();
-            // app_process 没有 Application；先建立 ActivityThread，再使用 shell 的包身份。
-            Object thread = Class.forName("android.app.ActivityThread").getMethod("systemMain").invoke(null);
-            Context system = (Context) thread.getClass().getMethod("getSystemContext").invoke(thread);
+            token = randomToken();
+            // The shared helper prepares one main Looper before the first systemMain attach.
             context = system.createPackageContext("com.android.shell", 0);
             server = new ServerSocket(port, 8, InetAddress.getByName("127.0.0.1"));
             Thread watchdog = new Thread(() -> {
@@ -63,6 +64,10 @@ public final class VirtualScreenCore {
                 } catch (IOException closed) { if (running) shutdown(); }
             }, "vscreen-listener");
             accept.setDaemon(true); accept.start();
+            // This one-time bootstrap secret travels only through the managed channel result,
+            // never in app_process argv or the device command line.
+            System.out.println("DeepSeekHarness_VSCREEN_BOOTSTRAP " + token);
+            System.out.flush();
             Looper.loop();
         } catch (Throwable error) {
             System.err.println("DeepSeekHarness_VSCREEN_ERROR=" + cause(error).getClass().getSimpleName());
@@ -72,24 +77,69 @@ public final class VirtualScreenCore {
 
     private static void launch(int port) throws Exception {
         String path = System.getProperty("java.class.path", "");
-        if (!path.startsWith("/data/app/") || !path.endsWith(".apk")) throw new IllegalArgumentException("INVALID_CLASSPATH");
+        if (!path.equals(installedDshaApkPath())) throw new IllegalArgumentException("INVALID_CLASSPATH");
         Process child = new ProcessBuilder("/system/bin/app_process", "-Djava.class.path=" + path,
-                "/system/bin", CLASS, "--server", "--port", String.valueOf(port), "--token", token)
-                .redirectInput(new File("/dev/null")).redirectOutput(new File("/dev/null")).redirectError(new File("/dev/null")).start();
-        // 只轮询只读握手；结果未知时不再发起第二次启动。
-        long deadline = SystemClock.elapsedRealtime() + 8000;
-        while (SystemClock.elapsedRealtime() < deadline) {
-            if (!child.isAlive()) throw new IOException("CORE_EXITED");
-            HttpURLConnection c = null;
-            try {
-                c = (HttpURLConnection) new URL("http://127.0.0.1:" + port + "/vscreen/ping").openConnection();
-                c.setRequestProperty("Authorization", "Bearer " + token); c.setConnectTimeout(200); c.setReadTimeout(200);
-                if (c.getResponseCode() == 200) { System.out.println("DeepSeekHarness_VSCREEN_STARTED"); return; }
-            } catch (IOException waiting) { Thread.sleep(80); }
-            finally { if (c != null) c.disconnect(); }
+                "/system/bin", CLASS, "--server", "--port", String.valueOf(port))
+                .redirectInput(new File("/dev/null")).redirectError(new File("/dev/null")).start();
+        boolean started = false;
+        try {
+            // The server creates a secret after exec; its parent returns it through the
+            // Root/Shizuku/ADB result channel, not an OS-visible command-line argument.
+            long deadline = SystemClock.elapsedRealtime() + 8000;
+            String childToken = readBootstrap(child, deadline);
+            while (SystemClock.elapsedRealtime() < deadline) {
+                if (!child.isAlive()) throw new IOException("CORE_EXITED");
+                HttpURLConnection c = null;
+                try {
+                    c = (HttpURLConnection) new URL("http://127.0.0.1:" + port + "/vscreen/ping").openConnection();
+                    c.setRequestProperty("Authorization", "Bearer " + childToken); c.setConnectTimeout(200); c.setReadTimeout(200);
+                    if (c.getResponseCode() == 200) {
+                        System.out.println("DeepSeekHarness_VSCREEN_STARTED " + childToken);
+                        System.out.flush(); started = true; return;
+                    }
+                } catch (IOException waiting) { Thread.sleep(80); }
+                finally { if (c != null) c.disconnect(); }
+            }
+            throw new IOException("START_RESULT_UNKNOWN");
+        } finally {
+            if (!started && child.isAlive()) child.destroy();
+            try { child.getInputStream().close(); } catch (IOException ignored) { }
         }
-        throw new IOException("START_RESULT_UNKNOWN");
     }
+
+    private static String readBootstrap(Process child,long deadline)throws Exception {
+        ByteArrayOutputStream line=new ByteArrayOutputStream();InputStream input=child.getInputStream();
+        while(SystemClock.elapsedRealtime()<deadline){
+            if(!child.isAlive())throw new IOException("CORE_EXITED");
+            int available=input.available();
+            if(available<=0){Thread.sleep(20);continue;}
+            int value=input.read();if(value<0)throw new EOFException("CORE_BOOTSTRAP_EOF");
+            if(value=='\n'){
+                String text=line.toString(StandardCharsets.US_ASCII.name()).trim();
+                String prefix="DeepSeekHarness_VSCREEN_BOOTSTRAP ";
+                if(!text.startsWith(prefix))throw new IOException("CORE_BOOTSTRAP_INVALID");
+                String secret=text.substring(prefix.length());
+                if(!secret.matches("[a-f0-9]{48}"))throw new IOException("CORE_BOOTSTRAP_INVALID");
+                return secret;
+            }
+            if(value!='\r'){if(line.size()>=128)throw new IOException("CORE_BOOTSTRAP_LIMIT");line.write(value);}
+        }
+        throw new IOException("CORE_BOOTSTRAP_TIMEOUT");
+    }
+
+    private static String installedDshaApkPath() throws Exception {
+        return installedDshaApkPath(com.deepseekharness.app.runtime.PrivilegedPackageContext.systemContext());
+    }
+
+    private static String installedDshaApkPath(Context system) throws Exception {
+        String source=system.getPackageManager().getApplicationInfo("com.dsh.client",0).sourceDir;
+        String canonical=new File(source).getCanonicalPath();
+        if(!source.equals(canonical)||!com.deepseekharness.app.util.DeviceShellPolicy.canonicalApkPath(canonical))
+            throw new SecurityException("INVALID_CLASSPATH");
+        return canonical;
+    }
+
+    private static String randomToken(){byte[] bytes=new byte[24];new java.security.SecureRandom().nextBytes(bytes);StringBuilder value=new StringBuilder();for(byte b:bytes)value.append(String.format(Locale.ROOT,"%02x",b&255));return value.toString();}
 
     private static void handle(Socket socket) {
         boolean close = false;

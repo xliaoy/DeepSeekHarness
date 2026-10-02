@@ -9,7 +9,7 @@ function deepseekharnessManagedPlugin(manager, spec) {
     const installation = deepseekharnessRealpath(deepseekharnessDirname(manager.profile.installAnchor));
     if (directory === installation || directory.startsWith(installation + deepseekharnessPathSeparator)) return true;
     const builtins = ['dsh-app-integration','dsh-web-mobile','dsh-status-overlay','dsh-task-notifier',
-      'dsh-device-shell-guide','dsh-computer-use-android','dsh-auto-review'];
+      'dsh-device-shell-guide','dsh-computer-use-android','dsh-auto-review','dsh-infinite-gen-4'];
     return builtins.includes(name) && directory === deepseekharnessRealpath('/root/deepseekharness-' + name.slice(4));
   } catch { return false; }
 }

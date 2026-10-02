@@ -32,7 +32,7 @@ public final class Rc21AttachmentAudit extends Instrumentation {
         Bundle result=new Bundle();HarnessController c=HarnessController.get(getTargetContext());File fixture=null;
         try {
             BackupManager.runDataTask(c,()->EnvironmentMaintenance.update(c,text->{}));
-            String guest="/root/deepseekharness-rc21-audit-"+UUID.randomUUID();fixture=new File(c.proot().getRootfsDir(),guest.substring(1));
+            String guest="/root/dsha-rc21-audit-"+UUID.randomUUID();fixture=new File(c.proot().getRootfsDir(),guest.substring(1));
             copy("test-attachment-store.mjs",new File(fixture,"test-attachment-store.mjs"));
             for(String asset:new String[]{"backup-engine.py","backup-plugin-graph.py","register-builtin-plugins.py","environment-data.py"})
                 copy(asset,new File(fixture,"app/src/main/assets/"+asset));

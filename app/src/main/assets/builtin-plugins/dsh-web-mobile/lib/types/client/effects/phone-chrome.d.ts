@@ -6,7 +6,7 @@ import type { PanelExit } from './panel-exit.ts';
  *  from a desktop window: split views and OS display scaling push a PC's CSS
  *  viewport below 1024px too, and the whole mobile shell (drawer, header
  *  Files button, gestures) would mount there. (pointer: coarse) keeps the
- *  adaptation on touch-primary devices — phones, tablets, DEEPSEEK_HARNESS — while any
+ *  adaptation on touch-primary devices — phones, tablets, DSHA — while any
  *  mouse-driven window stays desktop at every width. Headless probes have no
  *  pointer at all: arm the mobile branch with Emulation.setTouchEmulation-
  *  Enabled before asserting mobile UI. */
@@ -83,6 +83,13 @@ export declare function detectIosWebKit(nav: {
     maxTouchPoints: number;
 }, supports: ((condition: string) => boolean) | null): boolean;
 /**
+ * CSS custom property carrying the viewport height WITHOUT the soft keyboard
+ * (px), maintained by the viewport effect below. Mobile cards that must not
+ * move when the keyboard appears size themselves with it instead of a viewport
+ * unit — see the settings sheet / shortcut card rules in layout.css.ts.
+ */
+export declare const STABLE_VIEWPORT_VAR = "--dsh-web-mobile-vh";
+/**
  * Phone chrome: KEEP the system status bar (no fullscreen) and make it
  * blend into the page. On narrow screens:
  * - The viewport meta is OWNED by the plugin while armed:
@@ -123,6 +130,22 @@ export declare function installPhoneChrome(ctx: ClientContext): void;
  * did nothing but retract the drawer, 2026-09-13).
  */
 export declare const TAP_CLOSE_NAV_SELECTOR = "button[data-dsh-taskboard-entry], button[data-dsh-ssh-entry], [class*=\"newSession\"], [class*=\"sessionRow\"], [class*=\"searchResultRow\"], [class*=\"searchResultWorkspace\"], [class*=\"panelRow\"]";
+/**
+ * The one drawer toggle every non-gesture entry point shares: a CLOSE animates
+ * into the closed slot and flips the host marker only once it has landed
+ * (closeDrawerAnimated's late commit — spec 2026-08-27), an OPEN stays a plain
+ * toggle so the host's own .28s transform transition plays.
+ *
+ * Load-bearing for layering, not just for looks (2026-09-25): the popover
+ * band's modal-root raise is gated on our backdrop being on screen, and the
+ * backdrop outlives the marker flip by design (fade .2s + removal 260ms). A
+ * closer that flips the marker while the column is still painted therefore
+ * leaves an open modal under the drawer band for the length of the
+ * transition — that is the 快捷键弹层「抽搐/闪」 root cause. Routing every
+ * closer through here removes the window at the source instead of relying on
+ * the band to cover it.
+ */
+export declare function toggleDrawer(ctx: ClientContext): void;
 export declare function installOverlayInteractions(ctx: ClientContext): void;
 /**
  * Register the shared DOM reconciler tasks. Returns a disposer that

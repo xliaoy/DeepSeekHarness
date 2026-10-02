@@ -12,7 +12,7 @@ public final class PostUpgradeCleanupService extends JobService {
         if(AutomaticBackups.factoryResetPending(context)){
             JobScheduler scheduler=context.getSystemService(JobScheduler.class);if(scheduler!=null)scheduler.cancel(JOB);return;
         }
-        var prefs=context.getSharedPreferences("DeepSeekHarness_storage_cleanup",MODE_PRIVATE);
+        var prefs=context.getSharedPreferences("deepseekharness_storage_cleanup",MODE_PRIVATE);
         if(prefs.getInt("completedBuild",0)>=BuildConfig.VERSION_CODE&&prefs.getInt("policy",0)>=POLICY)return;
         JobScheduler scheduler=context.getSystemService(JobScheduler.class);if(scheduler==null)return;
         if(scheduler.getAllPendingJobs().stream().noneMatch(job->job.getId()==JOB))scheduler.schedule(new JobInfo.Builder(JOB,new ComponentName(context,PostUpgradeCleanupService.class))
@@ -27,7 +27,7 @@ public final class PostUpgradeCleanupService extends JobService {
     private void save(boolean success,String value){
         synchronized(PostUpgradeCleanupService.class){
             if(FACTORY_RESET.get()||AutomaticBackups.factoryResetPending(this))return;
-            var edit=getSharedPreferences("DeepSeekHarness_storage_cleanup",MODE_PRIVATE).edit();
+            var edit=getSharedPreferences("deepseekharness_storage_cleanup",MODE_PRIVATE).edit();
             if(success)edit.putInt("completedBuild",BuildConfig.VERSION_CODE).putInt("policy",POLICY).putLong("freedBytes",Long.parseLong(value)).putString("error","");
             else edit.putString("error",value);
             edit.commit();

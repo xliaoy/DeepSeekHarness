@@ -54,14 +54,71 @@ public interface BackupFileSystem {
             byte[] buffer=new byte[4096];int n;while((n=in.read(buffer))!=-1){if(out.size()+n>limit)throw new IOException("METADATA_LIMIT");out.write(buffer,0,n);}return out.toByteArray();}
     }
     default void atomic(File directory,String name,byte[] bytes)throws IOException{
-        BackupLimits.path(name);if(name.contains("/"))throw new IOException("RECORD_NAME");
-        File target=child(directory,name),part=child(directory,name+".tmp-"+UUID.randomUUID());
-        try(OutputStream out=create(part)){out.write(bytes);}
-        // move 不覆盖；已有记录改名保留到提交完成，恢复方按固定名称核对。
-        Node original=stat(target);File previous=child(directory,name+".previous");
-        if(!stat(previous).type.equals("MISSING"))throw new IOException("UNFINISHED_RECORD_WRITE");
-        if(!original.type.equals("MISSING"))move(target,previous);
-        move(part,target);syncDirectory(directory);
-        if(!original.type.equals("MISSING"))delete(previous);syncDirectory(directory);
+        BackupLimits.path(name);if(name.contains("/")||bytes==null)throw new IOException("RECORD_NAME");
+        File target=child(directory,name),previous=child(directory,name+".previous");
+
+        // Recover the two durable rename boundaries of the previous atomic write.
+        // If the process died after target -> previous, restore that last complete
+        // record before attempting this write. If target already exists, the prior
+        // publication may have completed before its previous-file cleanup; keep
+        // that older record under a unique name rather than blocking every future
+        // update or silently discarding an unverified file.
+        Node current=stat(target),old=stat(previous);boolean recoveredPrevious=false;
+        if(!old.type.equals("MISSING")){
+            if(current.type.equals("MISSING")){
+                if(!old.type.equals("FILE"))throw new IOException("PREVIOUS_RECORD_UNREADABLE");
+                restoreRecordCopy(previous,old,target);recoveredPrevious=true;current=stat(target);old=stat(previous);
+            }
+            if(!recoveredPrevious&&!old.type.equals("MISSING")){
+                File retained=child(directory,name+".previous-retained-"+UUID.randomUUID());
+                move(previous,retained);syncDirectory(directory);
+            }
+        }
+        current=stat(target);
+        if(current.type.equals("FILE")&&current.size==bytes.length&&sameBytes(this,target,current,bytes)){
+            if(recoveredPrevious&&!stat(previous).type.equals("MISSING")){
+                File retained=child(directory,name+".previous-retained-"+UUID.randomUUID());move(previous,retained);syncDirectory(directory);
+            }
+            return;
+        }
+        if(!current.type.equals("MISSING")&&!current.type.equals("FILE"))throw new IOException("RECORD_TARGET_TYPE");
+
+        File part=child(directory,name+".tmp-"+UUID.randomUUID());
+        try{
+            try(OutputStream out=create(part)){out.write(bytes);}
+            current=stat(target);
+            if(!current.type.equals("MISSING")&&!current.type.equals("FILE"))throw new IOException("RECORD_TARGET_TYPE");
+            if(recoveredPrevious&&!stat(previous).type.equals("MISSING")){
+                File retained=child(directory,name+".previous-retained-"+UUID.randomUUID());move(previous,retained);syncDirectory(directory);
+            }
+            // move 不覆盖；已有完整记录只进入固定 previous 槽位后才发布。
+            if(!current.type.equals("MISSING"))move(target,previous);
+            move(part,target);syncDirectory(directory);
+            if(!current.type.equals("MISSING")){
+                delete(previous);syncDirectory(directory);
+            }
+        }finally{
+            if(!stat(part).type.equals("MISSING"))delete(part);
+        }
+    }
+
+    private void restoreRecordCopy(File source,Node expected,File target)throws IOException{
+        if(!expected.type.equals("FILE")||expected.size>BackupLimits.BYTES)throw new IOException("PREVIOUS_RECORD_UNREADABLE");
+        File temporary=child(target.getParentFile(),target.getName()+".restore-"+UUID.randomUUID());long copied=0;
+        try{
+            try(InputStream input=read(source,expected);OutputStream output=create(temporary)){
+                byte[] buffer=new byte[8192];int count;while((count=input.read(buffer))!=-1){copied=BackupLimits.add(copied,count,BackupLimits.BYTES);output.write(buffer,0,count);}
+            }
+            if(copied!=expected.size)throw new IOException("PREVIOUS_RECORD_CHANGED");move(temporary,target);syncDirectory(target.getParentFile());
+        }finally{if(!stat(temporary).type.equals("MISSING"))delete(temporary);}
+    }
+
+    private static boolean sameBytes(BackupFileSystem fs,File file,Node expected,byte[] wanted)throws IOException{
+        try(InputStream input=fs.read(file,expected)){
+            byte[] buffer=new byte[8192];int offset=0;
+            while(offset<wanted.length){int count=input.read(buffer,0,Math.min(buffer.length,wanted.length-offset));
+                if(count<0)return false;for(int i=0;i<count;i++)if(buffer[i]!=wanted[offset+i])return false;offset+=count;}
+            return input.read()==-1;
+        }
     }
 }

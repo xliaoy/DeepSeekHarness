@@ -7,8 +7,8 @@ import static org.junit.Assert.*;
 public class UpdatePolicyTest {
     private UpdatePolicy.Release release(int code, String channel, String flavor, int minSdk) {
         return new UpdatePolicy.Release(code, "1.2.0-rc1.3", channel, flavor, minSdk,
-                "arm64-v8a", "https://deepseekharness-test.invalid/downloads/a.apk", "a".repeat(64), 100,
-                "更新说明", "https://deepseekharness-test.invalid/download/");
+                "arm64-v8a", "https://dsha.cc/downloads/a.apk", "a".repeat(64), 100,
+                "更新说明", "https://dsha.cc/download/");
     }
     @Test public void separatesChannelsAndEditionsAndNeverDowngrades() {
         UpdatePolicy.Release stable = release(113, "stable", "low", 23);
@@ -28,11 +28,11 @@ public class UpdatePolicyTest {
                 112, "standard", 37, "preview"));
     }
     @Test public void rejectsUnsafeOrIncompleteArtifacts() {
-        assertFalse(UpdatePolicy.https("http://deepseekharness-test.invalid/a.apk"));
-        assertFalse(UpdatePolicy.https("https://user:secret@deepseekharness-test.invalid/a.apk"));
-        assertFalse(UpdatePolicy.https("https://deepseekharness-test.invalid/a.apk#secret"));
+        assertFalse(UpdatePolicy.https("http://dsha.cc/a.apk"));
+        assertFalse(UpdatePolicy.https("https://user:secret@dsha.cc/a.apk"));
+        assertFalse(UpdatePolicy.https("https://dsha.cc/a.apk#secret"));
         UpdatePolicy.Release bad = new UpdatePolicy.Release(120, "1.3", "preview", "low", 23,
-                "arm64-v8a", "https://deepseekharness-test.invalid/a.apk", "bad", 100, "", "https://deepseekharness-test.invalid/");
+                "arm64-v8a", "https://dsha.cc/a.apk", "bad", 100, "", "https://dsha.cc/");
         assertNull(UpdatePolicy.select(Arrays.asList(bad), 112, "low", 23, "preview"));
     }
     @Test public void legacyStableArtifactDoesNotIdentifyTheQueryChannel() {

@@ -39,8 +39,8 @@ public final class UpgradeDeviceAudit extends Instrumentation {
                 File root = controller.proot().getRootfsDir();
                 for (File target : new File[]{
                         new File(getTargetContext().getCacheDir(), "runtime-startup/cold-alpha2-20260910"),
-                        new File(root, "root/.deepseekharness-alpha2-tests"), new File(root, "root/.deepseekharness-alpha2-snapshot.py"),
-                        new File(root, "root/闲聊/DEEPSEEK_HARNESS-alpha2-preview-check")}) {
+                        new File(root, "root/.dsha-alpha2-tests"), new File(root, "root/.dsha-alpha2-snapshot.py"),
+                        new File(root, "root/闲聊/DSHA-alpha2-preview-check")}) {
                     File allowed = target.getPath().startsWith(getTargetContext().getCacheDir().getPath())
                             ? getTargetContext().getCacheDir() : root;
                     check(!Compat.isSymbolicLink(target) && target.getCanonicalPath().startsWith(allowed.getCanonicalPath() + File.separator),
@@ -53,7 +53,7 @@ public final class UpgradeDeviceAudit extends Instrumentation {
                 check(controller.proot().canUpdateManagedRuntime(), "旧版基础环境不支持局部更新");
                 long began = android.os.SystemClock.elapsedRealtime();
                 try (android.os.ParcelFileDescriptor fd = getUiAutomation().executeShellCommand(
-                        "am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+                        "am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
                      InputStream input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)) {
                     while (input.read() != -1) { }
                 }
@@ -86,7 +86,7 @@ public final class UpgradeDeviceAudit extends Instrumentation {
             } else {
                 check(controller.isEnvironmentReady(), "需要就绪的 Ubuntu 环境");
                 String token = UUID.randomUUID().toString();
-                String guest = "/root/.deepseekharness-upgrade-audit-" + token;
+                String guest = "/root/.dsha-upgrade-audit-" + token;
                 owned = new File(controller.proot().getRootfsDir(), guest.substring(1));
                 check(owned.mkdir(), "创建独立检查目录");
                 if ("backup".equals(args.getString("mode"))) {
@@ -110,7 +110,7 @@ public final class UpgradeDeviceAudit extends Instrumentation {
                             + " BackupTest.test_local_plugin_code_and_runtime_dependency_roundtrip";
                     note(BackupManager.runSnapshotTask(controller, () -> controller.proot().execChecked(command)));
                 } else if ("plugins".equals(args.getString("mode"))) {
-                    String name = "deepseekharness-audit-" + token;
+                    String name = "dsha-audit-" + token;
                     File source = new File(owned, "source"); check(source.mkdir(), "创建独立 npm 插件源码");
                     Compat.write(new File(source, "package.json"), "{\"name\":\"" + name
                             + "\",\"version\":\"1.0.0\",\"type\":\"module\",\"main\":\"index.js\",\"dsh\":{\"bundle\":{\"patch\":\"cordis.patch.yml\"}}}");

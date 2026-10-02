@@ -28,12 +28,13 @@ final class RuntimeTools {
     static void stage(Context context, File rootfs) throws IOException { prepare(context, rootfs, false); }
 
     private static void prepare(Context context, File rootfs, boolean requireNpm) throws IOException {
+        try (RuntimeHostPorts.Scope scope = RuntimeHostPorts.shared().open()) {
         synchronized (LOCK) {
             try { prepareResolver(context, rootfs); }
             catch(IOException error) { android.util.Log.w("DeepSeekHarness","DNS configuration unchanged",error); }
             File installedDescriptor = new File(rootfs.getParentFile(), ".runtime-descriptor.json");
             if (requireNpm && installedDescriptor.isFile()
-                    && !com.deepseekharness.app.BackupManager.isDataTaskOwner()) {
+                    && !com.deepseekharness.app.util.MaintenanceGate.shared().isOwner()) {
                 // 已登记运行时的主体只能由维护事务切换。身份完全一致时仍允许修复 APK 自有
                 // 脚本/内置插件覆盖层，解决旧版提前 return 后长期沿用旧文件的问题。
                 String expected = assetRuntimeId(context);
@@ -69,6 +70,7 @@ final class RuntimeTools {
             patchClientModule(context, rootfs, "plugin-manager-navigation-patch.json", "插件原生入口");
             patchClientModule(context, rootfs, "office-fonts-patch.json", "Office 字体");
             patchClientModule(context, rootfs, "deepseek-messages-compat-patch.json", "DeepSeek Messages 会话兼容");
+            patchClientModule(context, rootfs, "rc1-settings-migration-patch.json", "rc1 设置迁移");
             patchClientLanguage(context, rootfs);
             patchTooltips(context, rootfs);
             patchBrowserBootstrap(context, rootfs);
@@ -79,6 +81,7 @@ final class RuntimeTools {
             preparedRoot = root;
             preparedApk = identity;
             preparedStamp = stamp(rootfs);
+        }
         }
     }
 
@@ -100,6 +103,7 @@ final class RuntimeTools {
         patchSessionNavigation(context, rootfs);
         patchAgentPresets(context, rootfs);
         patchClientModule(context, rootfs, "deepseek-messages-compat-patch.json", "DeepSeek Messages 会话兼容");
+            patchClientModule(context, rootfs, "rc1-settings-migration-patch.json", "rc1 设置迁移");
         prepareBuiltinDependencies(rootfs);
         if (!markerCurrent || !marker.isFile() || Compat.isSymbolicLink(marker))
             writeIfChanged(marker, com.deepseekharness.app.util.ManagedAssetVersion.bytes(identity), false);
@@ -125,44 +129,76 @@ final class RuntimeTools {
 
     /** 仅覆盖 DeepSeekHarness 自有脚本和内置实体；用户插件、profile、配置、会话与凭据不在清单内。 */
     private static void installManagedAssets(Context context, File rootfs) throws IOException {
-        install(context, rootfs, "ca-certificates.crt", CERT_PATH.substring(1), false);
-        install(context, rootfs, "dns-compat.cjs", "usr/local/share/deepseekharness/dns-compat.cjs", false);
-        install(context, rootfs, "deepseekharness-builtin.txt", "root/deepseekharness-builtin.txt", false);
-        for (String name : new String[]{"plugin-manager.py", "plugin-lifecycle.py", "plugin-dependencies.py",
-                "plugin-transactions.py", "backup-plugin-graph.py", "plugin-semver.cjs",
-                "register-builtin-plugins.py", "startup-observer.cjs", "startup-recovery.py",
-                "startup-checkpoints.py", "device-shell-policy.py", "adb-shell.py"})
-            install(context, rootfs, name, "root/.dsh/" + name, false);
-        install(context, rootfs, "deepseekharness-device-shell.sh", "root/dsh-bin/adb-shell", true);
-        for (String file : new String[]{"package.json", "cordis.patch.yml", "index.js", "activity.js", "runtime-plugins.js", "client.js"})
-            install(context, rootfs, "app-integration/" + file, "root/deepseekharness-app-integration/" + file, false);
-        for (String name : com.deepseekharness.app.util.BuiltinPlugins.DEFAULT_BUILTINS) {
-            String destination = com.deepseekharness.app.util.BuiltinPlugins.entityDir(name).substring(1) + "/";
-            for (String file : new String[]{"package.json", "cordis.patch.yml", "lib/index.js"})
-                install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
-            if (name.equals("dsh-computer-use-android"))
-                install(context,rootfs,"builtin-plugins/"+name+"/lib/server.cjs",destination+"lib/server.cjs",false);
-            if (name.equals("dsh-tool-vscreen"))
-                install(context,rootfs,"builtin-plugins/"+name+"/lib/server.cjs",destination+"lib/server.cjs",false);
-            if (name.equals("dsh-web-mobile")) for (String file : new String[]{"lib/client.js", "lib/compress.js", "lib/delete-session.js", "LICENSE"})
-                install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
-            // 这两个包的入口不在 lib/index.js：aqua 还要 lib/invariant.js 与 lib/types/**（客户端按 exports 取类型），
-            // balance 的宿主入口是 lib/host.js。只装通用三件套会让它们加载即失败。
-            if (name.equals("dsh-client-ui-aqua"))
-                for (String file : new String[]{"lib/client.js", "lib/invariant.js", "LICENSE", "README.md"})
-                    install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
-            if (name.equals("dsh-client-ui-aqua")) installTree(context, rootfs, "builtin-plugins/" + name + "/lib/types", destination + "lib/types");
-            if (name.equals("dsh-balance-panel"))
-                for (String file : new String[]{"lib/client.js", "lib/host.js", "LICENSE", "README.md"})
-                    install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
-            if (name.equals("dsh-deliverable-mobile"))
-                for (String file : new String[]{"lib/client.js", "LICENSE", "README.md"})
-                    install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
+        try {
+            org.json.JSONObject manifest = new org.json.JSONObject(assetText(context, "managed-runtime-inputs.json"));
+            if (manifest.getInt("schema") != 1) throw new IOException("MANAGED_INPUT_SCHEMA");
+            org.json.JSONArray entries = manifest.getJSONArray("installs");
+            // This table is also consumed by the descriptor and Gradle. Validate it in full
+            // before installing any bytes, so an invalid signed recipe cannot partly apply.
+            java.util.Set<String> targets = new java.util.HashSet<>();
+            for (int i = 0; i < entries.length(); i++) {
+                org.json.JSONObject entry = entries.getJSONObject(i);
+                String asset = entry.getString("asset"), target = entry.getString("target");
+                if (!com.deepseekharness.app.util.ManagedInstallPath.valid(asset)
+                        || !com.deepseekharness.app.util.ManagedInstallPath.valid(target)
+                        || !targets.add(target) || !(entry.get("executable") instanceof Boolean))
+                    throw new IOException("MANAGED_INPUT_PATH");
+            }
+            for (int i = 0; i < entries.length(); i++) {
+                org.json.JSONObject entry = entries.getJSONObject(i);
+                install(context, rootfs, entry.getString("asset"), entry.getString("target"), entry.getBoolean("executable"));
+            }
+            // 本地定制内置插件（官方清单未覆盖）：aqua / balance / deliverable。
+            // 这几个属于本 fork 的随包组件；缺失会让 register-builtin-plugins.py 报
+            // BUILTIN_REGISTER_FAIL（签名内置插件实体缺失）而无法启动 Web。
+            installBuiltinEntity(context, rootfs, "dsh-client-ui-aqua",
+                    new String[]{"package.json", "cordis.patch.yml", "lib/index.js", "lib/client.js", "lib/invariant.js", "LICENSE", "README.md"});
+            installTree(context, rootfs, "builtin-plugins/dsh-client-ui-aqua/lib/types", com.deepseekharness.app.util.BuiltinPlugins.entityDir("dsh-client-ui-aqua").substring(1) + "/lib/types");
+            installBuiltinEntity(context, rootfs, "dsh-balance-panel",
+                    new String[]{"package.json", "cordis.patch.yml", "lib/index.js", "lib/client.js", "lib/host.js", "LICENSE", "README.md"});
+            installBuiltinEntity(context, rootfs, "dsh-deliverable-mobile",
+                    new String[]{"package.json", "cordis.patch.yml", "lib/index.js", "lib/client.js", "LICENSE", "README.md"});
+            installPresetPlugin(context, rootfs);
+        } catch (org.json.JSONException error) { throw new IOException("MANAGED_INPUT_MANIFEST", error); }
+    }
+
+    /** 预装第三方插件 dsh-infinite-gen-4：按包结构把 assets/builtin-plugins 内容装到 /root/deepseekharness-*。
+     *  不进 DEFAULT_BUILTINS —— 保持第三方身份，插件页可在线更新 / 删除。 */
+    private static void installPresetPlugin(Context context, File rootfs) throws IOException {
+        final String name = com.deepseekharness.app.util.BuiltinPlugins.PRESET_PLUGIN;
+        String destination = com.deepseekharness.app.util.BuiltinPlugins.entityDir(name).substring(1) + "/";
+        for (String file : new String[]{
+                "package.json", "cordis.patch.yml", "index.js", "client.js",
+                "HARNESS_PLUGIN.md", "README.md", "LICENSE",
+                "prompts/infinite-gen-3.md", "prompts/infinite-gen-4.md", "prompts/infinite-gen-4.1-flash.md",
+                "scripts/verify_prompt.mjs", "scripts/verify_prompt_gen4.mjs", "scripts/verify_prompt_gen41.mjs",
+                "scripts/lib/scorer.mjs",
+                "tests/prompt-bank.jsonl", "tests/prompt-bank-gen4.jsonl", "tests/prompt-bank-gen41.jsonl",
+                "tests/v4pro-benchmark.jsonl",
+                "assets/banner.png", "assets/community.jpg", "assets/sponsor.jpg"})
+            install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
+    }
+
+    /** 安装本地定制内置插件的实体文件到 /root/deepseekharness-*。 */
+    private static void installBuiltinEntity(Context context, File rootfs, String name, String[] files) throws IOException {
+        String destination = com.deepseekharness.app.util.BuiltinPlugins.entityDir(name).substring(1) + "/";
+        for (String file : files)
+            install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
+    }
+
+    private static void installTree(Context context, File rootfs, String assetDir, String destDir) throws IOException {
+        String[] children;
+        try {
+            children = context.getAssets().list(assetDir);
+        } catch (IOException error) {
+            return;
         }
-        installPresetPlugin(context, rootfs);
-        install(context, rootfs, "deepseekharness-plugin.sh", "root/dsh-bin/deepseekharness-plugin", true);
-        install(context, rootfs, "install-ubuntu-tools.sh", "root/dsh-bin/install-ubuntu-tools", true);
-        install(context, rootfs, "deepseekharness-runtime-env.sh", "etc/profile.d/deepseekharness-runtime-env.sh", false);
+        if (children == null || children.length == 0) {
+            String name = assetDir.substring(assetDir.lastIndexOf('/') + 1);
+            install(context, rootfs, assetDir, destDir + "/" + name, false);
+            return;
+        }
+        for (String child : children) installTree(context, rootfs, assetDir + "/" + child, destDir + "/" + child);
     }
 
     /** 局域网代理仍由宿主鉴权；冷安装与候选树必须在计算健康摘要前应用同一设置补丁。 */
@@ -251,14 +287,14 @@ final class RuntimeTools {
         // 特殊文件或外部软链接保持原位；不能跟随 guest 绝对链接写到宿主。
         if (Compat.isSymbolicLink(target) || target.exists() && !target.isFile())return;
         String old=target.isFile()?Compat.readAll(target):"";
-        String updated=com.deepseekharness.app.util.ResolverConfig.reconcile(old,new com.deepseekharness.app.core.ConfigStore(context).getDnsMode());
+        String updated=com.deepseekharness.app.util.ResolverConfig.reconcile(old,RuntimeHostPorts.shared().settings().dnsMode);
         if(!old.equals(updated))writeIfChanged(target,updated.getBytes(java.nio.charset.StandardCharsets.UTF_8),false);
     }
 
     static void applyEnvironment(Context context, File rootfs, Map<String, String> environment) {
         environment.put("DeepSeekHarness_NATIVE_PLUGIN_MANAGER","1");
         environment.put("DeepSeekHarness_ANDROID_RUNTIME","1");
-        environment.put("DeepSeekHarness_DNS_MODE",new com.deepseekharness.app.core.ConfigStore(context).getDnsMode());
+        environment.put("DeepSeekHarness_DNS_MODE",RuntimeHostPorts.shared().settings().dnsMode);
         String preload="--require=/usr/local/share/deepseekharness/dns-compat.cjs";
         if(new File(rootfs,"usr/local/share/deepseekharness/dns-compat.cjs").isFile()) {
             String previous=environment.getOrDefault("NODE_OPTIONS","");
@@ -286,7 +322,12 @@ final class RuntimeTools {
             String source = Compat.readAll(client), updated = source;
             // 受管运行时在上一次启动已经完成这组补丁时保持幂等；否则同一
             // before 文本仍可能存在于已插入的代码前缀中，造成重复注入。
-            if (source.contains("DeepSeekHarness_SESSION_INTERACTION_V1") && source.contains("deepseekharness-session-open")) return;
+            if (source.contains("DeepSeekHarness_SESSION_INTERACTION_V2") && source.contains("deepseekharness-session-open")) return;
+            if (source.contains("DeepSeekHarness_SESSION_INTERACTION_V1")) {
+                String canonical = restoreBundledClientModule(context, rootfs, "@deepseek-ai/dsh-client-ui-workspace/lib/client.js");
+                if (canonical == null) throw new IOException("SESSION_PATCH_SOURCE_UNAVAILABLE");
+                updated = canonical;
+            }
             org.json.JSONArray patches = spec.getJSONArray("patches");
             for (int i = 0; i < patches.length(); i++) {
                 org.json.JSONObject patch = patches.getJSONObject(i);
@@ -442,7 +483,7 @@ final class RuntimeTools {
                     throw new IOException(com.deepseekharness.app.util.UiText.text("对话提示适配的文件缺失或路径不安全"));
             }
             String replacement = assetText(context, "web-integration/tooltip-interactions.js")
-                    + "\nconst deepseekharnessTooltipRuntime = createDeepSeekHarnessTooltipRuntime({ document, window });\n"
+                    + "\nconst deepseekharnessTooltipRuntime = createDshaTooltipRuntime({ document, window });\n"
                     + assetText(context, "web-integration/tooltip-component.js");
             String source = Compat.readAll(bundle), html = Compat.readAll(index);
             String updated = com.deepseekharness.app.util.ExactTextPatch.apply(source, patch.getString("before"), replacement);
@@ -501,42 +542,6 @@ final class RuntimeTools {
         } catch (org.json.JSONException | IllegalArgumentException error) {
             throw new IOException(com.deepseekharness.app.util.UiText.text("网页脚本拼接优化未应用，原文件保留：") + error.getMessage(), error);
         }
-    }
-
-    /** 预装第三方插件 dsh-infinite-gen-4：按包结构把 assets/builtin-plugins 内容装到 /root/deepseekharness-*。
-     *  不进 DEFAULT_BUILTINS —— 保持第三方身份，插件页可在线更新 / 删除。 */
-    private static void installPresetPlugin(Context context, File rootfs) throws IOException {
-        final String name = com.deepseekharness.app.util.BuiltinPlugins.PRESET_PLUGIN;
-        String destination = com.deepseekharness.app.util.BuiltinPlugins.entityDir(name).substring(1) + "/";
-        for (String file : new String[]{
-                "package.json", "cordis.patch.yml", "index.js", "client.js",
-                "HARNESS_PLUGIN.md", "README.md", "LICENSE",
-                "prompts/infinite-gen-3.md", "prompts/infinite-gen-4.md", "prompts/infinite-gen-4.1-flash.md",
-                "scripts/verify_prompt.mjs", "scripts/verify_prompt_gen4.mjs", "scripts/verify_prompt_gen41.mjs",
-                "scripts/lib/scorer.mjs",
-                "tests/prompt-bank.jsonl", "tests/prompt-bank-gen4.jsonl", "tests/prompt-bank-gen41.jsonl",
-                "tests/v4pro-benchmark.jsonl",
-                "assets/banner.png", "assets/community.jpg", "assets/sponsor.jpg"})
-            install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
-    }
-
-    /** 递归安装 asset 目录树（用于 lib/types/** 这类"文件个数会随包升级变化"的子目录）。
-     *  逐个硬编码文件名会在上游加一个 .d.ts 时静默漏装，所以这里按目录枚举。
-     *  {@code assetDir} 与 {@code destDir} 同步下沉，保证两端相对路径一致。 */
-    private static void installTree(Context context, File rootfs, String assetDir, String destDir) throws IOException {
-        String[] children;
-        try {
-            children = context.getAssets().list(assetDir);
-        } catch (IOException error) {
-            return;
-        }
-        if (children == null || children.length == 0) {
-            // 叶节点：是文件就装（目录在 AssetManager 里两者都返回空列表，用 open 区分）
-            String name = assetDir.substring(assetDir.lastIndexOf('/') + 1);
-            install(context, rootfs, assetDir, destDir + "/" + name, false);
-            return;
-        }
-        for (String child : children) installTree(context, rootfs, assetDir + "/" + child, destDir + "/" + child);
     }
 
     private static void install(Context context, File rootfs, String asset, String path, boolean executable) throws IOException {

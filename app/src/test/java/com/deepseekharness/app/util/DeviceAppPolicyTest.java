@@ -18,13 +18,13 @@ public class DeviceAppPolicyTest {
         try { shared.targets(DeviceShellPolicy.inspect("am force-stop example.shared"), ""); org.junit.Assert.fail(); }
         catch (IllegalArgumentException expected) { }
     }
-    private static final String USERS = "package:example.app uid:10123\npackage:other.app uid:10124\npackage:com.deepseek.harness uid:10125\n";
+    private static final String USERS = "package:example.app uid:10123\npackage:other.app uid:10124\npackage:com.dsh.client uid:10125\n";
     private static final String SYSTEMS = "package:android uid:1000\npackage:com.android.systemui uid:10101\n";
     @Test public void groupsAreCompleteAndOnlyUserTargetsPass() {
         DeviceAppPolicy.Snapshot apps = DeviceAppPolicy.snapshot(USERS, SYSTEMS);
         assertEquals(5, apps.apps.size()); assertTrue(apps.grouped().contains("[用户应用]")); assertTrue(apps.grouped().contains("[系统应用]"));
         assertEquals(java.util.Arrays.asList("example.app"), apps.targets(DeviceShellPolicy.inspect("am force-stop example.app"), ""));
-        for (String name : new String[]{"android", "com.android.systemui", "com.deepseek.harness", "absent.app"}) {
+        for (String name : new String[]{"android", "com.android.systemui", "com.dsh.client", "absent.app"}) {
             try { apps.targets(DeviceShellPolicy.inspect("am force-stop " + name), ""); fail(name); }
             catch (IllegalArgumentException expected) { }
         }

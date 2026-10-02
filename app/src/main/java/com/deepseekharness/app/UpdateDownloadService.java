@@ -16,7 +16,7 @@ import com.deepseekharness.app.ui.UpdateActivity;
 
 /** 用户发起的 APK 下载；前台通知和重投递恢复独立于页面。 */
 public final class UpdateDownloadService extends Service {
-    private static final String CHANNEL = "DeepSeekHarness_update_download";
+    private static final String CHANNEL = "deepseekharness_update_download";
     private static final int ID = 1004;
     private static final String CANCEL = "com.deepseekharness.app.UPDATE_CANCEL";
     private UpdateEngine engine;

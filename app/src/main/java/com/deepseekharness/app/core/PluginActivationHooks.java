@@ -28,7 +28,9 @@ public final class PluginActivationHooks {
     }
     private static void command(HarnessController controller,String command,String id)throws Exception{
         if(id==null||!id.matches("[a-f0-9-]{36}"))throw new IOException("PLUGIN_STARTUP_ID");
-        String text=controller.proot().runPluginManager(command+" "+ShellQuote.arg(id));String json=PluginOutput.resultJson(text);
+        String text=com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(
+                controller.proot().runPluginManagerResult(command+" "+ShellQuote.arg(id),""),"PLUGIN_ACTIVATION");
+        String json=PluginOutput.resultJson(text);
         JSONObject result=new JSONObject(json);if(!"ok".equals(result.optString("status")))throw new IOException(UiStateText.render(result.optString("message","PLUGIN_ACTIVATION_FAILED")));
     }
     public static void beforeLaunch(HarnessController controller,String id)throws Exception{if(present(controller,null))command(controller,"begin-load",id);}
@@ -46,7 +48,7 @@ public final class PluginActivationHooks {
         try(lease;RuntimeTasks work=RuntimeTasks.begin()){
             lease.run(()->{
                 if((controller.getWebGeneration()!=generation&&(!failed||!id.equals(controller.startupDiagnostics().recordId())))||!present(controller,id))return null;
-                if(failed)com.deepseekharness.app.BackupManager.runDataTask(controller,()->{command(controller,"failed-load",id);return null;});
+                if(failed)com.deepseekharness.app.core.MaintenanceCoordinator.exclusive(controller,()->{command(controller,"failed-load",id);return null;});
                 else if(controller.startupDiagnostics().snapshot().browserReady&&controller.startupDiagnostics().snapshot().issues.isEmpty())command(controller,"complete-load",id);
                 return null;
             });

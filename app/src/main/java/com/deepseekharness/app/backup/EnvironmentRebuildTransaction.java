@@ -7,6 +7,7 @@ import java.util.*;
 /** 整个 Ubuntu 重建的宿主日志；新环境与数据核验后可清理有完整证明的旧系统树。 */
 public final class EnvironmentRebuildTransaction {
     public static final String HOME="host-environment-operations";
+    private static final String COMPLETED="completed",HISTORY_PROOF="host-environment-completed-v1.json";
     private final BackupFileSystem fs;private final File files,directory,linux;private final HostDataTransaction.Fault fault;
     private EnvironmentRebuildTransaction(BackupFileSystem fs,File files,File directory,HostDataTransaction.Fault fault)throws IOException{
         this.fs=fs;this.files=files;this.directory=directory;linux=fs.child(files,"linux");this.fault=fault==null?name->{}:fault;
@@ -14,12 +15,18 @@ public final class EnvironmentRebuildTransaction {
     }
     public static EnvironmentRebuildTransaction create(BackupFileSystem fs,File files,HostDataTransaction.Fault fault)throws IOException{
         if(pending(fs,files)!=null)throw new IOException("ENVIRONMENT_RECOVERY_REQUIRED");File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))fs.directory(home);
-        if(fs.list(home).size()>=8)throw new IOException("ENVIRONMENT_RETENTION_LIMIT");File directory=fs.child(home,UUID.randomUUID().toString());fs.directory(directory);return new EnvironmentRebuildTransaction(fs,files,directory,fault);
+        pruneEmptyPlaceholders(fs,home);File directory=fs.child(home,UUID.randomUUID().toString());fs.directory(directory);
+        EnvironmentRebuildTransaction created=new EnvironmentRebuildTransaction(fs,files,directory,fault);created.mark("created");return created;
     }
-    public File directory(){return directory;}
+    public File directory(){File retained=new File(new File(files,HOME),COMPLETED+"/"+directory.getName());return directory.exists()?directory:retained.exists()?retained:directory;}
     public static EnvironmentRebuildTransaction open(BackupFileSystem fs,File files,String id,HostDataTransaction.Fault fault)throws IOException{
         if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("ENVIRONMENT_TRANSACTION_ID");
-        return new EnvironmentRebuildTransaction(fs,files,fs.child(files,HOME+"/"+id),fault);
+        File home=fs.child(files,HOME),active=fs.child(home,id),retained=new File(home,COMPLETED+"/"+id);
+        String a=fs.stat(active).type,h=fs.stat(retained).type;
+        if(!a.equals("MISSING")&&!h.equals("MISSING"))throw new IOException("ENVIRONMENT_TRANSACTION_DUPLICATE");
+        File selected=a.equals("DIRECTORY")?active:h.equals("DIRECTORY")?retained:null;
+        if(selected==null)throw new IOException("ENVIRONMENT_TRANSACTION_ID");
+        return new EnvironmentRebuildTransaction(fs,files,selected,fault);
     }
     private boolean marked(String name)throws IOException{
         File path=fs.child(directory,name);if(fs.stat(path).type.equals("MISSING"))return false;
@@ -95,13 +102,78 @@ public final class EnvironmentRebuildTransaction {
     public static void cleanupCompleted(BackupFileSystem fs,File files,BackupControl control)throws IOException{
         if(pending(fs,files)!=null)throw new IOException("ENVIRONMENT_RECOVERY_REQUIRED");
         File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))return;
-        for(String id:fs.list(home)){control.check();open(fs,files,id,null).cleanupRetired(control);}
+        for(File parent:List.of(home,new File(home,COMPLETED)))if(fs.stat(parent).type.equals("DIRECTORY"))
+            for(String id:fs.list(parent)){if(id.equals(COMPLETED))continue;control.check();open(fs,files,id,null).cleanupRetired(control);}
     }
     public static EnvironmentRebuildTransaction pending(BackupFileSystem fs,File files)throws IOException{
-        File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))return null;List<String> entries=fs.list(home);if(entries.size()>32)throw new IOException("ENVIRONMENT_RETENTION_LIMIT");
-        EnvironmentRebuildTransaction pending=null;for(String id:entries){var item=new EnvironmentRebuildTransaction(fs,files,fs.child(home,id),null);
+        verifyHistory(fs,files);
+        File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))return null;List<String> entries=fs.list(home);
+        EnvironmentRebuildTransaction pending=null;for(String id:entries){if(id.equals(COMPLETED))continue;
+            if(!fs.stat(new File(home,COMPLETED+"/"+id)).type.equals("MISSING"))throw new IOException("ENVIRONMENT_TRANSACTION_DUPLICATE");
+            var item=new EnvironmentRebuildTransaction(fs,files,fs.child(home,id),null);
             if(item.marked("switching")&&!item.marked("committed")&&!item.marked("rolled-back")){if(pending!=null)throw new IOException("MULTIPLE_ENVIRONMENT_TRANSACTIONS");item.intent();pending=item;}}
         return pending;
+    }
+    private boolean terminal()throws IOException{
+        boolean committed=marked("committed"),rolledBack=marked("rolled-back");
+        if(committed==rolledBack)return false;
+        intent();return true;
+    }
+    public static boolean isTerminalRecord(BackupFileSystem fs,File files,String id)throws IOException{
+        if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))return false;
+        File entry=new File(files,HOME+"/"+id);
+        return fs.stat(entry).type.equals("DIRECTORY")&&new EnvironmentRebuildTransaction(fs,files,entry,null).terminal();
+    }
+    private static void verifyHistory(BackupFileSystem fs,File files)throws IOException{
+        File home=new File(files,HOME),history=new File(home,COMPLETED),proof=new File(files,HISTORY_PROOF);
+        String type=fs.stat(history).type;
+        if(type.equals("MISSING")){if(!fs.stat(proof).type.equals("MISSING"))throw new IOException("ENVIRONMENT_HISTORY_PROOF_ORPHAN");return;}
+        if(!type.equals("DIRECTORY")||!fs.stat(home).type.equals("DIRECTORY"))throw new IOException("ENVIRONMENT_HISTORY_TYPE");
+        String filesKey=fs.stat(files).key,historyKey=fs.stat(history).key;
+        String proofType=fs.stat(proof).type;
+        if(!proofType.equals("MISSING")){
+            if(!proofType.equals("FILE"))throw new IOException("ENVIRONMENT_HISTORY_PROOF_TYPE");
+            Map<String,Object> value=BackupJson.read(fs.small(proof,4096),4096);
+            if(BackupJson.number(value,"version")!=1)throw new IOException("ENVIRONMENT_HISTORY_PROOF_FORMAT");
+            if(filesKey.equals(BackupJson.string(value,"filesKey"))&&historyKey.equals(BackupJson.string(value,"historyKey")))return;
+        }
+        for(String id:fs.list(history)){
+            EnvironmentRebuildTransaction item=new EnvironmentRebuildTransaction(fs,files,fs.child(history,id),null);
+            if(!item.terminal())throw new IOException("ENVIRONMENT_HISTORY_NOT_TERMINAL");
+            if(!fs.stat(new File(home,id)).type.equals("MISSING"))throw new IOException("ENVIRONMENT_TRANSACTION_DUPLICATE");
+        }
+        fs.atomic(files,HISTORY_PROOF,BackupJson.write(Map.of("version",1L,"filesKey",filesKey,"historyKey",historyKey),4096));
+    }
+    public static void archiveCompleted(BackupFileSystem fs,File files)throws IOException{
+        File home=new File(files,HOME);verifyHistory(fs,files);
+        if(fs.stat(home).type.equals("MISSING"))return;
+        File history=new File(home,COMPLETED);
+        for(String id:fs.list(home)){
+            if(id.equals(COMPLETED))continue;
+            EnvironmentRebuildTransaction item=new EnvironmentRebuildTransaction(fs,files,fs.child(home,id),null);
+            if(!item.marked("committed")&&!item.marked("rolled-back"))continue;
+            if(!item.terminal())throw new IOException("ENVIRONMENT_HISTORY_NOT_TERMINAL");
+            if(fs.stat(history).type.equals("MISSING"))fs.directory(history);
+            File destination=fs.child(history,id);if(!fs.stat(destination).type.equals("MISSING"))throw new IOException("ENVIRONMENT_TRANSACTION_DUPLICATE");
+            BackupFileSystem.Node before=fs.stat(item.directory);
+            String digest=BackupArchive.hex(BackupArchive.sha().digest(fs.small(fs.child(item.directory,"intent.json"),4096)));
+            fs.move(item.directory,destination);fs.syncDirectory(home);fs.syncDirectory(history);
+            if(!before.key.equals(fs.stat(destination).key)||!digest.equals(BackupArchive.hex(BackupArchive.sha().digest(fs.small(fs.child(destination,"intent.json"),4096)))))
+                throw new IOException("ENVIRONMENT_ARCHIVE_IDENTITY");
+            verifyHistory(fs,files);
+        }
+    }
+    /** An explicitly marked, otherwise empty pre-switch slot contains no recovery payload. */
+    private static void pruneEmptyPlaceholders(BackupFileSystem fs,File home)throws IOException{
+        if(!fs.stat(home).type.equals("DIRECTORY"))return;
+        for(String id:fs.list(home)){
+            if(id.equals(COMPLETED))continue;
+            if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("ENVIRONMENT_TRANSACTION_ID");
+            File directory=fs.child(home,id);if(!fs.stat(directory).type.equals("DIRECTORY"))throw new IOException("ENVIRONMENT_TRANSACTION_ID");
+            File created=fs.child(directory,"created");var marker=fs.stat(created);if(marker.type.equals("MISSING"))continue;
+            if(!marker.type.equals("FILE")||!(id+"\ncreated\n").equals(new String(fs.small(created,256),StandardCharsets.UTF_8)))continue;
+            if(fs.list(directory).size()==1)fs.removeOwned(home,id);
+        }
     }
     public static boolean blocked(File files){try{return pending(new AndroidBackupFileSystem(),files.getCanonicalFile())!=null;}catch(IOException error){return true;}}
 }

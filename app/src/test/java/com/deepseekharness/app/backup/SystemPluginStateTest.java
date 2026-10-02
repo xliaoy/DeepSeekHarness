@@ -19,7 +19,7 @@ public class SystemPluginStateTest {
         assertEquals(1,SystemPluginState.apply(fs,profiles,state,new BackupControl(null),false));
         assertFalse(new File(profiles,"web/node_modules/dsh-web-mobile").exists());assertTrue(new File(profiles,"web/node_modules/dsh-web-mobile.disabled").isFile());
         Map<String,Object> profile=BackupJson.read(Files.readAllBytes(new File(profiles,"web/package.json").toPath()),BackupLimits.MANIFEST);
-        assertEquals("link:/root/deepseekharness-web-mobile",((Map<?,?>)profile.get("dependencies")).get("dsh-web-mobile"));
+        assertEquals("link:/root/dsha-web-mobile",((Map<?,?>)profile.get("dependencies")).get("dsh-web-mobile"));
         assertFalse(((List<?>)((Map<?,?>)((Map<?,?>)profile.get("dsh")).get("profile")).get("bundles")).contains("dsh-web-mobile"));
         assertEquals("1",((Map<?,?>)profile.get("dependencies")).get("user-plugin"));
     }

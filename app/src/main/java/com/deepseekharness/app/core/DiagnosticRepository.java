@@ -17,6 +17,8 @@ public final class DiagnosticRepository extends AndroidViewModel {
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     public final MutableLiveData<String> report = new MutableLiveData<>("");
     public final MutableLiveData<Boolean> busy = new MutableLiveData<>(false);
+    public enum Phase { READY, RUNNING, SUCCEEDED, FAILED }
+    public final MutableLiveData<Phase> phase = new MutableLiveData<>(Phase.READY);
     public static final class Result {
         public final String title,status,detail;
         Result(String title,String status,String detail){this.title=title;this.status=status;this.detail=detail;}
@@ -28,19 +30,22 @@ public final class DiagnosticRepository extends AndroidViewModel {
     private void run(boolean repair) {
         if (Boolean.TRUE.equals(busy.getValue())) return;
         HarnessController controller = HarnessController.get(getApplication());
-        if (com.deepseekharness.app.BackupManager.hasPendingMaintenance(controller)) {
-            report.setValue(com.deepseekharness.app.util.UiText.text("上次环境维护未完成，请先到安装与修复页恢复中断维护。")); return;
+        if (com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller)) {
+            publishFailure(com.deepseekharness.app.util.UiText.text("上次环境维护未完成，请先到安装与修复页恢复中断维护。")); return;
         }
         com.deepseekharness.app.util.EnvironmentTaskGate.Lease lease =
                 com.deepseekharness.app.util.EnvironmentTaskGate.tryAcquire(repair ? com.deepseekharness.app.util.UiText.text("诊断修复") : com.deepseekharness.app.util.UiText.text("环境诊断"));
         if (lease == null) {
-            report.setValue(com.deepseekharness.app.util.UiText.text("正在") + com.deepseekharness.app.util.EnvironmentTaskGate.activeKind() + com.deepseekharness.app.util.UiText.text("，完成后可重新生成报告。")); return;
+            publishFailure(com.deepseekharness.app.util.UiText.text("正在") + com.deepseekharness.app.util.EnvironmentTaskGate.activeKind() + com.deepseekharness.app.util.UiText.text("，完成后可重新生成报告。")); return;
         }
+        results.setValue(java.util.List.of());
+        phase.setValue(Phase.RUNNING);
         busy.setValue(true);
         report.setValue(repair ? com.deepseekharness.app.util.UiText.text("正在准备证书与网络工具修复…\n") : com.deepseekharness.app.util.UiText.text("正在读取设备与环境信息…\n"));
         try { IO.execute(() -> {
             try (lease) { lease.run(() -> {
             String repairResult = "";
+            boolean repairFailed = false;
             if (repair) {
                 try {
                     ProotBootstrap proot = HarnessController.get(getApplication()).proot();
@@ -48,25 +53,45 @@ public final class DiagnosticRepository extends AndroidViewModel {
                     proot.prepareRuntimeTools();
                     proot.ensureRuntimeFiles();
                     if (!proot.ensureGlibcPython() || !proot.ensureBundledPnpm()) throw new java.io.IOException(com.deepseekharness.app.util.UiText.text("内置 Python / pnpm 修复失败"));
-                    String output = proot.execAndReadWithProot("python3 -c 'import ssl; ssl.create_default_context()' && npm --version && printf '\\nDeepSeekHarness_NETWORK_REPAIR_OK\\n'", 30000);
+                    String output = com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(
+                            proot.execAndReadWithProotResult("python3 -c 'import ssl; ssl.create_default_context()' && npm --version && printf '\\nDeepSeekHarness_NETWORK_REPAIR_OK\\n'", 30000),
+                            "NETWORK_REPAIR");
                     if (!output.contains("DeepSeekHarness_NETWORK_REPAIR_OK")) throw new java.io.IOException(output);
                     repairResult = com.deepseekharness.app.util.UiText.text("证书、Python、npm 与 pnpm 已修复并通过启动检查。\n");
-                } catch (Exception e) { repairResult = com.deepseekharness.app.util.UiText.text("修复失败：") + SensitiveData.redact(String.valueOf(e.getMessage())) + "\n"; }
+                } catch (Exception e) {
+                    if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                    repairFailed = true;
+                    repairResult = com.deepseekharness.app.util.UiText.text("修复失败：") + SensitiveData.redact(String.valueOf(e.getMessage())) + "\n";
+                }
                 DiagnosticLog.record(getApplication(), "REPAIR_NETWORK_TOOLS", repairResult);
             }
             String result;
             try { result = repairResult + collect(); }
-            catch (Exception e) { result = com.deepseekharness.app.util.UiText.text("诊断未完成：") + SensitiveData.redact(String.valueOf(e.getMessage())); }
-            report.postValue(SensitiveData.redact(result)); return null;
+            catch (Exception e) {
+                if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                publishFailure(com.deepseekharness.app.util.UiText.text("诊断未完成：") + SensitiveData.redact(String.valueOf(e.getMessage())));
+                return null;
+            }
+            if (repairFailed) publishFailure(result);
+            else { report.postValue(SensitiveData.redact(result)); phase.postValue(Phase.SUCCEEDED); }
+            return null;
             }); } catch (Exception | LinkageError error) {
-                report.postValue(com.deepseekharness.app.util.UiText.text("诊断未完成：") + SensitiveData.redact(String.valueOf(error)));
+                publishFailure(com.deepseekharness.app.util.UiText.text("诊断未完成：") + SensitiveData.redact(String.valueOf(error)));
             } finally { busy.postValue(false); }
         }); } catch (RuntimeException error) {
             lease.close(); busy.setValue(false);
-            report.setValue(com.deepseekharness.app.util.UiText.text("无法开始诊断：") + SensitiveData.redact(String.valueOf(error)));
+            publishFailure(com.deepseekharness.app.util.UiText.text("无法开始诊断：") + SensitiveData.redact(String.valueOf(error)));
         }
     }
-    private String collect() {
+    private void publishFailure(String detail) {
+        String safe = SensitiveData.redact(detail == null ? "" : detail);
+        report.postValue(safe);
+        results.postValue(java.util.List.of(new Result(
+                com.deepseekharness.app.util.UiText.choose("环境诊断", "Environment diagnostics"),
+                com.deepseekharness.app.util.UiText.choose("未完成", "Incomplete"), safe)));
+        phase.postValue(Phase.FAILED);
+    }
+    private String collect() throws Exception {
         StringBuilder out = new StringBuilder(com.deepseekharness.app.util.UiText.text("DeepSeekHarness 诊断报告\n"));
         ConfigStore config = new ConfigStore(getApplication());
         out.append(com.deepseekharness.app.util.UiText.text("连续 Web 失败：")).append(config.getWebFailures()).append("/3\n")
@@ -87,6 +112,10 @@ public final class DiagnosticRepository extends AndroidViewModel {
         } catch (Exception | LinkageError error) { out.append(com.deepseekharness.app.util.UiText.text("WebView：不可用（")).append(error.getClass().getSimpleName()).append("）\n"); }
         out.append(com.deepseekharness.app.util.UiText.text("兼容内核：")).append(BuildConfig.LOW_ANDROID ? com.deepseekharness.app.util.UiText.text("Gecko 143 可用（旧系统自动切换）") : com.deepseekharness.app.util.UiText.text("未内置")).append('\n');
         out.append(ColdInstallDiagnostics.read(getApplication()));
+        String sinkFailure = com.deepseekharness.app.runtime.RuntimeHostPorts.shared().diagnosticFailure();
+        if (!sinkFailure.isEmpty()) out.append(com.deepseekharness.app.util.UiText.choose(
+                "\n本次应用进程曾无法保存冷安装诊断：", "\nA cold-install diagnostic write failed in this app process: "))
+                .append(sinkFailure).append('\n');
         String trialFailure=com.deepseekharness.app.runtime.RuntimeTrial.latestFailure(getApplication());
         if(!trialFailure.isEmpty())out.append(com.deepseekharness.app.util.UiText.choose("\n最近隔离运行试验失败\n","\nLatest isolated runtime trial failure\n")).append(trialFailure).append('\n');
         ProotBootstrap proot = HarnessController.get(getApplication()).proot();
@@ -97,22 +126,64 @@ public final class DiagnosticRepository extends AndroidViewModel {
                 {com.deepseekharness.app.util.UiText.text("npm 入口"), "root/dsh-bin/npm"}, {com.deepseekharness.app.util.UiText.text("CA 证书"), "usr/local/share/deepseekharness/ca-certificates.crt"},
                 {com.deepseekharness.app.util.UiText.text("插件管理器"), "root/.dsh/plugin-manager.py"}};
         for (String[] probe : probes) out.append(probe[0]).append(com.deepseekharness.app.util.UiText.text("：")).append(new File(root, probe[1]).isFile() ? com.deepseekharness.app.util.UiText.text("存在") : com.deepseekharness.app.util.UiText.text("缺失，可尝试修复证书与 npm")).append('\n');
-        report.postValue(SensitiveData.redact(out.toString()) + com.deepseekharness.app.util.UiText.text("\n正在验证 Node / npm / Python 实际运行，最多 20 秒…\n"));
+        report.postValue(SensitiveData.redact(out.toString()) + com.deepseekharness.app.util.UiText.choose(
+                "\n正在验证所选运行方式（最多 60 秒）与 Node / npm / Python（最多 20 秒）…\n",
+                "\nChecking the selected runtime (up to 60 seconds), then Node / npm / Python (up to 20 seconds)…\n"));
+        String selectedMode = "", smokeStatus = "";
         if (proot.isEnvironmentReady()) {
-            String probe = proot.execAndReadWithProot("printf 'Node: '; node --version; printf 'npm: '; npm --version; printf 'Python: '; python3 --version", 20000);
+            ProotBootstrap.SmokeResult smoke = proot.smokeTestResult();
+            selectedMode = smoke.runtimeMode;
+            out.append(com.deepseekharness.app.util.UiText.choose("所选运行方式只读自检：", "Selected runtime read-only check: "))
+                    .append(smoke.runtimeMode).append('\n');
+            // This fixed echo probe uses the selected runtime and its normal bounded
+            // process lifetime. Tool version checks below deliberately keep proot.
+            String smokeOutput = com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(smoke.command, "SELECTED_RUNTIME_SMOKE");
+            if (!smokeOutput.contains("SMOKE_OK")) throw new java.io.IOException("SELECTED_RUNTIME_SMOKE_MARKER");
+            smokeStatus = smokeOutput.trim();
+            out.append("rootfs exec: ").append(SensitiveData.redact(smokeOutput.trim())).append('\n');
+            String probe = com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(
+                    proot.execAndReadWithProotResult("set -e; printf 'Node: '; node --version; printf 'npm: '; npm --version; printf 'Python: '; python3 --version", 20000),
+                    "RUNTIME_TOOL_VERSIONS");
             if (probe.length() > 1500) probe = probe.substring(0, 1500);
             out.append(SensitiveData.redact(probe)).append('\n');
         }
         out.append(com.deepseekharness.app.util.UiText.text("\n最近操作与失败步骤\n")).append(DiagnosticLog.read(getApplication()));
         out.append(com.deepseekharness.app.util.UiText.text("\n建议操作\n证书或 npm 异常：点击「修复证书与 npm」。\n文件选择无返回：到插件页使用「其他文件选择器」。\n第三方插件导致启动失败：使用启动页的安全启动，再逐个恢复插件。\n存储不足：清理下载目录后重试，避免重新解压整个环境。\n"));
         out.append(com.deepseekharness.app.util.UiText.text("\n隐私范围：未读取 API 配置、对话、终端命令或系统完整日志；没有自动上传此报告。可在下面补充复现步骤后复制或导出。\n"));
-        publishResults(out.toString(),proot);
+        String resources = hostResources();
+        out.append('\n').append(resources).append('\n');
+        publishResults(out.toString(),proot,selectedMode,smokeStatus,resources);
         return out.toString();
     }
-    private void publishResults(String report,ProotBootstrap proot){
+    private static String hostResources() {
+        String pss;
+        try { pss = Long.toString(android.os.Debug.getPss()); }
+        catch (RuntimeException unavailable) { pss = "unavailable"; }
+        return "Host PID: " + android.os.Process.myPid() + "\nHost PSS KiB: " + pss
+                + "\nHost FDs: " + ownEntryCount("/proc/self/fd")
+                + "\nHost threads: " + ownEntryCount("/proc/self/task");
+    }
+    private static String ownEntryCount(String path) {
+        try { String[] entries = new File(path).list(); return entries == null ? "unavailable" : Integer.toString(entries.length); }
+        catch (SecurityException unavailable) { return "unavailable"; }
+    }
+    private void publishResults(String report,ProotBootstrap proot,String selectedMode,String smokeStatus,String resources){
         java.util.List<Result> rows=new java.util.ArrayList<>();var controller=HarnessController.get(getApplication());
+        rows.add(new Result(t("宿主进程资源", "Host process resources"),
+                t("本次只读采样", "Current read-only sample"), resources + "\n\n"
+                + t("仅当前原生进程；不含 Ubuntu 或独立浏览器子进程。请比较相同操作后的多个样本。",
+                    "Current native process only; excludes Ubuntu and separate browser child processes. Compare multiple samples after the same operations.")));
+        String writeFailure = com.deepseekharness.app.runtime.RuntimeHostPorts.shared().diagnosticFailure();
+        if (!writeFailure.isEmpty()) rows.add(new Result(t("诊断记录写入", "Diagnostic log writes"),
+                t("本次应用进程曾写入失败", "A write failed in this app process"), writeFailure + "\n\n"
+                + t("失败类型来自本机诊断端口；部分冷安装记录可能未能保存。",
+                    "The local diagnostic port recorded this failure type; some cold-install records may not have been saved.")));
         boolean ready=proot.isEnvironmentReady();
         rows.add(new Result(t("Ubuntu 与 Bash 加载器","Ubuntu and Bash loader"),ready?t("就绪检查通过","Readiness passed"):t("需要处理","Needs attention"),t("就绪检查会核对实际 Bash、ELF 加载器与环境身份。","Readiness checks actual Bash, its ELF loader and environment identity.")+"\n\n"+(ready?t("当前环境已就绪。","Environment ready."):t("请到安装与环境查看修复方式。","Open Installation and environment for repair options."))));
+        rows.add(new Result(t("所选运行方式", "Selected runtime"), selectedMode.isEmpty()
+                ? t("尚未验证", "Not verified") : selectedMode + " · SMOKE_OK",
+                selectedMode.isEmpty() ? t("运行环境尚未就绪。", "The runtime is not ready.")
+                        : "runtimeMode=" + selectedMode + "\n" + smokeStatus));
         String runtimeLines=java.util.Arrays.stream(report.split("\\n")).filter(line->line.startsWith("Node:")||line.startsWith("npm:")||line.startsWith("Python:")).collect(java.util.stream.Collectors.joining("\n"));
         rows.add(new Result("Node · npm · Python",runtimeLines.contains("Node: v")&&runtimeLines.contains("Python: Python")?t("实际命令已响应","Commands responded"):t("查看检查结果","Review results"),runtimeLines.isEmpty()?report:runtimeLines));
         String identity=t("尚未读取到运行时标识。","Runtime identity unavailable.");String identityState=t("未知","Unknown");

@@ -56,7 +56,7 @@ public final class BridgePathPolicy {
      * canonical（宿主视角）判据用的拒绝前缀。
      *
      * <p><b>为什么不能直接用 {@link #DENIED}</b>：容器 rootfs 本身就在
-     * {@code /data/data/com.deepseek.harness/files/linux/ubuntu} 下，把 {@code /data/data}
+     * {@code /data/data/com.dsh.client/files/linux/ubuntu} 下，把 {@code /data/data}
      * 放进通用拒绝表会把<b>整个 rootfs</b>都封掉 —— 连 {@code /root/report.md} 都导不出去
      * （开发时实测到的自伤）。所以宿主视角只拒绝「不在 rootfs 里的 App 私有数据」，
      * rootfs 内的凭据由 guest 视角判据负责。

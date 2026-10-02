@@ -15,9 +15,9 @@ public final class TabletEnvironmentAudit extends Instrumentation {
             var app=getTargetContext();var proot=new ProotBootstrap(app);var task=BackupTask.get(app).snapshot();
             String mode=args.getString("mode","collect");
             if(mode.equals("review")||mode.equals("upgrade"))
-                try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity --ez limited_entry true");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
+                try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity --ez limited_entry true");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
             if(mode.equals("tests")) {
-                String guest="/tmp/deepseekharness-migration-audit-"+java.util.UUID.randomUUID();
+                String guest="/tmp/dsha-migration-audit-"+java.util.UUID.randomUUID();
                 File fixture=new File(proot.getRootfsDir(),guest.substring(1));
                 copyAsset("tablet-tests/test-environment-data.py",new File(fixture,"tools/test-environment-data.py"));
                 copyAsset("environment-data.py",new File(fixture,"app/src/main/assets/environment-data.py"));
@@ -57,7 +57,7 @@ public final class TabletEnvironmentAudit extends Instrumentation {
                 File dir=new File(app.getFilesDir(),parent);File[] files=dir.listFiles();if(files==null)continue;
                 for(File file:files)out.append(parent).append('/').append(file.getName()).append(file.isDirectory()?" DIR":" "+file.length()).append("\n");
             }
-            for(String name:new String[]{"bin/bash","usr/local/bin/node","usr/bin/python3","etc/resolv.conf","usr/local/share/deepseekharness/dsh-runtime.version"}) {
+            for(String name:new String[]{"bin/bash","usr/local/bin/node","usr/bin/python3","etc/resolv.conf","usr/local/share/dsha/dsh-runtime.version"}) {
                 File file=new File(proot.getRootfsDir(),name);out.append(name).append(" exists=").append(file.exists()).append(" size=").append(file.length()).append("\n");
             }
             var config=new ConfigStore(app);out.append("WEB_FAILURE ").append(config.getWebFailureStage()).append(' ').append(config.getWebFailureReason()).append("\n");
@@ -69,7 +69,7 @@ public final class TabletEnvironmentAudit extends Instrumentation {
         target.getParentFile().mkdirs();try(var input=getTargetContext().getAssets().open(asset);var output=new FileOutputStream(target)){byte[] buffer=new byte[8192];int n;while((n=input.read(buffer))!=-1)output.write(buffer,0,n);}
     }
     private void deleteFixture(File file)throws Exception{
-        if(!file.getCanonicalPath().startsWith(new File(new ProotBootstrap(getTargetContext()).getRootfsDir(),"tmp").getCanonicalPath()+File.separator+"deepseekharness-migration-audit-"))throw new IOException("测试清理边界无效");
+        if(!file.getCanonicalPath().startsWith(new File(new ProotBootstrap(getTargetContext()).getRootfsDir(),"tmp").getCanonicalPath()+File.separator+"dsha-migration-audit-"))throw new IOException("测试清理边界无效");
         if(file.isDirectory()&&!Compat.isSymbolicLink(file)){File[] children=file.listFiles();if(children!=null)for(File child:children)deleteFixture(child);}
         if(!file.delete())throw new IOException("测试临时文件清理失败");
     }

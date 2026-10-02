@@ -25,104 +25,45 @@ import java.util.UUID;
 /** Android 协调层：URI 输入输出与配置；归档、范围和事务由容器内核心完成。 */
 public final class BackupManager {
     private BackupManager() { }
-    private static final Object LOCK = new Object();
+    private static final Object LOCK = com.deepseekharness.app.core.MaintenanceCoordinator.archiveLock();
     private static final long MAX_ARCHIVE = 16L * 1024 * 1024 * 1024;
     private static volatile String error = "";
-    private static final java.util.concurrent.atomic.AtomicBoolean restoring = new java.util.concurrent.atomic.AtomicBoolean();
     public static final String LATEST_BACKUP_NAME = "DeepSeekHarness-backup-latest.tar.gz";
     public static String lastError() { return SensitiveData.redact(error); }
-    public static boolean isRestoring() { return restoring.get(); }
+    public static boolean isRestoring() { return com.deepseekharness.app.core.MaintenanceCoordinator.isExclusive(); }
 
     /** 安全入口供页面任务使用：停止队列排空后才拿归档锁，避免运行任务互等。 */
     public interface DataOperation<T> { T run() throws Exception; }
-    private static final ThreadLocal<Boolean> dataOwner = new ThreadLocal<>();
-    public static boolean isDataTaskOwner() { return Boolean.TRUE.equals(dataOwner.get()); }
+    public static boolean isDataTaskOwner() { return com.deepseekharness.app.core.MaintenanceCoordinator.isOwner(); }
     /** 快照/预检只取得数据锁，保留正在运行的 Web；引擎检测到数据变化时返回失败。 */
     public static <T> T runSnapshotTask(HarnessController controller, DataOperation<T> operation) throws Exception {
-        if (!com.deepseekharness.app.util.EnvironmentTaskGate.ownsCurrentThread()) {
-            com.deepseekharness.app.util.EnvironmentTaskGate.Lease lease =
-                    com.deepseekharness.app.util.EnvironmentTaskGate.tryAcquire(com.deepseekharness.app.util.UiText.text("数据快照"));
-            if (lease == null) throw new IOException(com.deepseekharness.app.util.UiText.text("有安装、备份、恢复或维护任务正在进行"));
-            try (lease) { return lease.run(() -> runSnapshotTask(controller, operation)); }
-        }
-        synchronized (LOCK) {
-            try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin("数据维护")) {
-                return operation.run();
-            }
-        }
+        return com.deepseekharness.app.core.MaintenanceCoordinator.snapshot(controller, operation::run);
     }
     public static <T> T runDataTask(HarnessController controller, DataOperation<T> operation) throws Exception {
-        if (Thread.holdsLock(LOCK)) throw new IOException(com.deepseekharness.app.util.UiText.text("不能在快照或归档回调内停止 Web；请先结束快照，再开始恢复或维护"));
-        if (!com.deepseekharness.app.util.EnvironmentTaskGate.ownsCurrentThread()) {
-            com.deepseekharness.app.util.EnvironmentTaskGate.Lease lease =
-                    com.deepseekharness.app.util.EnvironmentTaskGate.tryAcquire(com.deepseekharness.app.util.UiText.text("数据维护"));
-            if (lease == null) throw new IOException(com.deepseekharness.app.util.UiText.text("有安装、备份、恢复或维护任务正在进行"));
-            try (lease) { return lease.run(() -> runDataTask(controller, operation)); }
-        }
-        if (!restoring.compareAndSet(false, true)) throw new IOException(com.deepseekharness.app.util.UiText.text("已有备份、恢复或维护任务，请等待完成"));
-        try {
-            // 终端也可能运行 dsh web；先按各自出生身份关闭，不能让全局 Web 判据等待尚未关闭的终端。
-            com.deepseekharness.app.ui.PtyTerminalFragment.shutdownAndWait(5000);
-            com.deepseekharness.app.ui.TerminalFragment.shutdownShellAndWait(5000);
-            stopWebForMaintenance(controller);
-            com.deepseekharness.app.util.RuntimeTaskRegistry.Maintenance maintenance =
-                    com.deepseekharness.app.core.RuntimeTasks.tryEnterMaintenance();
-            long drainDeadline = android.os.SystemClock.elapsedRealtime() + 3000;
-            while (maintenance == null && android.os.SystemClock.elapsedRealtime() < drainDeadline) {
-                Thread.sleep(50);
-                maintenance = com.deepseekharness.app.core.RuntimeTasks.tryEnterMaintenance();
-            }
-            if (maintenance == null) throw new IOException(com.deepseekharness.app.util.UiText.text("Web 已停止，但终端或后台任务仍在运行。请结束这些任务后重试；原环境未移动，数据未覆盖。"));
-            // 检查与新 RuntimeTasks 登记原子互斥；只放行本线程的同步嵌套任务。
-            try (com.deepseekharness.app.util.RuntimeTaskRegistry.Maintenance held = maintenance) {
-            synchronized (LOCK) {
-                dataOwner.set(true);
-                try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin("数据维护")) {
-                    return operation.run();
-                } finally { controller.proot().releaseRecoveryTools(); dataOwner.remove(); }
-            }
-            }
-        } finally { restoring.set(false); }
+        return com.deepseekharness.app.core.MaintenanceCoordinator.exclusive(controller, operation::run);
     }
 
     /** 主线程与安装入口的只读门控；调用方仍需原子取得 EnvironmentTaskGate.Lease 才能开始工作。 */
     public static boolean isEnvironmentTaskBusy() {
-        return restoring.get() || com.deepseekharness.app.util.EnvironmentTaskGate.isBusy();
+        return com.deepseekharness.app.core.MaintenanceCoordinator.isEnvironmentTaskBusy();
     }
 
     /** 与普通停止共用 PID 身份与同 UID 进程核验，未知读取错误仍阻止维护。 */
     public static void stopWebForMaintenance(HarnessController controller) throws Exception {
-        if (Thread.holdsLock(LOCK)) throw new IOException(com.deepseekharness.app.util.UiText.text("等待 Web 停止前必须释放归档锁"));
-        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
-            throw new IOException(com.deepseekharness.app.util.UiText.text("请在独立数据任务线程等待 Web 停止，不能阻塞界面线程"));
-        controller.stopWeb(message -> { });
-        long deadline = android.os.SystemClock.elapsedRealtime() + 45_000;
-        do {
-            if (Thread.currentThread().isInterrupted()) throw new InterruptedException(com.deepseekharness.app.util.UiText.text("等待停止被中断"));
-            if (!controller.isStarting() && !controller.isStopping() && controller.isWebStoppedForMaintenance()) return;
-            Thread.sleep(100);
-        } while (android.os.SystemClock.elapsedRealtime() < deadline);
-        throw new IOException(com.deepseekharness.app.util.UiText.text("等待 Web 或它启动的后台进程退出超时；原环境未移动，请结束运行任务后重试"));
+        com.deepseekharness.app.core.MaintenanceCoordinator.stopWeb(controller);
     }
 
     /** 新增的启动查询供安装/运行 worker 接入；未完成的磁盘事务必须先回滚。 */
     public static boolean hasPendingMaintenance(HarnessController controller) {
-        return hasPendingMaintenance(controller.proot().getRootfsDir().getParentFile().getParentFile());
+        return com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller);
     }
     public static boolean hasPendingMaintenance(File filesDir) {
-        try { return com.deepseekharness.app.util.MaintenanceTransaction.pending(filesDir) != null
-                || com.deepseekharness.app.util.RuntimeUpdateTransaction.pending(filesDir) != null
-                || com.deepseekharness.app.backup.ManagedRuntimeTransaction.blocked(filesDir)
-                || com.deepseekharness.app.backup.ConfigurationSnapshots.blocked(filesDir)
-                || com.deepseekharness.app.backup.PluginInstallJournals.blocked(filesDir)
-                || com.deepseekharness.app.backup.EnvironmentRebuildTransaction.blocked(filesDir)
-                || com.deepseekharness.app.backup.HostPendingTransactions.blocked(filesDir); }
-        catch (IOException e) { return true; }
+        return com.deepseekharness.app.core.MaintenanceCoordinator.pending(filesDir);
     }
 
     public static void recoverMaintenanceBeforeStart(HarnessController controller) throws Exception {
-        if (!hasPendingMaintenance(controller)) return;
-        runDataTask(controller, () -> {
+        if (!com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller)) return;
+        com.deepseekharness.app.core.MaintenanceCoordinator.exclusive(controller, () -> {
             com.deepseekharness.app.core.EnvironmentMaintenance.recover(controller);
             return null;
         });
@@ -130,7 +71,7 @@ public final class BackupManager {
 
     /** 安全归档永远位于 linux 之外，不导出公共存储，也不覆盖已有归档。 */
     public static String createMaintenanceBackup(HarnessController controller, File destination) throws Exception {
-        if (!Boolean.TRUE.equals(dataOwner.get())) throw new IOException(com.deepseekharness.app.util.UiText.text("维护备份必须持有全局任务锁"));
+        if (!isDataTaskOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("维护备份必须持有全局任务锁"));
         if (destination.exists()) throw new IOException(com.deepseekharness.app.util.UiText.text("安全备份目标已存在"));
         controller.proot().prepareDataMaintenance();
         File rootfs = controller.proot().getRootfsDir();
@@ -156,7 +97,7 @@ public final class BackupManager {
 
     /** 独立任务内恢复，共用原有引擎的预检、逐文件校验与延迟提交协议。 */
     public static String restoreWithinDataTask(HarnessController controller, PreparedRestore prepared) throws Exception {
-        if (!Boolean.TRUE.equals(dataOwner.get())) throw new IOException(com.deepseekharness.app.util.UiText.text("恢复必须持有全局任务锁"));
+        if (!isDataTaskOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("恢复必须持有全局任务锁"));
         try (InputStream in = new FileInputStream(prepared.archive)) {
             if (!prepared.hash.equals(FileIntegrity.copy(in, null, MAX_ARCHIVE).sha256)) throw new IOException(com.deepseekharness.app.util.UiText.text("待恢复文件已变化"));
         }
@@ -183,7 +124,7 @@ public final class BackupManager {
 
     /** 从私有安全归档恢复到新容器；只拷贝本次输入，绝不把安全归档交给 close 删除。 */
     public static void restoreMaintenanceBackup(HarnessController controller, File archive) throws Exception {
-        if (!Boolean.TRUE.equals(dataOwner.get())) throw new IOException(com.deepseekharness.app.util.UiText.text("维护恢复必须持有全局任务锁"));
+        if (!isDataTaskOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("维护恢复必须持有全局任务锁"));
         File input = new File(controller.proot().getRootfsDir(), "root/.deepseekharness-maintenance-input-" + UUID.randomUUID() + ".tar.gz");
         try {
             String hash;
@@ -249,9 +190,9 @@ public final class BackupManager {
         String out;
         if (rescue) {
             com.deepseekharness.app.util.BoundedProcessRunner.Result execution = controller.proot().runRecoveryMaintenance(command, null, 600_000);
-            if (execution.timedOut || execution.exitCode != 0) throw new IOException(com.deepseekharness.app.util.UiText.text("数据保护失败：") + execution.output);
-            out = execution.output;
-        } else out = controller.proot().execAndReadWithProot(command, 600_000);
+            out = com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(execution, "BACKUP_ENGINE");
+        } else out = com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(
+                controller.proot().execAndReadWithProotResult(command, 600_000), "BACKUP_ENGINE");
         String marker = "DeepSeekHarness_BACKUP_RESULT=";
         int start = out == null ? -1 : out.lastIndexOf(marker);
         if (start < 0) throw new IOException(out == null ? com.deepseekharness.app.util.UiText.text("备份核心没有返回结果") : out);
@@ -323,10 +264,8 @@ public final class BackupManager {
     }
 
     public static String restorePrepared(HarnessController controller, PreparedRestore prepared) throws Exception {
-        if (!restoring.compareAndSet(false, true)) throw new IOException(com.deepseekharness.app.util.UiText.text("已有恢复任务正在进行"));
-        try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin("数据维护")) {
-            // 等待 Web 停止时不持有归档锁，避免与运行队列形成互等。
-            controller.stopWeb();
+        try {
+            return com.deepseekharness.app.core.MaintenanceCoordinator.exclusive(controller, () -> {
             synchronized (LOCK) {
             try {
                 try (InputStream in = new FileInputStream(prepared.archive)) {
@@ -357,7 +296,8 @@ public final class BackupManager {
                 throw failure;
             }
             }
-        } finally { restoring.set(false); prepared.close(); }
+            });
+        } finally { prepared.close(); }
     }
 
     public static String restoreFromBackup(Context ctx, HarnessController controller, Uri uri) throws Exception {
@@ -406,6 +346,9 @@ public final class BackupManager {
     }
     public static String safeError(Exception e) {
         String message = SensitiveData.redact(e.getMessage() == null ? e.toString() : e.getMessage()).trim();
+        // Android/ROM 的 SecurityException 通常只有这句无上下文正文；收敛为
+        // 稳定错误码后，维护页才能给出可执行入口，也不会把权限失败误显示成完成。
+        if (message.equalsIgnoreCase("Permission denied")) message = "PERMISSION_DENIED";
         return message.length() < 800 ? message : message.substring(message.length() - 800);
     }
 }

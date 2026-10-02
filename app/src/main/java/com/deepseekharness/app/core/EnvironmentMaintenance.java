@@ -19,9 +19,9 @@ public final class EnvironmentMaintenance {
         return rebuild(controller, progress, controller.proot()::extractOfflineBundle);
     }
     public static String rollbackRuntime(HarnessController controller,String operation,Consumer<String> progress)throws Exception{
-        if(!BackupManager.isDataTaskOwner())throw new IOException("RUNTIME_REQUIRES_MAINTENANCE");
+        if(!MaintenanceCoordinator.isOwner())throw new IOException("RUNTIME_REQUIRES_MAINTENANCE");
         File files=controller.context().getFilesDir().getCanonicalFile();
-        if(BackupManager.hasPendingMaintenance(files))throw new IOException("RUNTIME_RECOVERY_REQUIRED");
+        if(MaintenanceCoordinator.pending(files))throw new IOException("RUNTIME_RECOVERY_REQUIRED");
         var fs=new com.deepseekharness.app.backup.AndroidBackupFileSystem();var control=maintenanceControl(progress);
         var transaction=com.deepseekharness.app.backup.ManagedRuntimeTransaction.prepareRollback(fs,files,operation,
                 controller.proot().expectedRuntimeDescriptor(),controller.proot().installedRuntimeDescriptor(),controller.proot().runtimeHealth(),control);
@@ -30,15 +30,16 @@ public final class EnvironmentMaintenance {
             controller.proot().confirmRuntimeHealth(proof);
             if(!controller.isEnvironmentReady())throw new IOException("RUNTIME_READINESS_FAILED");return proof;
         },()->!RuntimeTasks.hasOtherTasks());
+        com.deepseekharness.app.backup.ManagedRuntimeTransaction.archiveCompleted(fs,files);
         return com.deepseekharness.app.util.UiText.choose("兼容运行时已通过本轮隔离试运行并启用。对话、配置和项目保持原位。", "The compatible runtime passed this isolated trial and is active. Conversations, configuration and projects stayed in place.");
     }
 
     /** 同一 Ubuntu 基础环境只替换 APK 受管树，现有 .dsh 数据与工作区无需复制。 */
     public static String update(HarnessController controller, Consumer<String> progress) throws Exception {
         if (!controller.proot().canUpdateManagedRuntime()) return rebuild(controller, progress);
-        if (!BackupManager.isDataTaskOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("运行时更新必须持有停止屏障与数据任务锁"));
+        if (!MaintenanceCoordinator.isOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("运行时更新必须持有停止屏障与数据任务锁"));
         File files = controller.context().getFilesDir().getCanonicalFile();
-        if (BackupManager.hasPendingMaintenance(files)) throw new IOException(com.deepseekharness.app.util.UiText.text("请先恢复中断的环境维护"));
+        if (MaintenanceCoordinator.pending(files)) throw new IOException(com.deepseekharness.app.util.UiText.text("请先恢复中断的环境维护"));
         requireSpace(files, 512L * 1024 * 1024);
         var fs=new com.deepseekharness.app.backup.AndroidBackupFileSystem();
         com.deepseekharness.app.backup.RuntimeDescriptor previous=null;java.util.Map<String,Object> previousHealth=null;
@@ -68,9 +69,9 @@ public final class EnvironmentMaintenance {
     }
 
     static String rebuild(HarnessController controller, Consumer<String> progress, ExtractStep extract) throws Exception {
-        if(!BackupManager.isDataTaskOwner())throw new IOException("ENVIRONMENT_REQUIRES_MAINTENANCE");
+        if(!MaintenanceCoordinator.isOwner())throw new IOException("ENVIRONMENT_REQUIRES_MAINTENANCE");
         File files=controller.context().getFilesDir().getCanonicalFile();
-        if(BackupManager.hasPendingMaintenance(files))throw new IOException("ENVIRONMENT_RECOVERY_REQUIRED");
+        if(MaintenanceCoordinator.pending(files))throw new IOException("ENVIRONMENT_RECOVERY_REQUIRED");
         if(!controller.hasOfflineBundle())throw new IOException(com.deepseekharness.app.util.UiText.text("APK 缺少内置环境包，原环境保持原位"));
         var fs=new com.deepseekharness.app.backup.AndroidBackupFileSystem();
         var layout=new com.deepseekharness.app.backup.UserDataLayout(fs,files);
@@ -115,6 +116,8 @@ public final class EnvironmentMaintenance {
                 transaction.sealRetired(control);transaction.cleanupRetired(control);
                 cleanup=com.deepseekharness.app.util.UiText.choose("旧 Ubuntu 系统已清理，个人数据验证副本与事务记录保留。", "The old Ubuntu system was cleaned. Verified personal-data copies and transaction records remain.");
             }catch(IOException retained){cleanup=com.deepseekharness.app.util.UiText.choose("旧环境清理暂缓，原件保留：", "Old environment cleanup was deferred; originals retained: ")+com.deepseekharness.app.backup.NativeBackupJobs.code(retained);}
+            try{com.deepseekharness.app.backup.EnvironmentRebuildTransaction.archiveCompleted(fs,files);}
+            catch(IOException retained){cleanup+=com.deepseekharness.app.util.UiText.choose("\n旧事务归档暂缓，原件保留：", "\nOld transaction archival deferred; originals retained: ")+com.deepseekharness.app.backup.NativeBackupJobs.code(retained);}
             return com.deepseekharness.app.util.UiText.choose("环境重建完成，数据逐文件核验与运行试验通过。\n", "Environment rebuilt; data verification and the runtime trial passed.\n")+cleanup;
         }catch(Exception failure){
             if(began&&!RuntimeTasks.hasOtherTasks())try{transaction.rollback();}catch(Exception retained){failure.addSuppressed(retained);}
@@ -151,7 +154,7 @@ public final class EnvironmentMaintenance {
         proot.ensureAndroidGroups();
         java.util.List<com.deepseekharness.app.util.InstallProbe.Check> checks = com.deepseekharness.app.util.InstallProbe.checks(0);
         com.deepseekharness.app.util.InstallProbe.Results checked = new com.deepseekharness.app.util.InstallProbe.Results(checks);
-        String probe = proot.execAndReadWithProot(com.deepseekharness.app.util.InstallProbe.script(checks), 90_000);
+        String probe = readCheckedProot(proot, com.deepseekharness.app.util.InstallProbe.script(checks), 90_000);
         for (String line : probe.split("\\r?\\n")) checked.accept(line);
         for (int step = 2; step <= 6; step++) if (!checked.ok(step))
             throw new IOException(com.deepseekharness.app.util.UiText.text("新环境第 ") + step + com.deepseekharness.app.util.UiText.text(" 步检查失败：") + checked.detail(step));
@@ -169,10 +172,21 @@ public final class EnvironmentMaintenance {
                 + "const q='/root/.deepseekharness-native-check-'+process.pid;const fd=fs.openSync(q,'wx',384);"
                 + "try{await r('@deepseek-ai/node-addon-system/flock').tryLockExclusive(fd);}"
                 + "finally{fs.closeSync(fd);fs.unlinkSync(q);}})().catch(e=>{console.error(e);process.exitCode=1;});")
-                + "; dsh --version; printf '\\nDEEPSEEK_HARNESS_RUNTIME_VALIDATED\\n'";
-        String output = proot.execAndReadWithProot(script, 90_000);
-        if (output == null || !output.contains("\nDEEPSEEK_HARNESS_RUNTIME_VALIDATED\n"))
+                + "; dsh --version; printf '\\nDeepSeekHarness_RUNTIME_VALIDATED\\n'";
+        String output = readCheckedProot(proot, script, 90_000);
+        if (output == null || !output.contains("\nDeepSeekHarness_RUNTIME_VALIDATED\n"))
             throw new IOException(com.deepseekharness.app.util.UiText.text("新环境运行校验失败，将保留并回切原环境。\n") + output);
+    }
+
+    private static String readCheckedProot(com.deepseekharness.app.runtime.ProotBootstrap proot,
+                                           String command, long timeoutMs) throws IOException {
+        try {
+            var result = proot.execAndReadWithProotResult(command, timeoutMs);
+            return com.deepseekharness.app.util.GuestCommandOutcome.requireCompleted(result, "RUNTIME_PROBE");
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new java.io.InterruptedIOException("RUNTIME_PROBE_INTERRUPTED");
+        }
     }
 
     /** 只删除事务拥有的树；lstat 失败就中止，绝不沿链接清理公开存储。 */
@@ -201,7 +215,7 @@ public final class EnvironmentMaintenance {
     }
 
     public static String recover(HarnessController controller) throws Exception {
-        if (!BackupManager.isDataTaskOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("维护回滚必须经过停止屏障与全局数据任务锁"));
+        if (!MaintenanceCoordinator.isOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("维护回滚必须经过停止屏障与全局数据任务锁"));
         ensureSingleRecovery(controller);
         File files = controller.context().getFilesDir().getCanonicalFile();
         com.deepseekharness.app.runtime.RuntimeTrial.recoverPending(controller.context(),controller.proot());
@@ -226,6 +240,10 @@ public final class EnvironmentMaintenance {
         if (!host.isEmpty()) {
             if (host.size() != 1 || RuntimeTasks.hasOtherTasks()) throw new IOException("HOST_RECOVERY_REQUIRES_REVIEW");
             var filesystem=new com.deepseekharness.app.backup.AndroidBackupFileSystem();
+            if(com.deepseekharness.app.backup.ProfileSettingsTransaction.owns(filesystem,host.get(0))){
+                com.deepseekharness.app.backup.ProfileSettingsTransaction.recover(controller.context(),host.get(0));
+                return com.deepseekharness.app.util.UiText.choose("中断的 profile 设置事务已恢复，原件保留。", "Interrupted profile settings transaction recovered; originals retained.");
+            }
             if(com.deepseekharness.app.backup.NativeConfigurationReset.owns(filesystem,host.get(0))){
                 com.deepseekharness.app.backup.NativeConfigurationReset.recover(filesystem,files,host.get(0),controller.nativeSettingsTransaction(),null);
                 return com.deepseekharness.app.util.UiText.choose("中断的配置重置已在宿主侧恢复，原件保留。", "Interrupted configuration reset recovered on the host; originals retained.");
@@ -247,14 +265,8 @@ public final class EnvironmentMaintenance {
         return com.deepseekharness.app.util.UiText.text("中断的维护已回滚；安全备份、旧环境及失败的新环境均已保留。\n") + pending.directory().getAbsolutePath();
     }
     public static void ensureSingleRecovery(HarnessController controller)throws IOException{
-        File files=controller.context().getFilesDir().getCanonicalFile();var fs=new com.deepseekharness.app.backup.AndroidBackupFileSystem();
-        int pending=com.deepseekharness.app.backup.HostPendingTransactions.pending(fs,files).size()
-                +com.deepseekharness.app.backup.ManagedRuntimeTransaction.pending(fs,files).size()
-                +(StartupRepairs.snapshots(controller.context()).pending()?1:0)
-                +(com.deepseekharness.app.util.RuntimeUpdateTransaction.pending(files)!=null?1:0)
-                +(com.deepseekharness.app.backup.EnvironmentRebuildTransaction.pending(fs,files)!=null?1:0)
-                +(!com.deepseekharness.app.backup.PluginInstallJournals.pending(fs,new com.deepseekharness.app.backup.UserDataLayout(fs,files).current()).isEmpty()?1:0)
-                +(MaintenanceTransaction.pending(files)!=null?1:0);
-        if(pending>1)throw new IOException("MULTIPLE_TRANSACTIONS");
+        File files=controller.context().getFilesDir().getCanonicalFile();
+        if(com.deepseekharness.app.backup.HostMaintenancePending.moreThanOneRecoverable(files))
+            throw new IOException("MULTIPLE_TRANSACTIONS");
     }
 }

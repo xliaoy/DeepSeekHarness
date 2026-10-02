@@ -11,6 +11,7 @@
  }}catch(e){}return socket}
  Socket.prototype=Original.prototype;Object.setPrototypeOf(Socket,Original);window.WebSocket=Socket;
  function post(failure){if(sent||acknowledged)return;sent=true;fetch('/deepseekharness-runtime-trial/'+nonce,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({nonce:nonce,ready:ready,transport:opened&&message,failure:failure})}).then(function(r){sent=false;if(r.ok){acknowledged=true;clearInterval(timer)}},function(){sent=false})}
- window.addEventListener('deepseekharness-startup',function(event){try{var value=JSON.parse(event.detail);if(value.type==='ready')ready=true;if(value.type==='issue'&&value.fatal){failed=true;post(true)}}catch(e){}});
+ var fatalReason='';
+ window.addEventListener('deepseekharness-startup',function(event){try{var value=JSON.parse(event.detail);if(value.type==='ready')ready=true;if(value.type==='issue'&&value.fatal){failed=true;if(value.message)fatalReason=value.message;post(fatalReason||true)}}catch(e){}});
  var timer=setInterval(function(){if(failed){post(true);return}var root=document.getElementById('root'),boot=document.querySelector('[data-dsh-boot]');if(!boot&&root&&root.children.length)ready=true;if(ready&&opened&&message)post(false)},500);
 })();

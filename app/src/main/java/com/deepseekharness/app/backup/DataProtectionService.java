@@ -7,28 +7,60 @@ import com.deepseekharness.app.R;
 import com.deepseekharness.app.core.BackupTask;
 import com.deepseekharness.app.util.UiText;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** 数据导出、恢复与受控运行时验证共享 dataSync 前台通知；中断后不自动重放任务。 */
 public final class DataProtectionService extends Service {
-    private static final String CHANNEL="DeepSeekHarness_data_protection";
+    private static final String CHANNEL="deepseekharness_data_protection";
+    private static final String START_ID="deepseekharness_protection_start_id";
+    private static final AtomicLong NEXT_START=new AtomicLong();
+    private static final ConcurrentHashMap<Long,StartTicket> PENDING_STARTS=new ConcurrentHashMap<>();
     private final Handler main=new Handler(Looper.getMainLooper());
     private final Runnable refresh=new Runnable(){public void run(){if(show())main.postDelayed(this,600);}};
-    public static void start(Context context)throws IOException{
-        Intent intent=new Intent(context,DataProtectionService.class);
+    private boolean promoted;
+    private IOException promotionFailure;
+
+    /** Workers wait for the service's actual promotion before touching protected data. */
+    public static final class StartTicket {
+        private final long id;
+        private final CountDownLatch ready=new CountDownLatch(1);
+        private volatile IOException failure;
+        StartTicket(long id){this.id=id;}
+        void complete(IOException error){failure=error;ready.countDown();}
+        public void await()throws IOException{
+            try{
+                if(!ready.await(8,TimeUnit.SECONDS)){
+                    PENDING_STARTS.remove(id,this);
+                    throw new IOException("FOREGROUND_SERVICE_START_TIMEOUT");
+                }
+            }catch(InterruptedException error){Thread.currentThread().interrupt();throw new IOException("FOREGROUND_SERVICE_START_INTERRUPTED",error);}
+            if(failure!=null)throw failure;
+        }
+    }
+    public static StartTicket start(Context context)throws IOException{
+        long id=NEXT_START.incrementAndGet();StartTicket ticket=new StartTicket(id);PENDING_STARTS.put(id,ticket);
+        Intent intent=new Intent(context,DataProtectionService.class).putExtra(START_ID,id);
         try{if(Build.VERSION.SDK_INT>=26)context.startForegroundService(intent);else context.startService(intent);}
-        catch(RuntimeException error){throw new IOException("FOREGROUND_SERVICE_UNAVAILABLE",error);}
+        catch(RuntimeException error){PENDING_STARTS.remove(id,ticket);IOException failure=new IOException("FOREGROUND_SERVICE_UNAVAILABLE",error);ticket.complete(failure);throw failure;}
+        return ticket;
+    }
+    private static void failPending(IOException failure){
+        for(var entry:PENDING_STARTS.entrySet())if(PENDING_STARTS.remove(entry.getKey(),entry.getValue()))entry.getValue().complete(failure);
     }
     @Override public void onCreate(){
         super.onCreate();
         if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel(CHANNEL,UiText.choose("数据保护","Data protection"),NotificationManager.IMPORTANCE_LOW));
         // 即使任务在 Service 创建之前已结束，也先履行 startForegroundService 的时间契约。
-        publish(UiText.choose("正在确认任务状态…","Checking task state…"),null,null);main.post(refresh);
+        if(publish(UiText.choose("正在确认任务状态…","Checking task state…"),null,null))main.post(refresh);
     }
     private boolean show(){
         var nativeJob=NativeBackupJobs.get(this).state();BackupTask tasks=BackupTask.get(this);var maintenance=tasks.snapshot();
-        if(!nativeJob.busy&&!tasks.maintenanceBusy()){stopForeground(true);stopSelf();return false;}
+        if(!nativeJob.busy&&!tasks.maintenanceBusy()){promoted=false;stopForeground(true);stopSelf();return false;}
         String id=nativeJob.busy?"native:"+nativeJob.id:"maintenance:"+maintenance.id;
-        Intent cancel=new Intent(this,DataProtectionService.class).setAction("cancel").setData(android.net.Uri.parse("DeepSeekHarness://data-operation/"+id)).putExtra("operation",id);
+        Intent cancel=new Intent(this,DataProtectionService.class).setAction("cancel").setData(android.net.Uri.parse("deepseekharness://data-operation/"+id)).putExtra("operation",id);
         PendingIntent action=nativeJob.busy||tasks.cancellable()?PendingIntent.getService(this,0,cancel,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE):null;
         Intent view=nativeJob.busy?new Intent(this,com.deepseekharness.app.ui.NativeDataActivity.class):
                 new Intent(this,com.deepseekharness.app.ui.ExtractActivity.class).putExtra("review_only",true).putExtra("data_task_id",maintenance.id);
@@ -36,9 +68,9 @@ public final class DataProtectionService extends Service {
         PendingIntent open=PendingIntent.getActivity(this,9031,view,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         String text=nativeJob.busy?nativeJob.entries+UiText.choose(" 项 · "," items · ")+com.deepseekharness.app.util.Fmt.bytes(nativeJob.bytes):
                 UiText.choose("正在保护数据并验证运行环境","Protecting data and verifying the runtime");
-        publish(text,action,open);return true;
+        return publish(text,action,open);
     }
-    private void publish(String text,PendingIntent cancel,PendingIntent open){
+    private boolean publish(String text,PendingIntent cancel,PendingIntent open){
         Notification.Builder notification=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);
         notification.setSmallIcon(R.mipmap.ic_launcher).setContentTitle(UiText.choose("DeepSeekHarness 数据保护","DeepSeekHarness data protection"))
                 .setContentText(text).setOngoing(true).setOnlyAlertOnce(true);
@@ -53,10 +85,30 @@ public final class DataProtectionService extends Service {
             open=PendingIntent.getActivity(this,9032,app,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         }
         notification.setContentIntent(open);
-        if(Build.VERSION.SDK_INT>=29)startForeground(9031,notification.build(),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        else startForeground(9031,notification.build());
+        Notification built=notification.build();
+        if(!promoted){
+            try{
+                if(Build.VERSION.SDK_INT>=29)startForeground(9031,built,android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+                else startForeground(9031,built);
+                promoted=true;
+            }catch(RuntimeException error){
+                promotionFailure=new IOException("FOREGROUND_SERVICE_UNAVAILABLE",error);
+                failPending(promotionFailure);stopSelf();return false;
+            }
+        }else{
+            // A running service only updates its existing notification. Calling
+            // startForeground again after the app backgrounds can be denied.
+            try{getSystemService(NotificationManager.class).notify(9031,built);}
+            catch(RuntimeException ignored){/* The already-posted foreground notification remains. */}
+        }
+        return true;
     }
     @Override public int onStartCommand(Intent intent,int flags,int startId){
+        if(!promoted&&promotionFailure==null)publish(UiText.choose("正在确认任务状态…","Checking task state…"),null,null);
+        long request=intent==null?0:intent.getLongExtra(START_ID,0);
+        StartTicket ticket=PENDING_STARTS.remove(request);
+        if(ticket!=null)ticket.complete(promoted?null:promotionFailure==null?new IOException("FOREGROUND_SERVICE_UNAVAILABLE"):promotionFailure);
+        if(!promoted){stopSelf();return START_NOT_STICKY;}
         if(intent!=null&&"cancel".equals(intent.getAction())){
             String id=intent.getStringExtra("operation");var jobs=NativeBackupJobs.get(this);var tasks=BackupTask.get(this);
             if(("native:"+jobs.state().id).equals(id))jobs.cancel();
@@ -66,6 +118,6 @@ public final class DataProtectionService extends Service {
     }
     @Override public void onTimeout(int startId,int fgsType){NativeBackupJobs.get(this).cancel();BackupTask.get(this).cancel();stopSelf();}
     @Override public IBinder onBind(Intent intent){return null;}
-    @Override public void onDestroy(){main.removeCallbacks(refresh);super.onDestroy();}
+    @Override public void onDestroy(){main.removeCallbacks(refresh);promoted=false;failPending(new IOException("FOREGROUND_SERVICE_STOPPED"));super.onDestroy();}
 }
 

@@ -1,0 +1,11 @@
+{
+  "name": "@PROFILE@",
+  "private": true,
+  "dependencies": {},
+  "dsh": {
+    "profile": {
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app"],
+      "patchReload": "startup"
+    }
+  }
+}

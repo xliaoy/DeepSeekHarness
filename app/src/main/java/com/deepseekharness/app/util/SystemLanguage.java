@@ -1,6 +1,7 @@
 package com.deepseekharness.app.util;
 
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /**
  * 读取<b>系统</b>首选语言，供「跟随系统」使用。
@@ -15,7 +16,9 @@ import java.util.Locale;
  * <p>因此在<b>进程最早的时刻</b>（{@link #initialize()}，早于任何 {@code setDefault}）
  * 读一次真实系统语言并缓存，之后无论应用语言怎么切换，{@link #tag()} 都返回那一份。
  *
- * <p>取值顺序（逐级回退，任何一级不可用都不抛异常）：
+ * <p>Android 13+ 优先读 {@code LocaleManager.getSystemLocales()} 的真实系统语言，
+ * 避免持久的 per-app locale 在 Application 创建前把资源/默认 Locale 改成应用语言。
+ * 其余取值顺序（逐级回退，任何一级不可用都不抛异常）：
  * <ol>
  *   <li>{@code Resources.getSystem().getConfiguration().getLocales().get(0)}（API 24+）</li>
  *   <li>{@code Configuration.locale} 字段（API 1，API 24 起 deprecated）</li>
@@ -24,8 +27,9 @@ import java.util.Locale;
  */
 public final class SystemLanguage {
 
-    /** 进程生命周期内固定的系统语言标签；null = 尚未初始化。 */
+    /** 锁存的系统语言；Application 初始化前可能只是暂时回退值。 */
     private static volatile String cached;
+    private static volatile boolean initialized;
 
     private SystemLanguage() {
     }
@@ -34,8 +38,23 @@ public final class SystemLanguage {
      * 在进程最早时刻调用（{@code Application.onCreate} 最前面），
      * 锁存真实系统语言。重复调用只生效第一次。
      */
-    public static void initialize() {
-        if (cached == null) cached = detect();
+    public static void initialize() { initializeFromSystemTag(null); }
+
+    /** Application 创建初期传入自身；低于 API 33 时自动走原有资源回退。 */
+    public static void initialize(Object context) {
+        if (!initialized) initializeFromSystemTag(localeManagerSystemTag(context));
+    }
+
+    /** 同一锁存路径供无 Android 的边界测试注入系统来源。 */
+    static void initializeFromSystemTag(String systemTag) {
+        if (initialized) return;
+        String chosen = systemTag != null && !systemTag.isEmpty() ? systemTag : detect();
+        if (chosen == null || chosen.isEmpty()) chosen = Locale.getDefault().toLanguageTag();
+        synchronized (SystemLanguage.class) {
+            if (initialized) return;
+            cached = chosen;
+            initialized = true;
+        }
     }
 
     /**
@@ -45,19 +64,46 @@ public final class SystemLanguage {
      * 未初始化时按需探测 —— 单测与异常路径仍能工作。
      */
     public static String tag() {
+        return tagWithDetector(SystemLanguage::detect);
+    }
+
+    /** Detector stays outside the publication lock; an initialized system value wins any late result. */
+    static String tagWithDetector(Supplier<String> detector) {
         String value = cached;
         if (value != null && !value.isEmpty()) return value;
-        String detected = detect();
+        String detected = detector.get();
         if (detected == null || detected.isEmpty()) detected = Locale.getDefault().toLanguageTag();
-        // 未初始化时也顺手锁存，保证同一进程内一致。
-        cached = detected;
-        return detected;
+        synchronized (SystemLanguage.class) {
+            if (initialized) return cached;
+            value = cached;
+            if (value != null && !value.isEmpty()) return value;
+            // 仅作 Application.initialize 前的暂时值；真实系统服务仍可覆盖它。
+            cached = detected;
+            return detected;
+        }
     }
 
     /** 仅供单测：清掉锁存值。 */
-    static void resetForTest() { cached = null; }
+    static void resetForTest() { cached = null; initialized = false; }
 
-    /** 探测系统语言；全部失败返回 null。 */
+    /** Android 13+ 的 LocaleManager 系统语言，不读取本应用的 locales。 */
+    private static String localeManagerSystemTag(Object context) {
+        if (context == null) return null;
+        try {
+            Class<?> contextType = Class.forName("android.content.Context");
+            Class<?> managerType = Class.forName("android.app.LocaleManager");
+            Object manager = contextType.getMethod("getSystemService", Class.class).invoke(context, managerType);
+            if (manager == null) return null;
+            Object locales = managerType.getMethod("getSystemLocales").invoke(manager);
+            if (locales == null) return null;
+            Object first = locales.getClass().getMethod("get", int.class).invoke(locales, 0);
+            return first instanceof Locale ? ((Locale) first).toLanguageTag() : null;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+            return null;
+        }
+    }
+
+    /** 旧 API 的资源探测；全部失败返回 null。 */
     private static String detect() {
         Object configuration = systemConfiguration();
         if (configuration != null) {
@@ -73,7 +119,7 @@ public final class SystemLanguage {
      * 取 {@code Resources.getSystem().getConfiguration()}。
      *
      * <p>用反射而非直接调用，是为了让本类在没有 Android 运行时的 JVM 单测里也能加载
-     * （找不到类就返回 null，由调用方回退）。生产路径（Android）永远走得到。
+     * （找不到类就返回 null，由调用方回退）。
      */
     private static Object systemConfiguration() {
         try {

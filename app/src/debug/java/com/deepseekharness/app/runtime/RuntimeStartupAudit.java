@@ -55,13 +55,13 @@ public final class RuntimeStartupAudit extends Instrumentation {
                         String runtime = args.getString("install_runtime", "automatic");
                         if (runtime.equals("proot")) return super.execRootfsForInstall(command);
                         if (runtime.equals("fail")) return super.execRootfsForColdInstall(
-                                "cd /root/.deepseekharness-bundled-tools; dpkg --unpack ./ca-certificates_*.deb; printf EXPECTED_INSTALL_FAILURE; exit 7");
+                                "cd /root/.dsha-bundled-tools; dpkg --unpack ./ca-certificates_*.deb; printf EXPECTED_INSTALL_FAILURE; exit 7");
                         return super.execRootfsForColdInstall(command);
                     }
                     @Override public Process execRootfsForInstall(String command) throws java.io.IOException {
                         if (command.equals("/bin/bash /root/dsh-bin/install-ubuntu-tools")) {
                             command = "PS4='+${EPOCHREALTIME} ' /bin/bash -x /root/dsh-bin/install-ubuntu-tools "
-                                    + "> /root/.deepseekharness-install-timing.log 2>&1; rc=$?; cat /root/.deepseekharness-install-timing.log; exit $rc";
+                                    + "> /root/.dsha-install-timing.log 2>&1; rc=$?; cat /root/.dsha-install-timing.log; exit $rc";
                         }
                         return super.execRootfsForInstall(command);
                     }
@@ -108,8 +108,8 @@ public final class RuntimeStartupAudit extends Instrumentation {
                 ((com.deepseekharness.app.util.TerminalTabs<com.deepseekharness.app.PtySession>)field.get(null)).add(terminal[0]);
             } catch (Exception e) { throw new IllegalStateException(e); }
         });
-        File childFile = new File(proot.getRootfsDir(), "tmp/deepseekharness-terminal-audit.pid");
-        terminal[0].write("unset HISTFILE; sleep 120 & echo $! > /tmp/deepseekharness-terminal-audit.pid\n");
+        File childFile = new File(proot.getRootfsDir(), "tmp/dsha-terminal-audit.pid");
+        terminal[0].write("unset HISTFILE; sleep 120 & echo $! > /tmp/dsha-terminal-audit.pid\n");
         long deadline = SystemClock.elapsedRealtime() + 5000;
         while (!childFile.isFile() && SystemClock.elapsedRealtime() < deadline) Thread.sleep(20);
         if (!childFile.isFile()) throw new AssertionError("终端子进程未启动");
@@ -172,7 +172,7 @@ public final class RuntimeStartupAudit extends Instrumentation {
         try {
             for (int i = 0; i < 20; i++) {
                 // 覆盖 exec 立即失败和正常快速退出：身份必须在 waitFor 可以回收 PID 前记录。
-                String executable = i % 2 == 0 ? "/system/bin/true" : "/deepseekharness-missing-terminal-executable";
+                String executable = i % 2 == 0 ? "/system/bin/true" : "/dsha-missing-terminal-executable";
                 ProotBootstrap fast = new ProotBootstrap(app) {
                     @Override public String[] ptyArgv(String... guestCmd) { return new String[]{executable}; }
                 };
@@ -289,25 +289,25 @@ public final class RuntimeStartupAudit extends Instrumentation {
         return (Process) method.invoke(proot, command, rt, false);
     }
     private void links(ProotBootstrap proot, Context app) throws Exception {
-        String guest = "/root/.deepseekharness-startup-link-probe-" + SystemClock.elapsedRealtime();
+        String guest = "/root/.dsha-startup-link-probe-" + SystemClock.elapsedRealtime();
         File fixture = new File(proot.getRootfsDir(), guest.substring(1));
         File target = new File(fixture, "target"); target.mkdirs();
-        Compat.write(new File(target, "package.json"), "{\"name\":\"deepseekharness-audit\",\"type\":\"module\",\"exports\":\"./index.js\"}".getBytes(StandardCharsets.UTF_8));
+        Compat.write(new File(target, "package.json"), "{\"name\":\"dsha-audit\",\"type\":\"module\",\"exports\":\"./index.js\"}".getBytes(StandardCharsets.UTF_8));
         Compat.write(new File(target, "index.js"), "export default 42;".getBytes(StandardCharsets.UTF_8));
         String node = "import fs from 'node:fs'; import {createRequire} from 'node:module';"
                 + "const r=createRequire(import.meta.url);"
-                + "for(const op of [()=>fs.statSync('./node_modules/deepseekharness-audit/package.json').size,()=>fs.realpathSync('./node_modules/deepseekharness-audit'),()=>r.resolve('deepseekharness-audit')])"
+                + "for(const op of [()=>fs.statSync('./node_modules/dsha-audit/package.json').size,()=>fs.realpathSync('./node_modules/dsha-audit'),()=>r.resolve('dsha-audit')])"
                 + "{try{console.log('CHECK',op())}catch(e){console.log('CHECK_ERROR',e.code)}}"
-                + "try{console.log('IMPORT', (await import('deepseekharness-audit')).default)}catch(e){console.log('IMPORT_ERROR',e.code,e.message)}";
+                + "try{console.log('IMPORT', (await import('dsha-audit')).default)}catch(e){console.log('IMPORT_ERROR',e.code,e.message)}";
         try {
             for (String creator : new String[]{"host", "proot", "proroot"}) {
                 for (String kind : new String[]{"absolute", "relative"}) {
                     String name = creator + "-" + kind;
                     File folder = new File(fixture, name); new File(folder, "node_modules").mkdirs();
                     Compat.write(new File(folder, "loader.mjs"), node.getBytes(StandardCharsets.UTF_8));
-                    String link = guest + "/" + name + "/node_modules/deepseekharness-audit";
+                    String link = guest + "/" + name + "/node_modules/dsha-audit";
                     String value = kind.equals("absolute") ? guest + "/target" : "../../target";
-                    if (creator.equals("host")) android.system.Os.symlink(value, new File(folder, "node_modules/deepseekharness-audit").getAbsolutePath());
+                    if (creator.equals("host")) android.system.Os.symlink(value, new File(folder, "node_modules/dsha-audit").getAbsolutePath());
                     else run(proot, app, creator, "python3 -B -c " + ShellQuote.arg("import os;os.symlink('" + value + "','" + link + "')"), 20000);
                     for (String reader : new String[]{"proot", "proroot"})
                         report(name + " reader=" + reader + "\n" + run(proot, app, reader,

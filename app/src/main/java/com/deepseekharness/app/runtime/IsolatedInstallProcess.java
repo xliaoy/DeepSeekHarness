@@ -6,42 +6,47 @@ import android.system.OsConstants;
 import com.deepseekharness.app.util.Compat;
 import com.deepseekharness.app.util.ProcessIdentity;
 import com.deepseekharness.app.util.ProcessTermination;
-import com.deepseekharness.app.util.ShellQuote;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 
-/** 仅用于冷安装：宿主监督进程持有独立会话，退出/超时/中断均回收本次全部子进程。 */
+/** 冷安装及有界 proroot 命令的独立会话监督器；关闭前核验本次整组退出。 */
 final class IsolatedInstallProcess extends Process implements AutoCloseable {
     private final Process supervisor;
     private final ProcessIdentity identity;
     private final File status;
-    private volatile boolean closing, closed;
+    private final BoundedGuestSessions.Operation record;
+    private volatile boolean closing, closed, recordRetired;
 
     static boolean supported(android.content.Context context) {
         return sessionLauncher(context) != null;
     }
 
     static String sessionLauncher(android.content.Context context) {
-        File bundled = new File(context.getApplicationInfo().nativeLibraryDir, "libdeepseekharness-session.so");
-        if (bundled.isFile() && bundled.length() > 0) return bundled.getAbsolutePath();
+        String bundled = bundledLauncher(context);
+        if (bundled != null) return bundled;
         File system = new File("/system/bin/setsid");
         return system.canExecute() ? system.getAbsolutePath() : null;
     }
+    static String bundledLauncher(android.content.Context context) {
+        File binary = new File(context.getApplicationInfo().nativeLibraryDir, "libdeepseekharness-session.so");
+        return binary.isFile() && binary.length() > 0 ? binary.getAbsolutePath() : null;
+    }
 
     static IsolatedInstallProcess start(ProcessBuilder target, File temporary, android.content.Context context) throws IOException {
-        String launcher = sessionLauncher(context);
+        return start(target, temporary, context, null);
+    }
+
+    static IsolatedInstallProcess start(ProcessBuilder target, File temporary, android.content.Context context,
+                                        BoundedGuestSessions.Operation record) throws IOException {
+        String launcher = record == null ? sessionLauncher(context) : bundledLauncher(context);
         if (launcher == null) throw new IOException(com.deepseekharness.app.util.UiText.text("此系统不支持独立安装进程组"));
         File status = new File(temporary, "cold-install-" + java.util.UUID.randomUUID() + ".status");
-        StringBuilder shell = new StringBuilder("IFS= read -r DeepSeekHarness_START || exit 125\n"
-                + "[ \"$DeepSeekHarness_START\" = DeepSeekHarness_START ] || exit 125\n");
-        for (String argument : target.command()) shell.append(ShellQuote.arg(argument)).append(' ');
         // 完成后仍保留组长，直到宿主核验身份并回收，避免 PID/进程组号复用的歧义。
-        shell.append("\nresult=$?\nprintf '%s' \"$result\" > ").append(ShellQuote.arg(status.getAbsolutePath()))
-                .append("\nkill -STOP $$\nexit 125\n");
-        target.command(Arrays.asList(launcher, "/system/bin/sh", "-c", shell.toString()));
+        String shell = com.deepseekharness.app.util.IsolatedCommand.script(target.command(), status.getAbsolutePath());
+        target.command(Arrays.asList(launcher, "/system/bin/sh", "-c", shell));
         // 调用方保留 ProcessBuilder 默认 PIPE，避免依赖 API 26 的 Redirect。
         Process supervisor = target.start();
         int pid = ProcessIdentity.androidPid(supervisor.getClass().getName(), supervisor.toString());
@@ -52,7 +57,8 @@ final class IsolatedInstallProcess extends Process implements AutoCloseable {
             while (!ProcessTermination.exited(supervisor) && SystemClock.elapsedRealtime() < deadline) {
                 ProcessIdentity identity = readIdentity(pid);
                 if (identity != null && identity.ownsSession()) {
-                    ready = new IsolatedInstallProcess(supervisor, identity, status);
+                    ready = new IsolatedInstallProcess(supervisor, identity, status, record);
+                    if (record != null) record.beforeLaunch(identity);
                     supervisor.getOutputStream().write("DeepSeekHarness_START\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
                     supervisor.getOutputStream().flush();
                     accepted = true;
@@ -72,8 +78,9 @@ final class IsolatedInstallProcess extends Process implements AutoCloseable {
         }
     }
 
-    private IsolatedInstallProcess(Process supervisor, ProcessIdentity identity, File status) {
-        this.supervisor = supervisor; this.identity = identity; this.status = status;
+    private IsolatedInstallProcess(Process supervisor, ProcessIdentity identity, File status,
+                                   BoundedGuestSessions.Operation record) {
+        this.supervisor = supervisor; this.identity = identity; this.status = status; this.record = record;
     }
 
     private static ProcessIdentity readIdentity(int pid) {
@@ -83,17 +90,22 @@ final class IsolatedInstallProcess extends Process implements AutoCloseable {
     }
 
     @Override public int exitValue() {
-        if (closing && !closed && groupGone() && ProcessTermination.exited(supervisor)) {
+        if (closing && !closed && groupGone() && ProcessTermination.exited(supervisor) && boundedSessionEmpty()) {
             closed = true; status.delete();
         }
         if (closed) return supervisor.exitValue();
         if (!closing && status.isFile()) {
             try {
-                String value = Compat.readAll(status);
-                if (value.matches("[0-9]{1,3}")) {
-                    int code = Integer.parseInt(value); if (code <= 255) return code;
-                }
+                int code = com.deepseekharness.app.util.IsolatedCommand.status(Compat.readAll(status));
+                if (code >= 0) return code;
             } catch (IOException ignored) { }
+        }
+        if (!closing && ProcessTermination.exited(supervisor) && groupGone() && boundedSessionEmpty()) {
+            // Native leader ends the group if its shell exits before publishing status.
+            // No status is never successful, even if a shell returned zero.
+            closed = true;
+            int code = supervisor.exitValue();
+            return code == 0 ? 125 : code;
         }
         throw new IllegalThreadStateException(com.deepseekharness.app.util.UiText.text("安装进程组尚未结束"));
     }
@@ -110,11 +122,15 @@ final class IsolatedInstallProcess extends Process implements AutoCloseable {
     @Override public Process destroyForcibly() { close(); return this; }
 
     @Override public synchronized void close() {
-        if (closed) return;
+        if (closed) { retireRecord(); return; }
         closing = true;
         ProcessIdentity current = readIdentity(identity.pid);
-        if (!identity.sameProcess(current) || !current.ownsSession())
+        if (!identity.sameProcess(current) || !current.ownsSession()) {
+            if (ProcessTermination.exited(supervisor) && groupGone() && boundedSessionEmpty()) {
+                closed = true; status.delete(); retireRecord(); return;
+            }
             throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("安装进程组身份不可确认，已停止后续维护"));
+        }
         try { Os.kill(-identity.pid, OsConstants.SIGKILL); }
         catch (android.system.ErrnoException error) { throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("无法回收安装进程组"), error); }
         if (!ProcessTermination.awaitExit(supervisor, 3000))
@@ -127,12 +143,26 @@ final class IsolatedInstallProcess extends Process implements AutoCloseable {
             }
         } finally { if (interrupted) Thread.currentThread().interrupt(); }
         if (!groupGone()) throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("安装子进程尚未完全退出，已暂停后续维护"));
+        if (!boundedSessionEmpty()) throw new IllegalStateException("BOUNDED_GUEST_SESSION_UNCONFIRMED");
         closed = true;
         status.delete();
+        retireRecord();
     }
+
+    private void retireRecord() {
+        if (record == null || recordRetired) return;
+        try { record.completed(); recordRetired = true; }
+        catch (IOException failure) { throw new IllegalStateException("BOUNDED_GUEST_RECORD_RETAINED", failure); }
+    }
+    void markRecordUncertain() { if (record != null) record.uncertain(); }
 
     private boolean groupGone() {
         try { Os.kill(-identity.pid, 0); return false; }
         catch (android.system.ErrnoException error) { return error.errno == OsConstants.ESRCH; }
+    }
+    private boolean boundedSessionEmpty() {
+        if (record == null) return true;
+        try { TerminalProcessCloser.requireSessionEmpty(identity.pid); return true; }
+        catch (IOException unknown) { return false; }
     }
 }

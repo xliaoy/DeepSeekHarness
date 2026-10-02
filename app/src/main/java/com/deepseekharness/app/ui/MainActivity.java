@@ -3,17 +3,17 @@ package com.deepseekharness.app.ui;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageView;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.GravityCompat;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
+import android.view.ViewGroup;
+import android.view.View;
+import android.view.Gravity;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 
 import com.deepseekharness.app.R;
@@ -22,7 +22,7 @@ import com.deepseekharness.app.core.HarnessController;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 /**
- * 主界面外壳：启动门禁 + 侧边栏（设置全部入口）+ 底部导航（启动 / 插件 / 设置 / 终端）+ 顶栏标题 + 关于入口。
+ * 主界面外壳：启动门禁 + 底部导航（启动 / 插件 / 设置 / 终端）+ 顶栏标题 + 关于入口。
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -31,10 +31,6 @@ public class MainActivity extends AppCompatActivity {
     private com.google.android.material.snackbar.Snackbar updateNotice;
     private boolean requestingLocalNetwork;
     private boolean restoreProbeStarted;
-    /** 侧边栏（DrawerLayout）：窄屏靠左，宽屏（>=600dp）靠右并加宽面板。 */
-    private DrawerLayout drawer;
-    private boolean wideScreen;
-    private int drawerGravity = GravityCompat.START;
     /**
      * 通知点击带来的「进入后自动打开 Web」意图，只在一次导航创建 LaunchFragment 期间有效。
      *
@@ -42,6 +38,10 @@ public class MainActivity extends AppCompatActivity {
      * 否则会残留下来，让用户之后手动点启动页时被意外带进 Web。
      */
     private boolean pendingOpenWeb;
+    /** 侧边栏：模块 / 其他（检测修复、功能设置、设置、备份、权限、更新、诊断、镜像源、语言、关于）。 */
+    private androidx.drawerlayout.widget.DrawerLayout drawer;
+    private boolean wideScreen;
+    private int drawerGravity = androidx.core.view.GravityCompat.START;
     private String openedRecovery="";
     private final androidx.activity.result.ActivityResultLauncher<String> localNetworkPermission =
             registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
@@ -85,26 +85,15 @@ public class MainActivity extends AppCompatActivity {
         }
         boolean limitedAllowed = getIntent().getBooleanExtra("limited_entry", false)
                 || config.allowsLimitedEntry(controller.proot().environmentIdentity());
-        if (!limitedAllowed && (com.deepseekharness.app.BackupManager.hasPendingMaintenance(controller)
+        if (!limitedAllowed && (com.deepseekharness.app.core.MaintenanceCoordinator.pending(controller)
                 || !skipExtract && (!controller.isEnvironmentReady()||com.deepseekharness.app.core.EnvironmentAccess.shouldAttemptRuntimeUpdate(controller)))) {
             startActivity(new Intent(this, ExtractActivity.class));
             finish();
             return;
         }
 
-        // 沉浸式状态栏：内容延伸到状态栏后面，顶栏渐变从屏幕顶部开始（与状态栏融合）。
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        // 兜底：个别 ROM/环境不强制沉浸式时，状态栏颜色直接取顶栏渐变顶部色（card），
-        // 保证状态栏与顶栏始终同色；强制沉浸式下该值会被系统忽略（透明）不影响内容延伸。
-        getWindow().setStatusBarColor(getColor(R.color.card));
-
-        com.deepseekharness.app.ui.LanguageController.apply(this);
         setContentView(R.layout.activity_main);
-        // 状态栏图标颜色随明暗（浅色背景深图标 / 深色背景浅图标）
-        androidx.core.view.WindowInsetsControllerCompat wic =
-                androidx.core.view.WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        wic.setAppearanceLightStatusBars(!ThemeController.isDark(this));
-        applyEdgeInsets();
+        buildDrawer();
         findViewById(R.id.btn_tasks).setContentDescription(com.deepseekharness.app.util.UiText.choose("后台任务","Background tasks"));
         findViewById(R.id.btn_tasks).setOnClickListener(v->BackgroundTasksActivity.open(this));
         TextView recovery = findViewById(R.id.environment_recovery_banner);
@@ -133,20 +122,7 @@ public class MainActivity extends AppCompatActivity {
         getSupportFragmentManager().registerFragmentLifecycleCallbacks(new androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
             @Override public void onFragmentResumed(androidx.fragment.app.FragmentManager manager, Fragment fragment) { updateToolbar(); }
         }, false);
-        findViewById(R.id.btn_about).setOnClickListener(v -> AboutDialog.show(this));
-
-        buildDrawer();
-        // 抽屉打开时返回键先关抽屉，再走默认（退出 / 子页返回）。
-        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
-            @Override public void handleOnBackPressed() {
-                if (drawer != null && drawer.isDrawerOpen(drawerGravity)) {
-                    drawer.closeDrawer(drawerGravity);
-                } else {
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
-                }
-            }
-        });
+        findViewById(R.id.btn_about).setOnClickListener(v -> showAboutDialog());
 
         BottomNavigationView nav = findViewById(R.id.bottom_nav);
         nav.setOnItemSelectedListener(item -> {
@@ -178,6 +154,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 title.setText("DeepSeekHarness");
             } else {
+                // 设置已移入侧边栏；底栏仅保留 启动 / 插件 / 终端。
+                // （nav_settings 分支历史保留，底栏菜单已不含该项。）
                 // 终端：默认挂真 PTY 页（vim/htop/tmux 能跑），可在 PTY 页切回简易版
                 f = com.deepseekharness.app.core.EnvironmentAccess.needsRecovery(controller) ? new EnvironmentRecoveryFragment() : PtyTerminalFragment.preferred(this)
                         ? new PtyTerminalFragment() : new TerminalFragment();
@@ -256,11 +234,8 @@ public class MainActivity extends AppCompatActivity {
         BottomNavigationView nav=findViewById(R.id.bottom_nav);if(nav==null)return;
         if(intent.getBooleanExtra("open_terminal",false)){intent.removeExtra("open_terminal");nav.setSelectedItemId(R.id.nav_terminal);}
         if(intent.getBooleanExtra("open_install",false)){
-            // 设置类入口已全部移入侧边栏，底栏不再有 nav_settings 这一项。
-            // 这里本来只是借 nav_settings 当"底栏基准项"，紧接着就 replace 成 InstallFragment，
-            // 所以改挂 nav_launch：语义不变（都是设置类子页），且不会出现"没有选中项"的底栏状态。
-            intent.removeExtra("open_install");nav.setSelectedItemId(R.id.nav_launch);
-            UiMotion.page(this,getSupportFragmentManager().beginTransaction()).replace(R.id.fragment_container,new InstallFragment()).addToBackStack("settings").commit();
+            intent.removeExtra("open_install");
+            openChild(new InstallFragment());
         }
     }
 
@@ -302,8 +277,6 @@ public class MainActivity extends AppCompatActivity {
         boolean nested = getSupportFragmentManager().getBackStackEntryCount() > 0;
         findViewById(R.id.sub_back).setVisibility(nested ? android.view.View.VISIBLE : android.view.View.GONE);
         findViewById(R.id.app_logo).setVisibility(nested ? android.view.View.GONE : android.view.View.VISIBLE);
-        // 子页显示返回箭头、隐藏汉堡（抽屉入口只在主界面出现），与底栏主/子页状态一致。
-        findViewById(R.id.btn_menu).setVisibility(nested ? android.view.View.GONE : android.view.View.VISIBLE);
         if (shown instanceof AboutFragment) title.setText(com.deepseekharness.app.util.UiText.choose("关于 DeepSeekHarness","About DeepSeekHarness"));
         else if (shown instanceof OverlayFragment) title.setText(com.deepseekharness.app.util.UiText.choose("悬浮条","Floating status"));
         else if (shown instanceof ConfigFragment) title.setText(R.string.ui2_runtime_config);
@@ -316,15 +289,245 @@ public class MainActivity extends AppCompatActivity {
         else title.setText("DeepSeekHarness");
     }
 
-    // ===================== 侧边栏（设置入口，分类对齐官方） =====================
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if(!new ConfigStore(this).getUiLanguage().equals(com.deepseekharness.app.util.UiText.language()))LanguageController.apply(this);
+        current = this;
+        recoveryHandler.removeCallbacks(refreshRecovery);
+        recoveryHandler.post(refreshRecovery);
+        updateToolbar();
+        if (!isFinishing() && findViewById(R.id.bottom_nav) != null
+                && (new ConfigStore(this).isLanMode()
+                || com.deepseekharness.app.DeviceBridgeService.isAdbEnabled(this))
+                && !com.deepseekharness.app.bridge.LocalNetworkAccess.granted(this)
+                && !getSharedPreferences(com.deepseekharness.app.util.Constants.PREFS, MODE_PRIVATE)
+                .getBoolean("local_network_permission_asked", false)) requestLocalNetwork();
+        // Android 12+ 可能拒绝后台唤起前台服务，回到可见界面后补一次恢复。
+        if (!isFinishing() && findViewById(R.id.bottom_nav) != null
+                && com.deepseekharness.app.DeviceBridgeService.isAdbEnabled(this)
+                && !com.deepseekharness.app.DeviceBridgeService.isRunning()) {
+            com.deepseekharness.app.DeviceBridgeService.apply(this);
+        }
+        maybePromptExternalRestore();
+    }
 
     /**
-     * 打开「设置」页（原底栏 nav_settings 的入口，已整体移入侧边栏）。
-     *
-     * <p>为什么要有这个方法：底栏去掉设置项后，{@code R.id.nav_settings} 不再存在，
-     * 外部（通知、Intent、验收脚本）不能再靠 {@code setSelectedItemId} 进设置页。
-     * 统一从这里进，避免每个调用点各自拼一套侧边栏操作。
+     * 卸载重装后的空环境仍给旧 Download/DeepSeekHarness 备份一个明确入口。
+     * 扫描本身在后台执行；无法枚举旧 MediaStore 归属时也不把「0 个」
+     * 当成「没有备份」，而是提供 SAF 手动选择（issue #22）。
      */
+    private void maybePromptExternalRestore() {
+        if (restoreProbeStarted || isFinishing() || isDestroyed()) return;
+        HarnessController controller = HarnessController.get(this);
+        if (!controller.isEnvironmentReady()
+                || com.deepseekharness.app.core.BackupTask.get(this).busy()
+                || com.deepseekharness.app.backup.ExternalBackupScanner.hasUserData(controller)) return;
+        restoreProbeStarted = true;
+        new Thread(() -> {
+            com.deepseekharness.app.backup.ExternalBackupScanner.Scan scan =
+                    com.deepseekharness.app.backup.ExternalBackupScanner.scan(this);
+            boolean invisible = scan.total() == 0
+                    && !com.deepseekharness.app.backup.ExternalBackupScanner.canSeeAllFiles();
+            if (scan.total() == 0 && !invisible) return;
+            String declineKey = scan.best != null ? scan.best.name
+                    : scan.total() == 0 ? "__invisible__" : "__unreadable__" + scan.unreadable;
+            android.content.SharedPreferences prefs = getSharedPreferences(com.deepseekharness.app.util.Constants.PREFS, MODE_PRIVATE);
+            if (declineKey.equals(prefs.getString("restore_prompt_declined", ""))) return;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                try {
+                    com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder dialog = new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(this);
+                    if (scan.best != null) {
+                        String message = com.deepseekharness.app.util.UiText.choose(
+                                "发现旧版备份：\n" + scan.best.describe() + "\n\n可先预检，确认后才会覆盖当前空环境。",
+                                "A previous backup was found:\n" + scan.best.describe() + "\n\nIt will be inspected before anything is changed.");
+                        if (scan.unreadable > 0) message += com.deepseekharness.app.util.UiText.choose(
+                                "\n另有 " + scan.unreadable + " 个备份无法自动读取，可手动选择。",
+                                "\n" + scan.unreadable + " other backups cannot be read automatically; you can choose one manually.");
+                        dialog.setTitle(com.deepseekharness.app.util.UiText.choose("检测到旧版备份", "Previous backup found"))
+                                .setMessage(message)
+                                .setPositiveButton(com.deepseekharness.app.util.UiText.choose("选择恢复", "Inspect and restore"), (d,w) -> openBackupForRestore(scan.best))
+                                .setNegativeButton(com.deepseekharness.app.util.UiText.choose("忽略", "Ignore"), (d,w) -> prefs.edit().putString("restore_prompt_declined", declineKey).apply());
+                        if (scan.unreadable > 0) dialog.setNeutralButton(com.deepseekharness.app.util.UiText.choose("手动选择", "Choose manually"), (d,w) -> pickBackupForRestore());
+                    } else if (invisible) {
+                        dialog.setTitle(com.deepseekharness.app.util.UiText.choose("是否需要恢复以前的备份？", "Restore an older backup?"))
+                                .setMessage(com.deepseekharness.app.util.UiText.choose(
+                                        "当前环境没有用户数据。系统暂时无法枚举卸载前的 Download/DeepSeekHarness 文件；可用文件选择器直接选择备份，不需要开启所有文件访问。",
+                                        "This environment has no user data. Android cannot enumerate backups from the previous installation, but the file picker can open one without all-files access."))
+                                .setPositiveButton(com.deepseekharness.app.util.UiText.choose("手动选择", "Choose backup"), (d,w) -> pickBackupForRestore())
+                                .setNegativeButton(com.deepseekharness.app.util.UiText.choose("不用了", "Not now"), (d,w) -> prefs.edit().putString("restore_prompt_declined", declineKey).apply());
+                    } else {
+                        dialog.setTitle(com.deepseekharness.app.util.UiText.choose("备份无法自动读取", "Backup cannot be read automatically"))
+                                .setMessage(com.deepseekharness.app.util.UiText.choose("请用文件选择器指定备份包。", "Choose the backup package with the file picker."))
+                                .setPositiveButton(com.deepseekharness.app.util.UiText.choose("手动选择", "Choose backup"), (d,w) -> pickBackupForRestore())
+                                .setNegativeButton(com.deepseekharness.app.util.UiText.choose("忽略", "Ignore"), (d,w) -> prefs.edit().putString("restore_prompt_declined", declineKey).apply());
+                    }
+                    dialog.show();
+                } catch (Throwable ignored) { }
+            });
+        }, "deepseekharness-restore-probe").start();
+    }
+
+    public void pickBackupForRestore() {
+        legacyBackupPicker.launch(new String[]{"application/octet-stream", "application/gzip", "application/x-gzip", "*/*"});
+    }
+
+    private void openBackupForRestore(com.deepseekharness.app.backup.ExternalBackupScanner.Candidate candidate) {
+        if (candidate == null) return;
+        android.net.Uri uri = candidate.uri;
+        if (uri == null && candidate.file != null) {
+            try {
+                uri = androidx.core.content.FileProvider.getUriForFile(this, getPackageName() + ".updates", candidate.file);
+            } catch (IllegalArgumentException ignored) { }
+        }
+        if (uri != null) openBackupForRestore(uri);
+        else pickBackupForRestore();
+    }
+
+    private void openBackupForRestore(android.net.Uri uri) {
+        startActivity(new Intent(this, NativeDataActivity.class).putExtra("restore_uri", uri.toString())
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+    }
+
+    private final android.os.Handler recoveryHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable refreshRecovery = new Runnable() {
+        @Override public void run() {
+            TextView banner = findViewById(R.id.environment_recovery_banner);
+            if (banner == null || isFinishing()) return;
+            boolean limited = EnvironmentUiStatus.get(MainActivity.this).recovery;
+            boolean busy = com.deepseekharness.app.core.BackupTask.get(MainActivity.this).maintenanceBusy();
+            banner.setVisibility(limited || busy ? android.view.View.VISIBLE : android.view.View.GONE);
+            banner.setText(busy ? com.deepseekharness.app.util.UiText.text("环境维护进行中 · 点击查看进度") : com.deepseekharness.app.util.UiText.text("受限模式：环境需要恢复 · 点击处理"));
+            com.deepseekharness.app.util.BackupTaskState.Snapshot task=com.deepseekharness.app.core.BackupTask.get(MainActivity.this).snapshot();
+            if(busy && task.busy())banner.setText((task.status==com.deepseekharness.app.util.BackupTaskState.Status.PREVIEW
+                    ?com.deepseekharness.app.util.UiText.choose("等待确认恢复备份","Backup restore awaiting confirmation")
+                    :com.deepseekharness.app.util.StartupText.render(task.kind))
+                    +com.deepseekharness.app.util.UiText.choose(" · 点击查看进度"," · View progress"));
+            HarnessController controller=HarnessController.get(MainActivity.this);
+            boolean startupRecovery=controller.config().isStartupRecoveryRequested() || EnvironmentUiStatus.get(MainActivity.this).repairs;
+            String key=controller.startupDiagnostics().recordId()+":"+controller.config().getWebFailureReason()+":"+EnvironmentUiStatus.get(MainActivity.this).repairs;
+            if(startupRecovery && !limited && !busy && !controller.isStarting() && !controller.isStopping()
+                    && !key.equals(openedRecovery) && getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                openedRecovery=key;startActivity(new Intent(MainActivity.this,StartupRecoveryActivity.class));
+            }
+            recoveryHandler.postDelayed(this, 1000);
+        }
+    };
+
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putString("opened_startup_recovery",openedRecovery);super.onSaveInstanceState(state);
+    }
+    @Override
+    protected void onDestroy() {
+        if (current == this) current = null;
+        // 主题切换/旋转只重建界面，不能把正在运行的终端一起关闭。
+        if (!isChangingConfigurations()) {
+            try {
+                PtyTerminalFragment.shutdown();
+            } catch (Throwable ignored) {
+            }
+            try {
+                TerminalFragment.shutdownShell();
+            } catch (Throwable ignored) {
+            }
+        }
+        super.onDestroy();
+    }
+
+    public static void start(Context ctx) {
+        ctx.startActivity(new Intent(ctx, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+    }
+
+    /** 开源仓库地址：本项目 GitHub 仓库。 */
+    private static final String OPEN_SOURCE_URL = "https://github.com/xliaoy/DeepSeekHarness";
+    private static final String QQ_GROUP_JOIN = "https://qun.qq.com/universal-share/share?ac=1&authKey=IyxMq0rBXUREnVUtSJMWRHygUKhtHcer%2BoqN2Y8zXyNFxkwergsqsQU1sxD98M40&busi_data=eyJncm91cENvZGUiOiIxMTI1MzkzOTUyIiwidG9rZW4iOiIydnRIZE9CVGF1OHVkRHVLM00xMXhzMnVGYWdGb2hMNjNjRDlaQUJWUjkxVkRMcE5kUTY5aENMWVFsdGtxSkJTIiwidWluIjoiMzQ0NTc5MDk1OCJ9&data=pH25LUAofBHc-HFdejNWLW2FDxq8JdM9XEkwpQFQKwN-sRJMb1-K6o1gWRTpjLtBWD7oh3FhlCfpswttZfMGwQ&svctype=4&tempid=h5_group_info";
+    private static final String QQ_DEV_JOIN = "https://qm.qq.com/q/yVTeGUfLjy";
+
+    /** 关于软件：免费声明 + 应用信息 + 开源地址 + 打赏 / 交流群 / 开发者（与 xliaoy/DeepSeekHarness 一致）。 */
+    private void showAboutDialog() {
+        String msg = com.deepseekharness.app.util.UiText.text("DeepSeek Harness 手机端（DSHA 二开版）\n\n")
+                + com.deepseekharness.app.util.UiText.text("本软件完全免费开源，不收取任何费用，也没有会员、内购或任何付费功能。\n")
+                + com.deepseekharness.app.util.UiText.text("如果你是通过付费购买获得本软件，说明你被骗了，请立即申请退款，并到官方交流群反馈。\n\n")
+                + com.deepseekharness.app.util.UiText.text("应用名称：DeepSeek Harness\n")
+                + com.deepseekharness.app.util.UiText.text("包名：") + getPackageName() + "\n"
+                + com.deepseekharness.app.util.UiText.text("版本：v") + appVersion() + "\n"
+                + com.deepseekharness.app.util.UiText.text("开源地址：") + OPEN_SOURCE_URL + "\n\n"
+                + com.deepseekharness.app.util.UiText.text("交流QQ群：1125393952\n")
+                + com.deepseekharness.app.util.UiText.text("开发者QQ：3445790958");
+        AppDialogs.show(this, R.drawable.ic_info, com.deepseekharness.app.util.UiText.text("关于 DeepSeek Harness"), msg,
+                com.deepseekharness.app.util.UiText.text("打赏支持"), com.deepseekharness.app.util.UiText.text("加入交流群"), com.deepseekharness.app.util.UiText.text("关闭"),
+                this::showDonateDialog, () -> openUrl(QQ_GROUP_JOIN), null);
+    }
+
+    /** 打赏支持：微信 / 支付宝收款码（图片取自 drawable-nodpi/donate_*，替换资源后重打包即生效）。 */
+    private void showDonateDialog() {
+        android.widget.LinearLayout row = new android.widget.LinearLayout(this);
+        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER);
+        int size = dp(130);
+        android.widget.LinearLayout wechatCol = new android.widget.LinearLayout(this);
+        wechatCol.setOrientation(android.widget.LinearLayout.VERTICAL);
+        wechatCol.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        android.widget.ImageView wechat = new android.widget.ImageView(this);
+        wechat.setImageResource(R.drawable.donate_wechat);
+        wechat.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        wechatCol.addView(wechat, new android.widget.LinearLayout.LayoutParams(size, size));
+        android.widget.TextView wl = new android.widget.TextView(this);
+        wl.setText(com.deepseekharness.app.util.UiText.text("微信"));
+        wl.setTextSize(13);
+        wl.setTextColor(getColor(R.color.text_muted));
+        wl.setGravity(android.view.Gravity.CENTER);
+        wechatCol.addView(wl, new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        android.widget.LinearLayout.LayoutParams wcp = new android.widget.LinearLayout.LayoutParams(0,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        wcp.leftMargin = dp(8); wcp.rightMargin = dp(4);
+        wechatCol.setLayoutParams(wcp);
+        android.widget.LinearLayout alipayCol = new android.widget.LinearLayout(this);
+        alipayCol.setOrientation(android.widget.LinearLayout.VERTICAL);
+        alipayCol.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        android.widget.ImageView alipay = new android.widget.ImageView(this);
+        alipay.setImageResource(R.drawable.donate_alipay);
+        alipay.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        alipayCol.addView(alipay, new android.widget.LinearLayout.LayoutParams(size, size));
+        android.widget.TextView al = new android.widget.TextView(this);
+        al.setText(com.deepseekharness.app.util.UiText.text("支付宝"));
+        al.setTextSize(13);
+        al.setTextColor(getColor(R.color.text_muted));
+        al.setGravity(android.view.Gravity.CENTER);
+        alipayCol.addView(al, new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        android.widget.LinearLayout.LayoutParams acp = new android.widget.LinearLayout.LayoutParams(0,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        acp.leftMargin = dp(4); acp.rightMargin = dp(8);
+        alipayCol.setLayoutParams(acp);
+        row.addView(wechatCol);
+        row.addView(alipayCol);
+        AppDialogs.showCustom(this, R.drawable.ic_info, com.deepseekharness.app.util.UiText.text("打赏支持（自愿）"), row,
+                com.deepseekharness.app.util.UiText.text("开发者QQ"), com.deepseekharness.app.util.UiText.text("关闭"), () -> openUrl(QQ_DEV_JOIN));
+    }
+
+    private void openUrl(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+        } catch (Throwable t) {
+            android.widget.Toast.makeText(this, com.deepseekharness.app.util.UiText.text("无法打开链接"), android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String appVersion() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+
+    /** 设置入口：从侧边栏打开设置页（底栏无设置项）。 */
     public void openSettings() {
         closeDrawerIfOpen();
         openChild(new SettingsFragment());
@@ -333,6 +536,11 @@ public class MainActivity extends AppCompatActivity {
     private void closeDrawerIfOpen() {
         DrawerLayout layout = findViewById(R.id.drawer_layout);
         if (layout != null && layout.isDrawerOpen(drawerGravity)) layout.closeDrawer(drawerGravity);
+    }
+
+    private int statusBarHeightRes() {
+        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
     }
 
     private void buildDrawer() {
@@ -612,302 +820,5 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    /** 关于软件：复用应用既有的关于对话框（版本 / 仓库 / 交流群，与顶栏入口一致）。 */
-    /** 关于软件：免费声明 + 应用信息 + 开源地址 + 打赏 / 交流群 / 开发者（与 xliaoy/DeepSeekHarness 一致）。 */
-    private static final String OPEN_SOURCE_URL = "https://github.com/xliaoy/DeepSeekHarness";
-    private static final String QQ_GROUP_JOIN = "https://qun.qq.com/universal-share/share?ac=1&authKey=IyxMq0rBXUREnVUtSJMWRHygUKhtHcer%2BoqN2Y8zXyNFxkwergsqsQU1sxD98M40&busi_data=eyJncm91cENvZGUiOiIxMTI1MzkzOTUyIiwidG9rZW4iOiIydnRIZE9CVGF1OHVkRHVLM00xMXhzMnVGYWdGb2hMNjNjRDlaQUJWUjkxVkRMcE5kUTY5aENMWVFsdGtxSkJTIiwidWluIjoiMzQ0NTc5MDk1OCJ9&data=pH25LUAofBHc-HFdejNWLW2FDxq8JdM9XEkwpQFQKwN-sRJMb1-K6o1gWRTpjLtBWD7oh3FhlCfpswttZfMGwQ&svctype=4&tempid=h5_group_info";
-    private static final String QQ_DEV_JOIN = "https://qm.qq.com/q/yVTeGUfLjy";
 
-    private void showAboutDialog() {
-        String msg = com.deepseekharness.app.util.UiText.text("DeepSeek Harness 手机端（DSHA 二开版）\n\n")
-                + com.deepseekharness.app.util.UiText.text("本软件完全免费开源，不收取任何费用，也没有会员、内购或任何付费功能。\n")
-                + com.deepseekharness.app.util.UiText.text("如果你是通过付费购买获得本软件，说明你被骗了，请立即申请退款，并到官方交流群反馈。\n\n")
-                + com.deepseekharness.app.util.UiText.text("应用名称：DeepSeek Harness\n")
-                + com.deepseekharness.app.util.UiText.text("包名：") + getPackageName() + "\n"
-                + com.deepseekharness.app.util.UiText.text("版本：v") + appVersion() + "\n"
-                + com.deepseekharness.app.util.UiText.text("开源地址：") + OPEN_SOURCE_URL + "\n\n"
-                + com.deepseekharness.app.util.UiText.text("交流QQ群：1125393952\n")
-                + com.deepseekharness.app.util.UiText.text("开发者QQ：3445790958");
-        AppDialogs.show(this, R.drawable.ic_info, com.deepseekharness.app.util.UiText.text("关于 DeepSeek Harness"), msg,
-                com.deepseekharness.app.util.UiText.text("打赏支持"), com.deepseekharness.app.util.UiText.text("加入交流群"), com.deepseekharness.app.util.UiText.text("关闭"),
-                this::showDonateDialog, () -> openUrl(QQ_GROUP_JOIN), null);
-    }
-
-    /** 打赏支持：微信 / 支付宝收款码（图片取自 drawable-nodpi/donate_*，替换资源后重打包即生效）。 */
-    private void showDonateDialog() {
-        android.widget.LinearLayout row = new android.widget.LinearLayout(this);
-        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER);
-        int size = dp(130);
-
-        android.widget.LinearLayout wechatCol = new android.widget.LinearLayout(this);
-        wechatCol.setOrientation(android.widget.LinearLayout.VERTICAL);
-        wechatCol.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        android.widget.ImageView wechat = new android.widget.ImageView(this);
-        wechat.setImageResource(R.drawable.donate_wechat);
-        wechat.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        wechatCol.addView(wechat, new android.widget.LinearLayout.LayoutParams(size, size));
-        android.widget.TextView wl = new android.widget.TextView(this);
-        wl.setText(com.deepseekharness.app.util.UiText.text("微信"));
-        wl.setTextSize(13);
-        wl.setTextColor(getColor(R.color.text_muted));
-        wl.setGravity(android.view.Gravity.CENTER);
-        wechatCol.addView(wl, new android.widget.LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
-        android.widget.LinearLayout.LayoutParams wcp = new android.widget.LinearLayout.LayoutParams(0,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        wcp.leftMargin = dp(8);
-        wcp.rightMargin = dp(4);
-        wechatCol.setLayoutParams(wcp);
-
-        android.widget.LinearLayout alipayCol = new android.widget.LinearLayout(this);
-        alipayCol.setOrientation(android.widget.LinearLayout.VERTICAL);
-        alipayCol.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        android.widget.ImageView alipay = new android.widget.ImageView(this);
-        alipay.setImageResource(R.drawable.donate_alipay);
-        alipay.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        alipayCol.addView(alipay, new android.widget.LinearLayout.LayoutParams(size, size));
-        android.widget.TextView al = new android.widget.TextView(this);
-        al.setText(com.deepseekharness.app.util.UiText.text("支付宝"));
-        al.setTextSize(13);
-        al.setTextColor(getColor(R.color.text_muted));
-        al.setGravity(android.view.Gravity.CENTER);
-        alipayCol.addView(al, new android.widget.LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
-        android.widget.LinearLayout.LayoutParams acp = new android.widget.LinearLayout.LayoutParams(0,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        acp.leftMargin = dp(4);
-        acp.rightMargin = dp(8);
-        alipayCol.setLayoutParams(acp);
-
-        row.addView(wechatCol);
-        row.addView(alipayCol);
-        AppDialogs.showCustom(this, R.drawable.ic_info, com.deepseekharness.app.util.UiText.text("打赏支持（自愿）"), row,
-                com.deepseekharness.app.util.UiText.text("开发者QQ"), com.deepseekharness.app.util.UiText.text("关闭"), () -> openUrl(QQ_DEV_JOIN));
-    }
-
-    private void openUrl(String url) {
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
-        } catch (Throwable t) {
-            android.widget.Toast.makeText(this, com.deepseekharness.app.util.UiText.text("无法打开链接"), android.widget.Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private String appVersion() {
-        try {
-            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (Exception ignored) {
-            return "unknown";
-        }
-    }
-
-    private int dp(float v) {
-        return Math.round(v * getResources().getDisplayMetrics().density);
-    }
-
-    /** 沉浸式 insets：状态栏区域强制显示顶栏色（card）+ 顶栏 padding 按实际位置自适应。
-     *  DrawerLayout/系统可能把主内容推到状态栏下方（上方露出主体灰），这里在窗口最顶层加
-     *  一条「状态栏高度×全宽」的覆盖层，颜色取顶栏色，保证状态栏与顶栏完全同色。 */
-    private void applyEdgeInsets() {
-        // 状态栏同色覆盖层：加在 DecorView 顶层（z 最高），不受任何布局推挤影响。
-        View cover = new View(this);
-        cover.setBackgroundColor(getColor(R.color.card));
-        ((ViewGroup) getWindow().getDecorView()).addView(cover, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        cover.post(() -> {
-            androidx.core.view.WindowInsetsCompat insets =
-                    androidx.core.view.ViewCompat.getRootWindowInsets(getWindow().getDecorView());
-            int sb = insets != null
-                    ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
-                    : statusBarHeightRes();
-            ViewGroup.LayoutParams lp = cover.getLayoutParams();
-            lp.height = sb;
-            cover.setLayoutParams(lp);
-            cover.setBackgroundColor(getColor(R.color.card));
-        });
-
-        View appBar = findViewById(R.id.app_bar);
-        View navWrap = findViewById(R.id.bottom_nav_wrap);
-        appBar.post(() -> {
-            androidx.core.view.WindowInsetsCompat insets =
-                    androidx.core.view.ViewCompat.getRootWindowInsets(getWindow().getDecorView());
-            int sb = insets != null
-                    ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
-                    : statusBarHeightRes();
-            int[] loc = new int[2];
-            appBar.getLocationInWindow(loc);
-            int need = Math.max(0, sb - loc[1]);
-            appBar.setPadding(appBar.getPaddingLeft(), need,
-                    appBar.getPaddingRight(), appBar.getPaddingBottom());
-            if (navWrap != null) {
-                int nb = insets != null
-                        ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
-                        : 0;
-                int winH = getWindow().getDecorView().getHeight();
-                navWrap.getLocationInWindow(loc);
-                int overhang = (loc[1] + navWrap.getHeight()) - (winH - nb);
-                int keep = getResources().getDimensionPixelSize(R.dimen.nav_pad_y);
-                if (overhang > 0) keep = Math.max(keep, overhang);
-                navWrap.setPadding(navWrap.getPaddingLeft(), navWrap.getPaddingTop(),
-                        navWrap.getPaddingRight(), keep);
-            }
-        });
-    }
-
-    private int statusBarHeightRes() {
-        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
-        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if(!new ConfigStore(this).getUiLanguage().equals(com.deepseekharness.app.util.UiText.language()))LanguageController.apply(this);
-        current = this;
-        recoveryHandler.removeCallbacks(refreshRecovery);
-        recoveryHandler.post(refreshRecovery);
-        updateToolbar();
-        if (!isFinishing() && findViewById(R.id.bottom_nav) != null
-                && (new ConfigStore(this).isLanMode()
-                || com.deepseekharness.app.DeviceBridgeService.isAdbEnabled(this))
-                && !com.deepseekharness.app.bridge.LocalNetworkAccess.granted(this)
-                && !getSharedPreferences(com.deepseekharness.app.util.Constants.PREFS, MODE_PRIVATE)
-                .getBoolean("local_network_permission_asked", false)) requestLocalNetwork();
-        // Android 12+ 可能拒绝后台唤起前台服务，回到可见界面后补一次恢复。
-        if (!isFinishing() && findViewById(R.id.bottom_nav) != null
-                && com.deepseekharness.app.DeviceBridgeService.isAdbEnabled(this)
-                && !com.deepseekharness.app.DeviceBridgeService.isRunning()) {
-            com.deepseekharness.app.DeviceBridgeService.apply(this);
-        }
-        maybePromptExternalRestore();
-    }
-
-    /**
-     * 卸载重装后的空环境仍给旧 Download/DeepSeekHarness 备份一个明确入口。
-     * 扫描本身在后台执行；无法枚举旧 MediaStore 归属时也不把「0 个」
-     * 当成「没有备份」，而是提供 SAF 手动选择（issue #22）。
-     */
-    private void maybePromptExternalRestore() {
-        if (restoreProbeStarted || isFinishing() || isDestroyed()) return;
-        HarnessController controller = HarnessController.get(this);
-        if (!controller.isEnvironmentReady()
-                || com.deepseekharness.app.core.BackupTask.get(this).busy()
-                || com.deepseekharness.app.backup.ExternalBackupScanner.hasUserData(controller)) return;
-        restoreProbeStarted = true;
-        new Thread(() -> {
-            com.deepseekharness.app.backup.ExternalBackupScanner.Scan scan =
-                    com.deepseekharness.app.backup.ExternalBackupScanner.scan(this);
-            boolean invisible = scan.total() == 0
-                    && !com.deepseekharness.app.backup.ExternalBackupScanner.canSeeAllFiles();
-            if (scan.total() == 0 && !invisible) return;
-            String declineKey = scan.best != null ? scan.best.name
-                    : scan.total() == 0 ? "__invisible__" : "__unreadable__" + scan.unreadable;
-            android.content.SharedPreferences prefs = getSharedPreferences(com.deepseekharness.app.util.Constants.PREFS, MODE_PRIVATE);
-            if (declineKey.equals(prefs.getString("restore_prompt_declined", ""))) return;
-            runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                try {
-                    com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder dialog = new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(this);
-                    if (scan.best != null) {
-                        String message = com.deepseekharness.app.util.UiText.choose(
-                                "发现旧版备份：\n" + scan.best.describe() + "\n\n可先预检，确认后才会覆盖当前空环境。",
-                                "A previous backup was found:\n" + scan.best.describe() + "\n\nIt will be inspected before anything is changed.");
-                        if (scan.unreadable > 0) message += com.deepseekharness.app.util.UiText.choose(
-                                "\n另有 " + scan.unreadable + " 个备份无法自动读取，可手动选择。",
-                                "\n" + scan.unreadable + " other backups cannot be read automatically; you can choose one manually.");
-                        dialog.setTitle(com.deepseekharness.app.util.UiText.choose("检测到旧版备份", "Previous backup found"))
-                                .setMessage(message)
-                                .setPositiveButton(com.deepseekharness.app.util.UiText.choose("选择恢复", "Inspect and restore"), (d,w) -> openBackupForRestore(scan.best))
-                                .setNegativeButton(com.deepseekharness.app.util.UiText.choose("忽略", "Ignore"), (d,w) -> prefs.edit().putString("restore_prompt_declined", declineKey).apply());
-                        if (scan.unreadable > 0) dialog.setNeutralButton(com.deepseekharness.app.util.UiText.choose("手动选择", "Choose manually"), (d,w) -> pickBackupForRestore());
-                    } else if (invisible) {
-                        dialog.setTitle(com.deepseekharness.app.util.UiText.choose("是否需要恢复以前的备份？", "Restore an older backup?"))
-                                .setMessage(com.deepseekharness.app.util.UiText.choose(
-                                        "当前环境没有用户数据。系统暂时无法枚举卸载前的 Download/DeepSeekHarness 文件；可用文件选择器直接选择备份，不需要开启所有文件访问。",
-                                        "This environment has no user data. Android cannot enumerate backups from the previous installation, but the file picker can open one without all-files access."))
-                                .setPositiveButton(com.deepseekharness.app.util.UiText.choose("手动选择", "Choose backup"), (d,w) -> pickBackupForRestore())
-                                .setNegativeButton(com.deepseekharness.app.util.UiText.choose("不用了", "Not now"), (d,w) -> prefs.edit().putString("restore_prompt_declined", declineKey).apply());
-                    } else {
-                        dialog.setTitle(com.deepseekharness.app.util.UiText.choose("备份无法自动读取", "Backup cannot be read automatically"))
-                                .setMessage(com.deepseekharness.app.util.UiText.choose("请用文件选择器指定备份包。", "Choose the backup package with the file picker."))
-                                .setPositiveButton(com.deepseekharness.app.util.UiText.choose("手动选择", "Choose backup"), (d,w) -> pickBackupForRestore())
-                                .setNegativeButton(com.deepseekharness.app.util.UiText.choose("忽略", "Ignore"), (d,w) -> prefs.edit().putString("restore_prompt_declined", declineKey).apply());
-                    }
-                    dialog.show();
-                } catch (Throwable ignored) { }
-            });
-        }, "deepseekharness-restore-probe").start();
-    }
-
-    public void pickBackupForRestore() {
-        legacyBackupPicker.launch(new String[]{"application/octet-stream", "application/gzip", "application/x-gzip", "*/*"});
-    }
-
-    private void openBackupForRestore(com.deepseekharness.app.backup.ExternalBackupScanner.Candidate candidate) {
-        if (candidate == null) return;
-        android.net.Uri uri = candidate.uri;
-        if (uri == null && candidate.file != null) {
-            try {
-                uri = androidx.core.content.FileProvider.getUriForFile(this, getPackageName() + ".updates", candidate.file);
-            } catch (IllegalArgumentException ignored) { }
-        }
-        if (uri != null) openBackupForRestore(uri);
-        else pickBackupForRestore();
-    }
-
-    private void openBackupForRestore(android.net.Uri uri) {
-        startActivity(new Intent(this, NativeDataActivity.class).putExtra("restore_uri", uri.toString())
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
-    }
-
-    private final android.os.Handler recoveryHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-    private final Runnable refreshRecovery = new Runnable() {
-        @Override public void run() {
-            TextView banner = findViewById(R.id.environment_recovery_banner);
-            if (banner == null || isFinishing()) return;
-            boolean limited = EnvironmentUiStatus.get(MainActivity.this).recovery;
-            boolean busy = com.deepseekharness.app.core.BackupTask.get(MainActivity.this).maintenanceBusy();
-            banner.setVisibility(limited || busy ? android.view.View.VISIBLE : android.view.View.GONE);
-            banner.setText(busy ? com.deepseekharness.app.util.UiText.text("环境维护进行中 · 点击查看进度") : com.deepseekharness.app.util.UiText.text("受限模式：环境需要恢复 · 点击处理"));
-            com.deepseekharness.app.util.BackupTaskState.Snapshot task=com.deepseekharness.app.core.BackupTask.get(MainActivity.this).snapshot();
-            if(busy && task.busy())banner.setText((task.status==com.deepseekharness.app.util.BackupTaskState.Status.PREVIEW
-                    ?com.deepseekharness.app.util.UiText.choose("等待确认恢复备份","Backup restore awaiting confirmation")
-                    :com.deepseekharness.app.util.StartupText.render(task.kind))
-                    +com.deepseekharness.app.util.UiText.choose(" · 点击查看进度"," · View progress"));
-            HarnessController controller=HarnessController.get(MainActivity.this);
-            boolean startupRecovery=controller.config().isStartupRecoveryRequested() || EnvironmentUiStatus.get(MainActivity.this).repairs;
-            String key=controller.startupDiagnostics().recordId()+":"+controller.config().getWebFailureReason()+":"+EnvironmentUiStatus.get(MainActivity.this).repairs;
-            if(startupRecovery && !limited && !busy && !controller.isStarting() && !controller.isStopping()
-                    && !key.equals(openedRecovery) && getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
-                openedRecovery=key;startActivity(new Intent(MainActivity.this,StartupRecoveryActivity.class));
-            }
-            recoveryHandler.postDelayed(this, 1000);
-        }
-    };
-
-    @Override protected void onSaveInstanceState(Bundle state) {
-        state.putString("opened_startup_recovery",openedRecovery);super.onSaveInstanceState(state);
-    }
-    @Override
-    protected void onDestroy() {
-        if (current == this) current = null;
-        // 主题切换/旋转只重建界面，不能把正在运行的终端一起关闭。
-        if (!isChangingConfigurations()) {
-            try {
-                PtyTerminalFragment.shutdown();
-            } catch (Throwable ignored) {
-            }
-            try {
-                TerminalFragment.shutdownShell();
-            } catch (Throwable ignored) {
-            }
-        }
-        super.onDestroy();
-    }
-
-    public static void start(Context ctx) {
-        ctx.startActivity(new Intent(ctx, MainActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
-    }
 }

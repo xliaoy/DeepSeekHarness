@@ -184,7 +184,7 @@ public final class InstallAuditInstrumentation extends Instrumentation {
         Constructor<InstallRepository> ctor=InstallRepository.class.getDeclaredConstructor(Context.class);
         ctor.setAccessible(true);repository=ctor.newInstance(isolated);
         for(String command:new String[]{"input keyevent 224","wm dismiss-keyguard",
-                "am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity --ez limited_entry true"}) {
+                "am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity --ez limited_entry true"}) {
             try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand(command);
                 java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}
         }
@@ -296,7 +296,7 @@ public final class InstallAuditInstrumentation extends Instrumentation {
     private Map<String, String> footprint(File root) throws Exception {
         Map<String, String> result = new LinkedHashMap<>();
         for (String name : new String[]{"var/lib/dpkg/status", "var/log/apt/history.log", "var/log/dpkg.log",
-                "root/.deepseekharness-python-version", "root/.deepseekharness-pnpm-version", "root/dsh-bin/pnpm", "usr/local/lib/deepseekharness-pnpm/bin/pnpm.cjs"}) {
+                "root/.dsha-python-version", "root/.dsha-pnpm-version", "root/dsh-bin/pnpm", "usr/local/lib/dsha-pnpm/bin/pnpm.cjs"}) {
             File file = new File(root, name); String value = file.length() + ":" + file.lastModified() + ":" + file.exists();
             if (file.isFile() && file.length() < 8 * 1024 * 1024) {
                 MessageDigest hash = MessageDigest.getInstance("SHA-256");

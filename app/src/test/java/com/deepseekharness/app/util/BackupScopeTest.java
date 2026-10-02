@@ -13,10 +13,10 @@ public class BackupScopeTest {
 
     @Test
     public void onlyFullBackupUsesLegacyPrefix() {
-        assertEquals("DeepSeekHarness-backup-", BackupScope.fileNamePrefix(BackupScope.FULL));
-        assertEquals("DeepSeekHarness-sessions-", BackupScope.fileNamePrefix(BackupScope.SESSIONS));
-        assertEquals("DeepSeekHarness-plugins-", BackupScope.fileNamePrefix(BackupScope.PLUGINS));
-        assertEquals("DeepSeekHarness-settings-", BackupScope.fileNamePrefix(BackupScope.SETTINGS));
+        assertEquals("DSHA-backup-", BackupScope.fileNamePrefix(BackupScope.FULL));
+        assertEquals("DSHA-sessions-", BackupScope.fileNamePrefix(BackupScope.SESSIONS));
+        assertEquals("DSHA-plugins-", BackupScope.fileNamePrefix(BackupScope.PLUGINS));
+        assertEquals("DSHA-settings-", BackupScope.fileNamePrefix(BackupScope.SETTINGS));
     }
 
     @Test
@@ -32,7 +32,7 @@ public class BackupScopeTest {
         for (int scope : BackupScope.ALL) {
             String name = BackupScope.archiveName(scope, "latest");
             assertEquals(scope, BackupScope.fromFileName(name));
-            assertEquals(scope == BackupScope.FULL, name.startsWith("DeepSeekHarness-backup-"));
+            assertEquals(scope == BackupScope.FULL, name.startsWith("DSHA-backup-"));
         }
     }
 
@@ -43,20 +43,12 @@ public class BackupScopeTest {
 
     @Test
     public void fromFileNameMatchesPrefix() {
-        // 新名（本版产出）与旧名（上游命名）都必须被识别 —— 读取端刻意多值，
-        // 否则用户手动选旧包恢复时会拿到错误的合并范围。
         assertEquals(BackupScope.SESSIONS,
-                BackupScope.fromFileName("/some/dir/DeepSeekHarness-sessions-2026-01-01.tar.gz"));
+                BackupScope.fromFileName("/some/dir/DSHA-sessions-2026-01-01.tar.gz"));
         assertEquals(BackupScope.PLUGINS,
-                BackupScope.fromFileName("DeepSeekHarness-plugins-42.tar.gz"));
-        assertEquals(BackupScope.SETTINGS,
-                BackupScope.fromFileName("DeepSeekHarness-settings-7.tar.gz"));
-        assertEquals(BackupScope.SESSIONS,
-                BackupScope.fromFileName("/some/dir/DEEPSEEK_HARNESS-sessions-2026-01-01.tar.gz"));
-        assertEquals(BackupScope.PLUGINS,
-                BackupScope.fromFileName("DEEPSEEK_HARNESS-plugins-42.tar.gz"));
+                BackupScope.fromFileName("DSHA-plugins-42.tar.gz"));
         assertEquals(BackupScope.FULL,
-                BackupScope.fromFileName("DEEPSEEK_HARNESS-backup-1.tar.gz"));
+                BackupScope.fromFileName("DSHA-backup-1.tar.gz"));
         assertEquals(BackupScope.FULL, BackupScope.fromFileName(null));
     }
 

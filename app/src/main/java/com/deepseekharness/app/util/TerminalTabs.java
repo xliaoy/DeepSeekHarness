@@ -6,6 +6,21 @@ import java.util.List;
 
 /** 会话身份永久递增；显示编号复用空缺，关闭失败或关闭中仍占用编号。 */
 public final class TerminalTabs<T> {
+    /** Presentation-only access. The implementing object is not a TerminalTabs instance. */
+    public interface ReadOnly<T> {
+        List<Tab<T>> snapshot();
+        Tab<T> current();
+        Tab<T> find(long id);
+        boolean wasInitialized();
+    }
+    private static final class View<T> implements ReadOnly<T> {
+        private final TerminalTabs<T> owner;
+        private View(TerminalTabs<T> owner) { this.owner = owner; }
+        @Override public List<Tab<T>> snapshot() { return owner.snapshot(); }
+        @Override public Tab<T> current() { return owner.current(); }
+        @Override public Tab<T> find(long id) { return owner.find(id); }
+        @Override public boolean wasInitialized() { return owner.wasInitialized(); }
+    }
     public static final class Tab<T> {
         public final long id;
         public final int number;
@@ -15,8 +30,10 @@ public final class TerminalTabs<T> {
         public boolean isClosing() { return closing; }
     }
     private final List<Tab<T>> tabs=new ArrayList<>();
+    private final ReadOnly<T> readOnly = new View<>(this);
     private long next=1, selected;
     private boolean initialized;
+    public ReadOnly<T> readOnly() { return readOnly; }
     public synchronized Tab<T> add(T value) {
         if(value==null)throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("终端会话不能为空"));
         int number=1;

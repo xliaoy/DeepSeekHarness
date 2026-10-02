@@ -9,6 +9,7 @@ public final class ConfigurationSnapshots {
     public static final List<String> FILES=List.of("profiles/web/package.json","profiles/web/cordis.patch.yml","profiles/web/pnpm-workspace.yaml",
             "profiles/web/pnpm-lock.yaml","settings.yaml","cordis.patch.yml");
     public static final String STORE="startup-config-snapshots",OPERATIONS="startup-config-operations";
+    private static final String HISTORY_PROOF="startup-config-completed-v1.json";
     private static final int LIMIT=LegacyConfigurationSnapshot.FILE_LIMIT;
     private final BackupFileSystem fs;private final File files,dsh,store,operations;
     private final HostDataTransaction.Fault fault;
@@ -20,6 +21,66 @@ public final class ConfigurationSnapshots {
     private static String uuid(String value)throws IOException{if(value==null||!value.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RECOVERY_ID");return value;}
     private void directory(File file)throws IOException{var state=fs.stat(file);if(state.type.equals("MISSING"))fs.directory(file);else if(!state.type.equals("DIRECTORY"))throw new IOException("RECOVERY_LINK");}
     private void ensureStore()throws IOException{directory(store);directory(operations);}
+    private List<String> activeOperations()throws IOException{
+        if(!fs.stat(operations).type.equals("DIRECTORY"))return Collections.emptyList();
+        List<String> result=new ArrayList<>();for(String id:fs.list(operations)){
+            if(id.equals(HostOperationArchive.COMPLETED)){if(!fs.stat(fs.child(operations,id)).type.equals("DIRECTORY"))throw new IOException("RECOVERY_LINK");}
+            else result.add(id);
+        }return result;
+    }
+    /** Old completed journals are checked once before ordinary startup treats this tree as inert history. */
+    private void verifyCompleted()throws IOException{
+        File history=new File(operations,HostOperationArchive.COMPLETED),proof=new File(files,HISTORY_PROOF);
+        String type=fs.stat(history).type;
+        if(type.equals("MISSING")){
+            if(!fs.stat(proof).type.equals("MISSING"))throw new IOException("RECOVERY_HISTORY_PROOF_ORPHAN");
+            return;
+        }
+        if(!type.equals("DIRECTORY"))throw new IOException("RECOVERY_LINK");
+        if(!fs.stat(operations).type.equals("DIRECTORY"))throw new IOException("RECOVERY_LINK");
+        String filesKey=fs.stat(files).key,historyKey=fs.stat(history).key;
+        String proofType=fs.stat(proof).type;
+        if(!proofType.equals("MISSING")){
+            if(!proofType.equals("FILE"))throw new IOException("RECOVERY_HISTORY_PROOF_TYPE");
+            Map<String,Object> value=BackupJson.read(fs.small(proof,4096),4096);
+            if(BackupJson.number(value,"version")!=1)throw new IOException("RECOVERY_HISTORY_PROOF_FORMAT");
+            if(filesKey.equals(BackupJson.string(value,"filesKey"))&&historyKey.equals(BackupJson.string(value,"historyKey")))return;
+        }
+        for(String id:fs.list(history)){
+            uuid(id);File directory=fs.child(history,id);
+            if(!fs.stat(directory).type.equals("DIRECTORY"))throw new IOException("RECOVERY_HISTORY_TYPE");
+            boolean finalized=mark(directory,"finalized"),rolledBack=mark(directory,"rolled-back");
+            if(finalized==rolledBack)throw new IOException("RECOVERY_HISTORY_NOT_TERMINAL");
+            Map<String,Object> plan=BackupJson.read(fs.small(fs.child(directory,"plan.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST);
+            if(BackupJson.number(plan,"version")!=1||!id.equals(BackupJson.string(plan,"id")))throw new IOException("RECOVERY_FORMAT");
+            if(!fs.stat(fs.child(operations,id)).type.equals("MISSING"))throw new IOException("RECOVERY_OPERATION_DUPLICATE");
+        }
+        fs.atomic(files,HISTORY_PROOF,BackupJson.write(Map.of("version",1L,"filesKey",filesKey,"historyKey",historyKey),4096));
+    }
+    private void archiveCompletedOperations()throws IOException{
+        File history=fs.child(operations,HostOperationArchive.COMPLETED);directory(history);
+        verifyCompleted();
+        for(String id:new ArrayList<>(activeOperations())){
+            if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))continue;
+            File source=fs.child(operations,id);if(!fs.stat(source).type.equals("DIRECTORY"))continue;
+            boolean finalized=mark(source,"finalized"),rolledBack=mark(source,"rolled-back"),switching=mark(source,"switching");
+            if(finalized&&rolledBack)throw new IOException("RECOVERY_TERMINAL_CONFLICT");
+            if(!finalized&&!rolledBack||switching&&!finalized&&!rolledBack)continue;
+            File planFile=fs.child(source,"plan.json");Map<String,Object> plan=BackupJson.read(fs.small(planFile,BackupLimits.MANIFEST),BackupLimits.MANIFEST);
+            if(BackupJson.number(plan,"version")!=1||!id.equals(BackupJson.string(plan,"id")))throw new IOException("RECOVERY_FORMAT");
+            File destination=fs.child(history,id);if(!fs.stat(destination).type.equals("MISSING"))throw new IOException("RECOVERY_OPERATION_DUPLICATE");
+            BackupFileSystem.Node before=fs.stat(source);String proof=operationProof(source);
+            fs.move(source,destination);fs.syncDirectory(operations);fs.syncDirectory(history);
+            if(!before.key.equals(fs.stat(destination).key)||!proof.equals(operationProof(destination)))throw new IOException("RECOVERY_ARCHIVE_IDENTITY");
+        }
+    }
+    private String operationProof(File directory)throws IOException{
+        java.security.MessageDigest hash=BackupArchive.sha();
+        for(String name:List.of("plan.json","switching","finalized","rolled-back")){
+            File file=fs.child(directory,name);var node=fs.stat(file);hash.update(name.getBytes(StandardCharsets.UTF_8));hash.update((byte)0);
+            if(node.type.equals("FILE"))hash.update(fs.small(file,name.equals("plan.json")?BackupLimits.MANIFEST:256));
+        }return BackupArchive.hex(hash.digest());
+    }
     private File document(String relative)throws IOException{
         if(!FILES.contains(relative))throw new IOException("RECOVERY_FORMAT");File cursor=dsh;
         String[] parts=relative.split("/");
@@ -137,7 +198,7 @@ public final class ConfigurationSnapshots {
     private HostDataTransaction transaction(File operation)throws IOException{return new HostDataTransaction(fs,operation,id->{
         if(!id.matches("config-[0-5]"))throw new IOException("RECOVERY_FORMAT");return document(FILES.get(Integer.parseInt(id.substring(7))));},NATIVE_UNCHANGED,fault);}
     private File operation()throws IOException{
-        ensureStore();if(fs.list(operations).size()>=BackupLimits.TRANSACTION_RECORDS)throw new IOException("RECOVERY_RETENTION_LIMIT");File result=fs.child(operations,UUID.randomUUID().toString());fs.directory(result);fs.directory(new File(result,"candidate"));return result;
+        ensureStore();archiveCompletedOperations();if(activeOperations().size()>=BackupLimits.CONFIGURATION_OPERATION_ACTIVE_RECORDS)throw new IOException("RECOVERY_RETENTION_LIMIT");File result=fs.child(operations,UUID.randomUUID().toString());fs.directory(result);fs.directory(new File(result,"candidate"));return result;
     }
     private void change(Map<String,byte[]> defaults,Map<String,Object> snapshot,boolean legacySource,String legacySlot,String expectedId,BackupControl control)throws IOException{
         if(!pendingNative().isEmpty())throw new IOException("RECOVERY_PENDING");
@@ -169,7 +230,7 @@ public final class ConfigurationSnapshots {
         }
         if(legacySource)try(InputStream input=fs.read(legacy(legacySlot),fs.stat(legacy(legacySlot)))){if(!legacyHash.equals(BackupArchive.digest(input,control)))throw new IOException("RECOVERY_CHANGED");}
         HostDataTransaction transaction=transaction(operation);transaction.prepare(roots,before,Collections.emptyMap(),control,removals);transaction.commit(control);
-        finishLegacy(operation,control);
+        finishLegacy(operation,control);try{archiveCompletedOperations();}catch(IOException retained){/* committed configuration remains authoritative; the journal stays addressable by either path */}
     }
     public void create(String target,BackupControl control)throws IOException{
         if(pending())throw new IOException("RECOVERY_PENDING");Map<String,byte[]> desired=new LinkedHashMap<>();
@@ -190,8 +251,14 @@ public final class ConfigurationSnapshots {
         if(!(directory.getName()+"\n"+name+"\n").equals(new String(fs.small(file,256),StandardCharsets.UTF_8)))throw new IOException("RECOVERY_FORMAT");return true;
     }
     public List<File> pendingNative()throws IOException{
-        if(fs.stat(operations).type.equals("MISSING"))return Collections.emptyList();List<String> entries=fs.list(operations);if(entries.size()>BackupLimits.TRANSACTION_RECORDS)throw new IOException("RECOVERY_RETENTION_LIMIT");
-        List<File> pending=new ArrayList<>();for(String id:entries){File directory=fs.child(operations,uuid(id));if(mark(directory,"switching")&&!mark(directory,"finalized")&&!mark(directory,"rolled-back"))pending.add(directory);}
+        verifyCompleted();if(fs.stat(operations).type.equals("MISSING"))return Collections.emptyList();
+        List<File> pending=new ArrayList<>();File history=fs.child(operations,HostOperationArchive.COMPLETED);
+        for(String id:activeOperations()){
+            uuid(id);File directory=fs.child(operations,id);
+            if(!fs.stat(directory).type.equals("DIRECTORY"))throw new IOException("RECOVERY_OPERATION_TYPE");
+            if(fs.stat(history).type.equals("DIRECTORY")&&!fs.stat(fs.child(history,id)).type.equals("MISSING"))throw new IOException("RECOVERY_OPERATION_DUPLICATE");
+            if(mark(directory,"switching")&&!mark(directory,"finalized")&&!mark(directory,"rolled-back"))pending.add(directory);
+        }
         if(pending.size()>1)throw new IOException("RECOVERY_MULTIPLE_TRANSACTIONS");return pending;
     }
     public boolean pending()throws IOException{return !pendingNative().isEmpty()||!fs.stat(legacy("pending")).type.equals("MISSING")||!fs.stat(new File(files,"startup-config-repair.pending")).type.equals("MISSING");}
@@ -204,7 +271,7 @@ public final class ConfigurationSnapshots {
     public String recover(BackupControl control)throws IOException{
         List<File> interrupted=pendingNative();boolean repaired=!interrupted.isEmpty();
         for(File pending:interrupted)transaction(pending).recover();
-        if(!fs.stat(operations).type.equals("MISSING"))for(String id:fs.list(operations))finishLegacy(fs.child(operations,uuid(id)),control);
+        if(!fs.stat(operations).type.equals("MISSING"))for(String id:activeOperations())if(id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))finishLegacy(fs.child(operations,id),control);
         File old=legacy("pending");if(!fs.stat(old).type.equals("MISSING")){
             Map<String,Object> snapshot=legacy(old,null,control);change(null,snapshot,true,"pending",BackupJson.string(snapshot,"id"),control);
             repaired=true;
@@ -215,7 +282,7 @@ public final class ConfigurationSnapshots {
             File retained=fs.child(store,"retained-markers");directory(retained);fs.move(marker,fs.child(retained,UUID.randomUUID()+".bin"));
             return repaired?"RECOVERY_ROLLED_BACK":"RECOVERY_MARKER_RETAINED";
         }
-        return repaired?"RECOVERY_ROLLED_BACK":"RECOVERY_NO_DATA_CHANGED";
+        archiveCompletedOperations();return repaired?"RECOVERY_ROLLED_BACK":"RECOVERY_NO_DATA_CHANGED";
     }
     public static boolean blocked(File files){
         try{File root=files.getCanonicalFile();var fs=new AndroidBackupFileSystem();return new ConfigurationSnapshots(fs,root,new UserDataLayout(fs,root).current()).pending();}

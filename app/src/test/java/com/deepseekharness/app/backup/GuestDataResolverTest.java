@@ -20,7 +20,7 @@ public class GuestDataResolverTest {
     }
     @Test public void mapsGuestAndHistoricalL2sWithoutReadingForeignHost()throws Exception{
         File root=temporary.newFolder();Files.createDirectories(new File(root,"root").toPath());Files.createDirectories(new File(root,".l2s").toPath());Files.writeString(new File(root,".l2s/owned").toPath(),"user bytes");
-        LinkFs fs=new LinkFs();File source=new File(root,"root/a");fs.links.put(source.getPath(),"/data/user/10/com.deepseek.harness/files/linux/ubuntu/.l2s/owned");
+        LinkFs fs=new LinkFs();File source=new File(root,"root/a");fs.links.put(source.getPath(),"/data/user/10/com.dsh.client/files/linux/ubuntu/.l2s/owned");
         var resolver=new GuestDataResolver(fs,root,null,List.of());assertEquals(new File(root,".l2s/owned"),resolver.resolve(source).file);
         fs.links.put(source.getPath(),"/.l2s/owned");assertEquals(new File(root,".l2s/owned"),resolver.resolve(source).file);
     }

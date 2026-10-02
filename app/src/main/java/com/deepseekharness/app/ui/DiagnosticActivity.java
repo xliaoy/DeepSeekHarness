@@ -84,9 +84,24 @@ public final class DiagnosticActivity extends AppCompatActivity {
             catch (RuntimeException error) { Toast.makeText(this, com.deepseekharness.app.util.UiText.text("无法打开保存位置，请使用复制报告或检查系统文件管理器"), Toast.LENGTH_LONG).show(); }
         });
         repository.report.observe(this, text -> ((TextView) findViewById(R.id.diagnostic_report)).setText(text));
+        repository.phase.observe(this, phase -> {
+            TextView headline = findViewById(R.id.diagnostic_headline);
+            TextView status = findViewById(R.id.diagnostic_status);
+            if (phase == DiagnosticRepository.Phase.RUNNING) {
+                headline.setText(com.deepseekharness.app.util.UiText.choose("正在检查", "Checking"));
+                status.setText(com.deepseekharness.app.util.UiText.text("正在检查环境…"));
+            } else if (phase == DiagnosticRepository.Phase.FAILED) {
+                headline.setText(com.deepseekharness.app.util.UiText.choose("检查未完成", "Check incomplete"));
+                status.setText(com.deepseekharness.app.util.UiText.choose("请打开失败卡片查看原因，也可复制或导出脱敏报告。",
+                        "Open the failure card for details, or copy or export the redacted report."));
+            } else {
+                headline.setText(phase == DiagnosticRepository.Phase.SUCCEEDED
+                        ? com.deepseekharness.app.util.UiText.choose("检查已完成", "Checks completed")
+                        : com.deepseekharness.app.util.UiText.choose("准备检查", "Ready to check"));
+                status.setText(com.deepseekharness.app.util.UiText.text("报告保留在本机，复制或导出后可用于反馈"));
+            }
+        });
         repository.busy.observe(this, busy -> {
-            ((TextView)findViewById(R.id.diagnostic_headline)).setText(busy?com.deepseekharness.app.util.UiText.choose("正在检查","Checking"):repository.results.getValue().isEmpty()?com.deepseekharness.app.util.UiText.choose("准备检查","Ready to check"):com.deepseekharness.app.util.UiText.choose("检查已完成","Checks completed"));
-            ((TextView) findViewById(R.id.diagnostic_status)).setText(busy ? com.deepseekharness.app.util.UiText.text("正在检查环境…") : com.deepseekharness.app.util.UiText.text("报告保留在本机，复制或导出后可用于反馈"));
             for (int id : new int[]{R.id.diagnostic_refresh,R.id.diagnostic_repair,R.id.diagnostic_copy,R.id.diagnostic_export}) findViewById(id).setEnabled(!busy);
         });
         if (saved == null) {

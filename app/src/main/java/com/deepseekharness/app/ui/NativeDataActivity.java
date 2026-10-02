@@ -78,6 +78,13 @@ public final class NativeDataActivity extends AppCompatActivity {
         if(!exportOnly&&!restoreOnly&&!backupMode)button(t("重新导出已验证副本","Export a verified copy again"),this::verifiedCopies);
         if(backupMode)button(t("自动备份与记录","Automatic backups and history"),()->startActivity(new android.content.Intent(this,AutomaticBackupActivity.class)));
         cancelOperation=button(t("取消当前作业","Cancel current operation"),()->jobs.cancel());cancelOperation.setVisibility(View.GONE);
+        if(!exportOnly&&!restoreOnly){
+            section(t("保留数据","Retained data"));
+            text(t("查看保留副本、旧环境和插件原件；检查与恢复分别处理。",
+                    "Browse retained copies, old environments, and original plugins. Inspection and restoration are separate actions."),13);
+            button(t("保留副本与旧树","Retained copies and old trees"),()->startActivity(
+                    new android.content.Intent(this,RetainedDataActivity.class)));
+        }
         section(t("恢复与维护","Recovery and maintenance"));if(exportOnly||restoreOnly||backupMode)body.setVisibility(View.GONE);
         button(t("选择已有数据目录","Choose existing data directory"),this::chooseDataHome);
         button(t("恢复中断的数据提交","Recover interrupted data commit"),()->{
@@ -235,6 +242,7 @@ public final class NativeDataActivity extends AppCompatActivity {
                 value.result.equals("WRITTEN_UNVERIFIED")?t("已写入，未完成目标读回校验；私有验证副本保留。","Written, but destination readback was not verified. The private verified copy is retained."):
                 value.result.equals("PARTIAL_RESCUE")?t("部分救援：缺失或变化的内容已记录，不能视为完整备份。","Partial rescue: missing or changed content was recorded; this is not a complete backup."):
                 value.result.equals("BEST_EFFORT_RESCUE")?t("尽力救援完成，未承诺应用级一致性。","Best-effort rescue completed without an application-consistency guarantee."):
+                value.result.startsWith("DATA_RESTORED_SETTINGS_REVIEW")?t("所选数据已保存。Profile 设置尚未应用：请进入「保留副本与旧树」逐个 profile 检查差异、选择字段并读回；插件和代码仍待审阅。", "Selected data saved. Profile settings are pending: open Retained copies and old trees to inspect each profile, select fields and verify readback. Plugins and code still require review.")+(value.result.contains("API_KEY")?t("\n原生 API Key 未恢复，请到模型配置确认凭据。","\nThe native API key was not restored; verify credentials in Model configuration."):""):
                 value.result.equals("DATA_RESTORED_API_KEY_MISSING")?t("数据已恢复，但备份中的 API Key 无法读取；请到模型配置重新填写。","Data restored, but the selected API key could not be read. Enter it again in Model configuration."):
                 value.result.equals("DATA_RESTORED_API_KEY_OMITTED")?t("数据已恢复；本次备份未包含 API Key，请到模型配置填写。","Data restored; this backup did not include an API key. Enter it in Model configuration."):
                 value.result.equals("DATA_RESTORED_PLUGINS_QUARANTINED")?t("数据已恢复，插件、可执行配置与待确认的自定义数据已隔离保存，尚未启用。","Data restored; plugins, executable configuration and unclassified custom data are quarantined and not enabled."):

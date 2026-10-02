@@ -174,11 +174,30 @@ public final class PluginRestoreGraph {
         for(String field:List.of("dependencies","optionalDependencies","peerDependencies"))if(metadata.get(field) instanceof Map){
             Map<String,Object> values=object(metadata.get(field));for(var entry:replacements.entrySet())if(values.containsKey(entry.getKey())&&!entry.getValue().equals(values.get(entry.getKey()))){values.put(entry.getKey(),entry.getValue());changed=true;}
         }
-        if(!changed)return;
-        String saved="original-declarations/"+logical+"/package.json";fs.parents(store,saved);
-        if(fs.stat(fs.child(store,saved)).type.equals("MISSING"))try(OutputStream output=fs.create(fs.child(store,saved))){output.write(original);}
-        else if(!fs.stat(fs.child(store,saved)).type.equals("FILE"))throw new IOException("PLUGIN_ORIGINAL_DECLARATION_TYPE");
-        fs.atomic(owner,"package.json",BackupJson.write(metadata,BackupLimits.MANIFEST));
+        if(replacements.isEmpty())return;
+        if(changed){
+            String saved="original-declarations/"+logical+"/package.json";fs.parents(store,saved);
+            if(fs.stat(fs.child(store,saved)).type.equals("MISSING"))try(OutputStream output=fs.create(fs.child(store,saved))){output.write(original);}
+            else if(!fs.stat(fs.child(store,saved)).type.equals("FILE"))throw new IOException("PLUGIN_ORIGINAL_DECLARATION_TYPE");
+        }
+        // The frozen dependency snapshot is bound to the old package.json and
+        // original link tree. Preserve it for review, but do not present it as
+        // proof for the rewritten candidate. Restored packages must not resolve
+        // current registry versions in place of this historical dependency set.
+        if(!logical.startsWith("packages/")){
+            if(changed)fs.atomic(owner,"package.json",BackupJson.write(metadata,BackupLimits.MANIFEST));
+            return;
+        }
+        File snapshot=fs.child(owner,".deepseekharness-dependencies.json");
+        String snapshotType=fs.stat(snapshot).type;
+        if(snapshotType.equals("FILE")){
+            String savedSnapshot="original-declarations/"+logical+"/.deepseekharness-dependencies.json";
+            fs.parents(store,savedSnapshot);File originalSnapshot=fs.child(store,savedSnapshot);
+            if(!fs.stat(originalSnapshot).type.equals("MISSING"))throw new IOException("PLUGIN_ORIGINAL_SNAPSHOT_CONFLICT");
+            fs.move(snapshot,originalSnapshot);
+            warnings.add("DEPENDENCY_SNAPSHOT_REQUIRES_REVIEW");
+        }else if(!snapshotType.equals("MISSING"))throw new IOException("PLUGIN_SNAPSHOT_TYPE");
+        if(changed)fs.atomic(owner,"package.json",BackupJson.write(metadata,BackupLimits.MANIFEST));
     }
     static String relative(File from,File target)throws IOException{
         String[] left=from.getAbsolutePath().replace(File.separatorChar,'/').split("/"),right=target.getAbsolutePath().replace(File.separatorChar,'/').split("/");int common=0;

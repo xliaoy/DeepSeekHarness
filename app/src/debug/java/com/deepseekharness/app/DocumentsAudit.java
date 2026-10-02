@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 
 /** 通过真实 ContentResolver / DocumentsContract 验证 MT 使用的树 URI 契约，兼容非调试自插桩包。 */
 public final class DocumentsAudit extends Instrumentation {
-    private static final String AUTH = "com.deepseek.harness.documents.audit";
+    private static final String AUTH = "com.dsh.client.documents.audit";
     private ContentResolver resolver;
     private int assertions;
     @Override public void onCreate(Bundle args) { start(); }
@@ -110,10 +110,10 @@ public final class DocumentsAudit extends Instrumentation {
             // 目录软链接环不能使搜索无限递归。
             Os.symlink(".", new File(fixture, folder + "/cycle").getPath());
             Bundle search = new Bundle(); search.putString(DocumentsContract.QUERY_ARG_DISPLAY_NAME, renamedName);
-            try (Cursor cursor = resolver.query(DocumentsContract.buildSearchDocumentsUri(AUTH, "deepseekharness-root", renamedName), null, search, null)) {
+            try (Cursor cursor = resolver.query(DocumentsContract.buildSearchDocumentsUri(AUTH, "dsha-root", renamedName), null, search, null)) {
                 check(cursor != null && cursor.getCount() == 1, "搜索没有限制重复的链接目录");
             }
-            try (Cursor cursor = resolver.query(DocumentsContract.buildSearchDocumentsUri(AUTH, "deepseekharness-root", ""), null, null, null, null)) {
+            try (Cursor cursor = resolver.query(DocumentsContract.buildSearchDocumentsUri(AUTH, "dsha-root", ""), null, null, null, null)) {
                 check(cursor != null && cursor.getCount() == 0, "空搜索参数不能安全返回");
             }
             idle();

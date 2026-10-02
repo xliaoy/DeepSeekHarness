@@ -18,17 +18,21 @@ final class VirtualScreenChannels {
         channels.add(new VirtualScreenChannel() {
             public String id() { return "root"; }
             public boolean available(Context c) { return RootShell.enabled(c) && RootShell.present(); }
-            public String start(Context c, String command) { return RootShell.exec(c, command, -1); }
+            public String start(Context c, String command) { return RootShell.execVirtualScreen(c, command); }
         });
         channels.add(new VirtualScreenChannel() {
             public String id() { return "shizuku"; }
             public boolean available(Context c) { return ShizukuShell.hasPermission(); }
-            public String start(Context c, String command) { return ShizukuShell.exec(command); }
+            public String start(Context c, String command) { return ShizukuShell.execVirtualScreen(command); }
         });
         channels.add(new VirtualScreenChannel() {
             public String id() { return "adb"; }
             public boolean available(Context c) { return DeviceBridgeService.isAdbEnabled(c); }
-            public String start(Context c, String command) { return AdbBridge.executeVirtualScreen(c, command); }
+            public String start(Context c, String command) {
+                String ticket=VirtualScreenManager.adbLaunchTicketFor(command);
+                return ticket.isEmpty()?"[POLICY_BLOCKED] Native virtual-screen launch ticket missing\n[EXIT=126]"
+                        :AdbBridge.executeVirtualScreen(c,command,ticket);
+            }
         });
         return channels;
     }

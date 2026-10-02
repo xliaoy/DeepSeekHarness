@@ -40,7 +40,8 @@ public final class BuiltinPlugins {
                     "dsh-balance-panel",
                     "dsh-computer-use-android",
                     "dsh-auto-review",
-                    "dsh-tool-vscreen"));
+                    "dsh-tool-vscreen",
+                    "dsh-deliverable-mobile"));
 
     /** 预装第三方插件：随包内置但【保持第三方身份】，插件页可在线更新 / 删除。
      *  与 DEFAULT_BUILTINS 的区别不是"装不装"，而是"算不算系统组件"——

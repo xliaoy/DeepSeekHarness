@@ -23,9 +23,9 @@ public final class FactoryReset {
     private static final int MAX_RELIST_PASSES = 8;
     private static final long REPORT_INTERVAL = 128;
     private static final String[] KNOWN_PREFERENCES = {
-            "deepseekharness", "deepseekharness-data-task", "DeepSeekHarness_device_grants",
-            "DeepSeekHarness_environment_upgrade", "DeepSeekHarness_automatic_backup", "DeepSeekHarness_log_exports",
-            "deepseekharness-updates", "deepseekharness-install-link", "DeepSeekHarness_storage_cleanup",
+            "deepseekharness", "deepseekharness-data-task", "deepseekharness_device_grants",
+            "deepseekharness_environment_upgrade", "deepseekharness_automatic_backup", "deepseekharness_log_exports",
+            "deepseekharness-updates", "deepseekharness-install-link", "deepseekharness_storage_cleanup",
             "deepseekharness-install-diagnostics", "deepseekharness-portable-settings"
     };
     private FactoryReset() { }
@@ -45,7 +45,7 @@ public final class FactoryReset {
     public static final String STAGE_FINISH = "FORMAT_FINISH";
 
     public static void eraseLegacyPublicData(BackupControl control) throws IOException {
-        if (!BackupManager.isDataTaskOwner()) throw new IOException("FORMAT_REQUIRES_MAINTENANCE");
+        if (!com.deepseekharness.app.core.MaintenanceCoordinator.isOwner()) throw new IOException("FORMAT_REQUIRES_MAINTENANCE");
         eraseLegacyPublicData(new AndroidBackupFileSystem(),
                 Environment.getExternalStorageDirectory().getCanonicalFile(), control);
     }
@@ -188,7 +188,7 @@ public final class FactoryReset {
      * 手动导出的 SAF/Downloads 归档与 Documents 中 DeepSeekHarness 以外的个人内容不在这些根下。
      */
     public static Result eraseApplicationData(Context context, BackupControl control) throws IOException {
-        if (!BackupManager.isDataTaskOwner()) throw new IOException("FORMAT_REQUIRES_MAINTENANCE");
+        if (!com.deepseekharness.app.core.MaintenanceCoordinator.isOwner()) throw new IOException("FORMAT_REQUIRES_MAINTENANCE");
         if (!AutomaticBackups.factoryResetSuspended()) throw new IOException("FORMAT_REQUIRES_BACKUP_QUIESCENCE");
         Context app = context.getApplicationContext();
         com.deepseekharness.app.core.UpdateEngine.get(app).stopForFactoryReset();

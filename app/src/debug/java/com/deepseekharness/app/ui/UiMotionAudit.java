@@ -15,10 +15,10 @@ public final class UiMotionAudit extends Instrumentation {
         HandlerThread thread=new HandlerThread("motion-audit");thread.start();
         Window window=null;Window.OnFrameMetricsAvailableListener listener=null;
         try {
-            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
+            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
             long end=System.currentTimeMillis()+20000;while(MainActivity.current==null&&System.currentTimeMillis()<end)Thread.sleep(100);
             MainActivity activity=MainActivity.current;if(activity==null)throw new AssertionError("主页面未就绪");
-            ui(()->activity.openSettings());settle();
+            ui(()->((com.google.android.material.bottomnavigation.BottomNavigationView)activity.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_settings));settle();
             window=activity.getWindow();listener=(w,metrics,dropped)->frames.add(metrics.getMetric(FrameMetrics.TOTAL_DURATION));
             window.addOnFrameMetricsAvailableListener(listener,new Handler(thread.getLooper()));
             for(int round=0;round<4;round++) {

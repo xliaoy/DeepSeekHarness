@@ -8,7 +8,7 @@ import static org.junit.Assert.*;
 
 public class TextLogTailTest {
     private File log(String text) throws Exception {
-        File file = File.createTempFile("deepseekharness-log-test-", ".txt"); file.deleteOnExit();
+        File file = File.createTempFile("dsha-log-test-", ".txt"); file.deleteOnExit();
         Files.write(file.toPath(), text.getBytes(StandardCharsets.UTF_8)); return file;
     }
     @Test public void smallAndEmptyLogsRemainReadable() throws Exception {

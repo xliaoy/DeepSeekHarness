@@ -26,7 +26,7 @@ public final class StartupRecoveryAudit extends Instrumentation {
         try(var fd=getUiAutomation().executeShellCommand("input keyevent 224");var in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}
         ActivityMonitor monitor=addMonitor(type.getName(),null,false);
         try{
-            if(type==MainActivity.class){try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}}
+            if(type==MainActivity.class){try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}}
             else runOnMainSync(()->getTargetContext().startActivity(new Intent(getTargetContext(),type).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
             Activity activity=waitForMonitorWithTimeout(monitor,15000);check(activity!=null,"页面未打开 "+type);opened.add(activity);
             runOnMainSync(()->activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON|WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON|WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED));return activity;
@@ -69,7 +69,7 @@ public final class StartupRecoveryAudit extends Instrumentation {
                 File file=new File(home,name);check(!Compat.isSymbolicLink(file),"测试不改软链接配置");originals.put(file,file.isFile()?Compat.readAllBytes(file):null);
             }
             for(String name:new String[]{"healthy-1.json","healthy-2.json","healthy-3.json","before-1.json","before-2.json","before-3.json","pending.json","skip-healthy","candidate.json"}) {
-                File file=new File(home,"deepseekharness-startup-checkpoints/"+name);originals.put(file,file.isFile()?Compat.readAllBytes(file):null);
+                File file=new File(home,"dsha-startup-checkpoints/"+name);originals.put(file,file.isFile()?Compat.readAllBytes(file):null);
             }
             for(String name:new String[]{"last-startup-failure.log","startup-config-repair.pending"}){File file=new File(getTargetContext().getFilesDir(),name);originals.put(file,file.isFile()?Compat.readAllBytes(file):null);}
             File sources=new File(home,"plugin-sources.json");originals.put(sources,sources.isFile()?Compat.readAllBytes(sources):null);

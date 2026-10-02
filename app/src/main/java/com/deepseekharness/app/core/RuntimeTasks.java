@@ -4,7 +4,7 @@ import android.content.Context;
 import android.os.PowerManager;
 
 /** 原生工作独立持有 CPU 锁；省电释放 Web 空闲锁不会中断备份、插件或终端。 */
-public final class RuntimeTasks implements AutoCloseable {
+public final class RuntimeTasks implements com.deepseekharness.app.util.RuntimeWorkPort.Work {
     private static Context context;
     private static final com.deepseekharness.app.util.RuntimeTaskRegistry tasks =
             new com.deepseekharness.app.util.RuntimeTaskRegistry();
@@ -21,7 +21,17 @@ public final class RuntimeTasks implements AutoCloseable {
     private Process retainedProcess;
     private final com.deepseekharness.app.util.RuntimeTaskRegistry.Token token;
     private RuntimeTasks(com.deepseekharness.app.util.RuntimeTaskRegistry.Token token) { this.token = token; }
-    public static synchronized void initialize(Context app) { context = app.getApplicationContext(); }
+    private static final com.deepseekharness.app.util.RuntimeWorkPort.Provider WORK_PROVIDER =
+            new com.deepseekharness.app.util.RuntimeWorkPort.Provider() {
+                @Override public com.deepseekharness.app.util.RuntimeWorkPort.Work begin(boolean detached, String kind) {
+                    return detached ? RuntimeTasks.beginDetached(kind) : RuntimeTasks.begin(kind);
+                }
+                @Override public boolean hasOtherTasks() { return RuntimeTasks.hasOtherTasks(); }
+            };
+    public static synchronized void initialize(Context app) {
+        context = app.getApplicationContext();
+        com.deepseekharness.app.util.RuntimeWorkPort.install(WORK_PROVIDER);
+    }
     public static synchronized RuntimeTasks begin() {
         return begin(false,"执行任务");
     }

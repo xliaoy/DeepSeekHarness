@@ -13,7 +13,7 @@ public final class AutomaticBackups {
     private static final java.util.concurrent.atomic.AtomicBoolean FACTORY_RESET=new java.util.concurrent.atomic.AtomicBoolean();
     private static final WorkerQuiescence PRODUCERS=new WorkerQuiescence();
     private AutomaticBackups() { }
-    public static android.content.SharedPreferences prefs(Context context){return context.getSharedPreferences("DeepSeekHarness_automatic_backup",Context.MODE_PRIVATE);}
+    public static android.content.SharedPreferences prefs(Context context){return context.getSharedPreferences("deepseekharness_automatic_backup",Context.MODE_PRIVATE);}
     public static boolean enabled(Context context){var saved=prefs(context);return !FACTORY_RESET.get()&&!saved.getBoolean("factoryResetPending",false)&&saved.getBoolean("enabled",true);}
     static boolean factoryResetSuspended(){return FACTORY_RESET.get();}
     static boolean factoryResetPending(Context context){return FACTORY_RESET.get()||prefs(context).getBoolean("factoryResetPending",false);}
@@ -45,7 +45,7 @@ public final class AutomaticBackups {
     public static boolean idle(Context context)throws IOException{
         HarnessController c=HarnessController.get(context);
         return c.config().isWelcomed()&&!NativeBackupJobs.get(context).state().busy&&!c.isStarting()&&!c.isStopping()&&c.getWebAuthUrl().isEmpty()
-                &&!com.deepseekharness.app.core.RuntimeTasks.isBusy()&&!com.deepseekharness.app.BackupManager.hasPendingMaintenance(context.getFilesDir())&&c.isWebStoppedForMaintenance();
+                &&!com.deepseekharness.app.core.RuntimeTasks.isBusy()&&!com.deepseekharness.app.backup.HostMaintenancePending.blocked(context.getFilesDir())&&c.isWebStoppedForMaintenance();
     }
     static boolean idleForOwner(Context context)throws IOException{
         HarnessController c=HarnessController.get(context);
@@ -65,7 +65,13 @@ public final class AutomaticBackups {
         try{
             PostUpgradeCleanupService.suspendForFactoryReset(control);
             JobScheduler scheduler=context.getSystemService(JobScheduler.class);
-            if(scheduler!=null){scheduler.cancel(JOB);scheduler.cancel(NOW);}
+            if(scheduler!=null){
+                // 某些 ROM 在后台/通知策略变更后会拒绝 JobScheduler.cancel。
+                // factoryResetPending 已先持久化，两个 Job 的 onStartJob 都会
+                // 看到该门禁并立即返回；取消失败不能阻断私有数据格式化。
+                try { scheduler.cancel(JOB); } catch (SecurityException ignored) { }
+                try { scheduler.cancel(NOW); } catch (SecurityException ignored) { }
+            }
             NativeBackupJobs jobs=NativeBackupJobs.get(context);
             jobs.beginFactoryResetQuiescence(control,30_000);nativeClosed=true;
             PRODUCERS.awaitIdle(control,15_000);
@@ -105,16 +111,6 @@ public final class AutomaticBackups {
     public static void completed(Context context,String id){synchronized(AutomaticBackups.class){if(!FACTORY_RESET.get())prefs(context).edit().putLong("last",System.currentTimeMillis()).putString("lastId",id).putString("error","").commit();}}
     /** 只轮换明确标记、已验证的自动产物，手动副本及未知记录不删除。 */
     public static void prune(Context context,BackupControl control)throws IOException{
-        var fs=new AndroidBackupFileSystem();File parent=new File(context.getFilesDir().getCanonicalFile(),"host-backup-operations");
-        List<VerifiedBackupCopy> automatic=new ArrayList<>();
-        for(var copy:NativeBackupJobs.get(context).verifiedCopies().valid)if(Boolean.TRUE.equals(copy.metadata.get("automatic"))&&Set.of("COMPLETE","DATA_SAVED_PLUGIN_WARNINGS").contains(copy.result(true))){copy.verify(fs,control);automatic.add(copy);}
-        for(int i=3;i<automatic.size();i++){
-            var copy=automatic.get(i);File dir=fs.child(parent,copy.id);
-            var record=BackupJson.read(fs.small(fs.child(dir,"operation.json"),16384),16384);
-            if(Boolean.TRUE.equals(record.get("busy"))||!"FINISHED".equals(record.get("stage")))continue;
-            Set<String> allowed=Set.of("portable.dshbak","verified.json","operation.json","source-checks");
-            if(!allowed.containsAll(fs.list(dir)))continue;
-            copy.verify(fs,control);fs.removeOwned(parent,copy.id);
-        }
+        var fs=new AndroidBackupFileSystem();AutomaticBackupPruner.prune(fs,NativeBackupJobs.get(context).verifiedCopies().valid,control);
     }
 }

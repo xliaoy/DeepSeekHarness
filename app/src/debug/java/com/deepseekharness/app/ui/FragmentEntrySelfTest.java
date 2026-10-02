@@ -240,7 +240,7 @@ public final class FragmentEntrySelfTest {
                 Constructor<PluginRepository.Item> item = PluginRepository.Item.class.getDeclaredConstructor(JSONObject.class);
                 item.setAccessible(true);
                 List<PluginRepository.Item> items = Collections.singletonList(item.newInstance(new JSONObject()
-                        .put("name", "deepseekharness-debug-fixture").put("description", "只存在于测试页面内存")
+                        .put("name", "dsha-debug-fixture").put("description", "只存在于测试页面内存")
                         .put("version", "0.0.0").put("available", true).put("enabled", !fixtureSafeMode)));
                 Field safe = PluginRepository.class.getDeclaredField("safeMode"); safe.setAccessible(true);
                 safe.setBoolean(fixtureRepository, fixtureSafeMode);

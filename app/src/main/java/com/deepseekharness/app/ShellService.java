@@ -25,6 +25,9 @@ extends IShellService.Stub {
     public String exec(String cmd) {
         return DeviceShellExecutor.execute(cmd, this::executeArgv);
     }
+    @Override public String execVirtualScreen(String command) {
+        return DeviceShellExecutor.executeVirtualScreen(command, this::executeArgv);
+    }
     @Override public void destroy() {
         java.util.List<Process> owned;
         synchronized (processes) { closing = true; owned = new java.util.ArrayList<>(processes); }

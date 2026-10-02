@@ -17,7 +17,7 @@ public final class RuntimeFallbackAudit extends Instrumentation {
             @Override public Process execRootfs(String command) throws java.io.IOException {
                 if (command.contains("exec dsh ")) {
                     failures[0]++;
-                    return new ProcessBuilder("/system/bin/sh", "-c", "printf 'DeepSeekHarness_TEST_PROROOT_EXIT\\n'; exit 139")
+                    return new ProcessBuilder("/system/bin/sh", "-c", "printf 'DSHA_TEST_PROROOT_EXIT\\n'; exit 139")
                             .redirectErrorStream(true).start();
                 }
                 return super.execRootfs(command);

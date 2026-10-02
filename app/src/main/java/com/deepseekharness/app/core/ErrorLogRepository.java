@@ -30,12 +30,12 @@ public final class ErrorLogRepository extends AndroidViewModel {
     private final AtomicBoolean working = new AtomicBoolean();
     public ErrorLogRepository(@NonNull Application app) {
         super(app);
-        android.content.SharedPreferences saved = app.getSharedPreferences("DeepSeekHarness_log_exports", 0);
+        android.content.SharedPreferences saved = app.getSharedPreferences("deepseekharness_log_exports", 0);
         String uri = saved.getString("last_uri", ""), name = saved.getString("last_name", "");
         state.setValue(new State(false, uri.isEmpty() ? com.deepseekharness.app.util.UiText.text("日志保存在本机，导出时隐藏常见密钥字段。") : com.deepseekharness.app.util.UiText.text("上次保存：") + name + com.deepseekharness.app.util.UiText.text("（点按查看）"), uri.isEmpty() ? null : Uri.parse(uri)));
     }
     public static String filename() {
-        return "DeepSeekHarness-error-log-" + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.ROOT).format(new java.util.Date()) + ".txt";
+        return "deepseekharness-error-log-" + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.ROOT).format(new java.util.Date()) + ".txt";
     }
     public void download() { export(null); }
     public void export(Uri destination) {
@@ -71,7 +71,7 @@ public final class ErrorLogRepository extends AndroidViewModel {
                     try { getApplication().getContentResolver().takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION | android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION); }
                     catch (SecurityException ignored) { }
                 }
-                getApplication().getSharedPreferences("DeepSeekHarness_log_exports", 0).edit().putString("last_uri", uri.toString()).putString("last_name", name).apply();
+                getApplication().getSharedPreferences("deepseekharness_log_exports", 0).edit().putString("last_uri", uri.toString()).putString("last_name", name).apply();
                 state.postValue(new State(false, (destination == null ? com.deepseekharness.app.util.UiText.text("已保存：Download/DeepSeekHarness/") : com.deepseekharness.app.util.UiText.text("已保存到所选位置：")) + name + com.deepseekharness.app.util.UiText.text("\n点按此处查看日志"), uri));
             } catch (Exception error) {
                 state.postValue(new State(false, com.deepseekharness.app.util.UiText.text("保存失败：") + SensitiveData.redact(String.valueOf(error.getMessage()))
@@ -92,6 +92,11 @@ public final class ErrorLogRepository extends AndroidViewModel {
         String trialFailure=com.deepseekharness.app.runtime.RuntimeTrial.latestFailure(context);
         if(!trialFailure.isEmpty())text.append(com.deepseekharness.app.util.UiText.choose("\n=== 最近隔离运行试验失败 ===\n","\n=== Latest isolated runtime trial failure ===\n")).append(trialFailure).append('\n');
         text.append(com.deepseekharness.app.util.UiText.text("\n=== 应用操作、崩溃与页面错误 ===\n")).append(DiagnosticLog.read(context));
+        var emergency=com.deepseekharness.app.recovery.RecoveryController.get(context).snapshot();
+        text.append(com.deepseekharness.app.util.UiText.choose("\n=== 独立应急 DSH ===\n","\n=== Independent emergency DSH ===\n"))
+                .append("state=").append(emergency.state).append(" generation=").append(emergency.generation)
+                .append(" instance=").append(emergency.instanceId).append("\n")
+                .append(emergency.errorCode).append("\n").append(emergency.detail).append("\n");
         text.append(com.deepseekharness.app.util.UiText.text("\n=== 本轮启动时间线 ===\n")).append(HarnessController.get(context).startupDiagnostics().snapshot().log);
         text.append(com.deepseekharness.app.util.UiText.choose("\n=== 最近五次启动 ===\n","\n=== Last five starts ===\n"));
         for(com.deepseekharness.app.util.StartupHistoryStore.Entry entry:HarnessController.get(context).startupDiagnostics().history())

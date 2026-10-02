@@ -52,7 +52,7 @@ public final class PluginSortAudit extends Instrumentation {
     @Override public void onStart(){
         Bundle result=new Bundle();var prefs=getTargetContext().getSharedPreferences(Constants.PREFS,0);boolean hadSort=prefs.contains("plugin_sort_order"),hadLanguage=prefs.contains("ui_language");String previousSort=prefs.getString("plugin_sort_order","NAME_ASC"),previousLanguage=new ConfigStore(getTargetContext()).getUiLanguage();
         try{
-            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
+            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
             long deadline=SystemClock.elapsedRealtime()+120000;var controller=HarnessController.get(getTargetContext());while((!controller.isEnvironmentReady()||com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy())&&SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
             check(controller.isEnvironmentReady(),"环境更新未完成");
             ui(()->{new ConfigStore(getTargetContext()).setPluginSort(PluginSort.Mode.NAME_ASC);LanguageController.select(getTargetContext(),"zh");});
@@ -68,7 +68,7 @@ public final class PluginSortAudit extends Instrumentation {
             String[] expected={"alpha,plugin2,plugin10,Zulu","Zulu,plugin10,plugin2,alpha","plugin10,Zulu,alpha,plugin2","plugin2,plugin10,alpha,Zulu"};
             for(String lang:new String[]{"zh","en"}){
                 if(!lang.equals(new ConfigStore(page).getUiLanguage()))language(lang);
-                // 无商城版已移除 市场/已装 分段控件，页面默认即为插件列表，无需切换。
+                ui(()->page.findViewById(R.id.btnInstalled).performClick());
                 for(int index=0;index<labels.length;index++){
                     ui(()->page.findViewById(R.id.btnSort).performClick());if(index==0)screenshot(lang+"-sort-menu");choose(page.getString(labels[index]));
                     check(names().equals(expected[index]),"实际列表排序错误："+names());
@@ -79,18 +79,8 @@ public final class PluginSortAudit extends Instrumentation {
                 screenshot(lang+"-management");
                 ui(()->((EditText)page.findViewById(R.id.pluginSearch)).setText("plugin"));check(names().equals("plugin2,plugin10"),"搜索与排序未组合");
                 ui(()->((EditText)page.findViewById(R.id.pluginSearch)).setText(""));
-                // findFragmentById 的返回类型在赋值目标为【具体子类】时推断不成立，
-                // 故先按基类 Fragment 接收，再显式判类型 —— 与上游一致（上游一律先 Fragment 后判类型）。
-                // 显式判类型也让"插件页没挂载成 PluginFragment"立刻给出清晰原因，
-                // 而不是在后面 getDeclaredField/render 反射处以难以理解的异常失败。
-                androidx.fragment.app.Fragment raw=page.getSupportFragmentManager().findFragmentById(R.id.fragment_container);
-                if(!(raw instanceof PluginFragment))throw new IllegalStateException("插件页未挂载为 PluginFragment");
-                PluginFragment fragment=(PluginFragment)raw;
-                var hideField=PluginFragment.class.getDeclaredField("hideBuiltinOnly");hideField.setAccessible(true);hideField.setBoolean(fragment,true);
-                var renderMethod=PluginFragment.class.getDeclaredMethod("render");renderMethod.setAccessible(true);
-                ui(()->{try{renderMethod.invoke(fragment);}catch(Exception e){throw new RuntimeException(e);}});
-                check(!names().contains("alpha"),"过滤内置插件失效");
-                mount();check(names().equals(expected[3]),"重新打开页面丢失排序");
+                ui(()->((CheckBox)page.findViewById(R.id.chkHideBuiltin)).setChecked(true));check(!names().contains("alpha"),"过滤内置插件失效");
+                mount();ui(()->page.findViewById(R.id.btnInstalled).performClick());check(names().equals(expected[3]),"重新打开页面丢失排序");
             }
             PluginRepository.State busy=stateConstructor.newInstance(items,true,"");ui(()->states.setValue(busy));
             check(!page.findViewById(R.id.btnPluginUpdates).isEnabled()&&page.findViewById(R.id.btnSort).isEnabled(),"忙碌时更新必须禁用，排序仍可用");

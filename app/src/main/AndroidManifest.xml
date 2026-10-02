@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Chromium 枚举/选择录音设备同时要求此普通权限；录音本身仍须按需获得用户授权。 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- 结束普通应用前必须取得完整用户/系统应用分组，不能依赖 Android 11+ 的可见性子集。 -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
@@ -23,7 +27,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!-- 所有文件访问权限（Android 11+）：容器/proot 进程要能读写手机存储任意文件
-         （含 DeepSeek Harness 目录以外），WebUI 工作区才能建到 /sdcard 任意位置。 -->
+         （含 DSHA 目录以外），WebUI 工作区才能建到 /sdcard 任意位置。 -->
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:targetApi="30" />
@@ -52,20 +56,8 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.DeepseekHarness">
 
-        <!-- Stellar（Shizuku 兼容分支）特权通道：免 ADB 激活后设备命令走 Stellar。
-             依赖只挂在 standard flavor（low 是 minSdk 23 兼容版，不引入 Stellar）。 -->
-        <provider
-            android:name="roro.stellar.StellarProvider"
-            android:authorities="${applicationId}.stellar"
-            android:exported="true"
-            android:multiprocess="false"
-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
-
-        <meta-data
-            android:name="roro.stellar.permissions"
-            android:value="stellar" />
-
         <activity android:name=".ui.ModelSetupActivity" android:exported="false" />
+        <activity android:name=".ui.CommunityActivity" android:exported="false" />
         <activity android:name=".ui.OnboardingPrepareActivity" android:exported="false" />
         <activity android:name=".ui.OnboardingReadyActivity" android:exported="false" />
         <activity android:name=".ui.AccessibilitySetupActivity" android:exported="false" />
@@ -80,8 +72,19 @@
         </activity>
 
         <activity android:name=".ui.UpdateActivity" android:exported="false" />
+        <!-- 本 fork 独有：镜像与源（npm / APT / pip）快速切换页。 -->
+        <activity
+            android:name=".ui.SourceSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.DeepseekHarness" />
         <activity android:name=".ui.DiagnosticActivity" android:exported="false" />
         <activity android:name=".ui.StartupRecoveryActivity" android:exported="false" />
+        <activity android:name=".ui.RecoveryActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.RecoveryWebActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <service android:name=".recovery.RecoveryService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started emergency AI recovery workspace with an isolated runtime, foreground progress, and explicit stop action." />
+        </service>
         <activity android:name=".ui.BackgroundTasksActivity" android:exported="false" />
         <activity android:name=".ui.NativeDataActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.RetainedDataActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
@@ -111,7 +114,7 @@
             android:exported="true"
             android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
-        <!-- MT 管理器 / 系统「添加本地存储」通过 DocumentsProvider 发现 DeepSeek Harness 私有目录。
+        <!-- MT 管理器 / 系统「添加本地存储」通过 DocumentsProvider 发现 DSHA 私有目录。
              Android 强制要求 DocumentsProvider 受 MANAGE_DOCUMENTS 保护（不设会崩溃）；
              系统 DocumentsUI 与 SAF 授权路径可正常访问。 -->
         <provider
@@ -150,12 +153,6 @@
             android:label="ADB 无线配对"
             android:theme="@style/Theme.DeepseekHarness" />
 
-        <!-- 本 fork 独有：镜像与源（npm / APT / pip）快速切换页。 -->
-        <activity
-            android:name=".ui.SourceSettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.DeepseekHarness" />
-
         <service
             android:name=".DeviceBridgeService"
             android:exported="false"
@@ -167,7 +164,7 @@
         <service
             android:name=".HarnessService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|connectedDevice">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-started local AI development server and terminal runtime with an ongoing notification and explicit stop action." />
         </service>
@@ -182,7 +179,7 @@
         <service
             android:name=".DeepSeekHarnessAccessibilityService"
             android:exported="false"
-            android:label="DeepSeek Harness 配对助手"
+            android:label="DSHA 配对助手"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

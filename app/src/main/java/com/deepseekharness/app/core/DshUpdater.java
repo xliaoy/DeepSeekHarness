@@ -351,6 +351,57 @@ public final class DshUpdater {
         }
     }
 
+    /** 异步拉取指定运行时版本的更新日志；结果在主线程回调（拉取失败或该版本无发布时回调 null）。 */
+    public void fetchNotesAsync(String version, java.util.function.Consumer<String> onResult) {
+        if (version == null || onResult == null) return;
+        IO.execute(() -> {
+            String notes = null;
+            try { notes = fetchReleaseNotes(version); } catch (Exception ignored) { }
+            final String result = notes;
+            main.post(() -> onResult.accept(result));
+        });
+    }
+
+    /** 从上游 GitHub Releases 按 tag（dsh-v{version}）拉取指定版本的发布说明并净化为纯文本。 */
+    private String fetchReleaseNotes(String version) throws Exception {
+        String api = "https://api.github.com/repos/deepseek-ai/deepseek-harness/releases/tags/dsh-v" + version;
+        HttpURLConnection conn = null;
+        String target = api;
+        for (int i = 0; i < 4; i++) {
+            conn = (HttpURLConnection) new URL(target).openConnection();
+            if (conn instanceof javax.net.ssl.HttpsURLConnection)
+                ((javax.net.ssl.HttpsURLConnection) conn).setSSLSocketFactory(TrustedNetwork.sockets(context));
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(30000);
+            conn.setInstanceFollowRedirects(false);
+            conn.setRequestProperty("User-Agent", "DeepSeek-Harness-App");
+            conn.setRequestProperty("Accept", "application/vnd.github+json");
+            conn.setRequestProperty("Accept-Encoding", "identity");
+            int code = conn.getResponseCode();
+            if (code >= 300 && code <= 399) {
+                String location = conn.getHeaderField("Location");
+                conn.disconnect();
+                if (location == null) throw new java.io.IOException("重定向缺少地址");
+                target = new URL(new URL(target), location).toString();
+                continue;
+            }
+            try (InputStream input = conn.getInputStream(); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192]; int n;
+                while ((n = input.read(buffer)) != -1) {
+                    if (bytes.size() + n > 1024 * 1024) throw new java.io.IOException("响应过大");
+                    bytes.write(buffer, 0, n);
+                }
+                if (code != 200) return null;
+                org.json.JSONObject release = new org.json.JSONObject(bytes.toString("UTF-8"));
+                String body = cleanReleaseNotes(release.optString("body", ""));
+                return body.isEmpty() ? null : body;
+            } finally {
+                conn.disconnect();
+            }
+        }
+        return null;
+    }
+
     /** 最近一次检查得到的可安装运行时版本（从新到旧）；供「运行时更新」的自选版本列表使用。 */
     public java.util.ArrayList<String> availableVersions() {
         java.util.ArrayList<String> copy = new java.util.ArrayList<>(availableVersions);
@@ -363,13 +414,26 @@ public final class DshUpdater {
     /**
      * 用户自选运行时版本。
      *
-     * <p>与 APK 不同，proot 内的运行时是普通文件替换，允许装旧版本（回退）。
-     * 但界面必须明确告知「这是回到旧版本」，不能静默当作升级。
+     * <p>proot 内的运行时是普通文件替换，本可实现回退；但按产品要求自选只允许升级，
+     * 所选版本不高于当前版本时直接拒绝并明确提示（不能降级，也不能重装同一版本）。
      */
     public void selectVersion(String version) {
         if (busy.get()) return;
+        if (version != null && !version.isEmpty() && currentVersion != null
+                && compareVersion(version, currentVersion) <= 0) {
+            state.setValue(new State(com.deepseekharness.app.util.UiText.text("所选版本 ") + version
+                    + com.deepseekharness.app.util.UiText.text(" 不高于当前版本 ") + currentVersion
+                    + com.deepseekharness.app.util.UiText.text("：只允许升级，不能降级。"), false,
+                    currentVersion, latestVersion, latestBody, latestUrl));
+            return;
+        }
         requestedVersion = version == null || version.isEmpty() ? null : version;
         check();
+    }
+
+    /** 该版本是否高于当前已安装版本（自选只允许升级；未安装或未检查时返回 false）。 */
+    public boolean canUpgradeTo(String version) {
+        return version != null && currentVersion != null && compareVersion(version, currentVersion) > 0;
     }
 
     /** 目标版本是否低于当前已安装版本（回退，界面须明确提示）。 */

@@ -43,7 +43,7 @@ public final class StorageMaintenance {
         var controller=com.deepseekharness.app.core.HarnessController.get(context);
         // 清理会删除可再生缓存并轮换已核验副本，必须使用数据维护入口：它会按出生身份
         // 安全停止 Web/终端并取得 RuntimeTasks 屏障，避免用户因为忘记手动停止而反复报错。
-        return com.deepseekharness.app.BackupManager.runDataTask(controller,()->{
+        return com.deepseekharness.app.core.MaintenanceCoordinator.exclusive(controller,()->{
             if(NativeBackupJobs.get(context).state().busy||!AutomaticBackups.idleForOwner(context))throw new IOException("STOP_DSH_AND_TERMINALS_FIRST");
             var fs=new AndroidBackupFileSystem();File cache=context.getCacheDir().getCanonicalFile();long before=size(fs,cache).bytes;
             for(String name:CACHE)fs.removeOwned(cache,name);

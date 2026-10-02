@@ -24,8 +24,8 @@ import androidx.fragment.app.Fragment;
 import com.deepseekharness.app.PtySession;
 import com.deepseekharness.app.R;
 import com.deepseekharness.app.core.HarnessController;
+import com.deepseekharness.app.core.TerminalSessionOwner;
 import com.deepseekharness.app.util.SensitiveData;
-import com.deepseekharness.app.util.TerminalTabs;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
@@ -37,7 +37,7 @@ import com.termux.view.TerminalViewClient;
  * <p>两页并存、可随时互切：右上角「简易」退回旧终端页（万一 PTY 在某些机型出问题，
  * 不至于连命令行都没了）。选择记在 {@link #KEY_PTY}，MainActivity 按它决定挂哪一页。
  *
- * <p>会话是 <b>static</b> 的：切到别的页面再回来，历史与正在跑的程序都还在。
+ * <p>会话由进程级 {@link TerminalSessionOwner} 持有：切到别的页面再回来，历史与正在跑的程序都还在。
  * 真正结束只发生在 {@link #shutdown()}（App 退出时 MainActivity 调）。
  */
 public final class PtyTerminalFragment extends Fragment
@@ -72,10 +72,13 @@ public final class PtyTerminalFragment extends Fragment
             {"-", "-"},
     };
 
-    /** 会话跨页面存活，所以是静态的（与旧终端的 static shell 同思路）。 */
-    private static final TerminalTabs<PtySession> sessions = new TerminalTabs<>();
+    /** 两种终端的标签与关闭权威属于同一个进程级 owner。 */
+    private static final TerminalSessionOwner OWNER = TerminalSessionOwner.shared();
 
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final TerminalSessionOwner.PtyObserver tabsObserver = () -> main.post(() -> {
+        if (getView() != null) attachSelected();
+    });
 
     private HarnessController c;
     private TerminalView view;
@@ -89,6 +92,8 @@ public final class PtyTerminalFragment extends Fragment
 
     /** 供 MainActivity 决定挂哪一页。 */
     public static boolean preferred(Context ctx) {
+        // 用户要 PTY 终端：默认进入 PTY 页（官方 rc2 的 Termux 终端体验）。
+        // 简易终端仅作为 PTY 不可用时的后备，可在终端页手动切换。
         return prefs(ctx).getBoolean(KEY_PTY, true);
     }
 
@@ -98,23 +103,13 @@ public final class PtyTerminalFragment extends Fragment
 
     /** App 退出时收掉会话，别在容器里留一个孤儿 bash。 */
     public static void shutdown() {
-        for (var tab : sessions.snapshot()) {
-            try {
-                tab.value.finish();
-            } catch (Throwable error) {
-                android.util.Log.w("DeepSeekHarness", com.deepseekharness.app.util.UiText.text("终端尚未停止，保留会话与环境保护：") + SensitiveData.redact(String.valueOf(error)));
-            }
-        }
+        OWNER.requestPtyShutdown();
     }
 
     /** 维护时先结束持久终端，等待真实退出与工作锁释放；不能阻塞主线程回调。 */
     public static void shutdownAndWait(long timeoutMs) throws java.io.IOException, InterruptedException {
         if (Looper.myLooper() == Looper.getMainLooper()) throw new java.io.IOException(com.deepseekharness.app.util.UiText.text("请在维护线程等待终端退出"));
-        PtySession.closeAllForMaintenance(timeoutMs);
-        for (var tab : sessions.snapshot()) {
-            tab.value.finishAndWait(timeoutMs);
-            sessions.remove(tab.id);
-        }
+        OWNER.closeAllPtyAndConfirm(timeoutMs);
     }
 
     @Nullable
@@ -126,7 +121,7 @@ public final class PtyTerminalFragment extends Fragment
 
     @Override
     public void onViewCreated(@NonNull View root, @Nullable Bundle savedInstanceState) {
-        c = new HarnessController(requireContext());
+        c = HarnessController.get(requireContext());
         view = root.findViewById(R.id.pty_view);
         title = root.findViewById(R.id.pty_title);
 
@@ -144,7 +139,7 @@ public final class PtyTerminalFragment extends Fragment
             root.findViewById(R.id.terminal_new).setEnabled(false);renderTabs();
             return;
         }
-        if (!sessions.wasInitialized()) startTerminal(); else attachSelected();
+        if (!OWNER.ptyTabs().wasInitialized()) startTerminal(); else attachSelected();
     }
 
     /** 已有会话就接回去（切页面回来不丢历史），没有就起一个。 */
@@ -155,7 +150,7 @@ public final class PtyTerminalFragment extends Fragment
             // 初始 80x24 只是占位：attachSession 之后 TerminalView 会按控件实测的字宽
             // 重新算行列并通知 PTY（否则 TUI 的边框会错位）。
             PtySession ns = PtySession.start(c.proot(), 80, 24, null);
-            sessions.add(ns);
+            OWNER.addPty(ns);
             attachSelected();
         } catch (Throwable e) {
             String safe = SensitiveData.redact(String.valueOf(e));
@@ -171,7 +166,7 @@ public final class PtyTerminalFragment extends Fragment
         if (attachedSession != null) attachedSession.detachListener(sessionListener);
         attachedSession = null; sessionListener = null;
         ctrlDown = false; altDown = false; paintModifiers();
-        var tab = sessions.current();
+        var tab = OWNER.currentPty();
         View empty = getView().findViewById(R.id.pty_empty);
         empty.setVisibility(tab == null ? View.VISIBLE : View.GONE);
         view.setVisibility(tab == null ? View.INVISIBLE : View.VISIBLE);
@@ -199,19 +194,19 @@ public final class PtyTerminalFragment extends Fragment
 
     private void renderTabs() {
         if(getView()==null)return;
-        TerminalTabBar.render(getView(),sessions,new TerminalTabBar.Actions() {
-            public void select(long id) { if(sessions.select(id))attachSelected(); }
+        TerminalTabBar.render(getView(),OWNER.ptyTabs(),new TerminalTabBar.Actions() {
+            public void select(long id) { if(OWNER.selectPty(id))attachSelected(); }
             public void close(long id) { closeTerminal(id); }
         });
     }
 
     private void closeTerminal(long id) {
-        var tab=sessions.find(id);if(tab==null||!sessions.beginClose(id))return;attachSelected();
+        var tab=OWNER.ptyTabs().find(id);if(tab==null||!OWNER.beginClosePty(id))return;attachSelected();
         final Context app=requireContext().getApplicationContext();
         new Thread(()->{
             String failure=null;
-            try { tab.value.finishAndWait(5000);sessions.remove(id); }
-            catch(Exception error) { sessions.closeFailed(id);failure=SensitiveData.redact(String.valueOf(error.getMessage())); }
+            try { OWNER.closePty(id,2000); }
+            catch(Exception error) { failure=SensitiveData.redact(String.valueOf(error.getMessage())); }
             final String problem=failure;
             main.post(()->{
                 if(problem!=null)Toast.makeText(app,com.deepseekharness.app.util.UiText.text("关闭失败，会话仍保留：")+problem,Toast.LENGTH_LONG).show();
@@ -286,7 +281,7 @@ public final class PtyTerminalFragment extends Fragment
             Toast.makeText(requireContext(), com.deepseekharness.app.util.UiText.text("会话已结束，请点击「新建」"), Toast.LENGTH_SHORT).show();
             return;
         }
-        var selected=sessions.current();
+        var selected=OWNER.currentPty();
         if(selected==null||selected.isClosing())return;
         s.write(seq);
         // 修饰键是一次性的：发完就灭，跟物理键盘的手感一致
@@ -346,11 +341,12 @@ public final class PtyTerminalFragment extends Fragment
 
     // ==================== PtySession.Listener ====================
 
-    @Override public void onResume() { super.onResume();if(view!=null&&c!=null)attachSelected(); }
-    @Override public void onPause() { if(attachedSession!=null)attachedSession.detachListener(sessionListener);super.onPause(); }
+    @Override public void onResume() { super.onResume();OWNER.attachPty(tabsObserver);if(view!=null&&c!=null)attachSelected(); }
+    @Override public void onPause() { OWNER.detachPty(tabsObserver);if(attachedSession!=null)attachedSession.detachListener(sessionListener);super.onPause(); }
 
     @Override
     public void onDestroyView() {
+        OWNER.detachPty(tabsObserver);
         PtySession s = attachedSession;
         if (s != null) s.detachListener(sessionListener);
         attachedSession = null;
@@ -493,7 +489,7 @@ public final class PtyTerminalFragment extends Fragment
     public boolean isTerminalViewSelected() {
         return inputAllowed();
     }
-    private boolean inputAllowed(){var tab=sessions.current();return view!=null&&tab!=null&&!tab.isClosing()&&c!=null&&c.proot().isEnvironmentReady();}
+    private boolean inputAllowed(){var tab=OWNER.currentPty();return view!=null&&tab!=null&&!tab.isClosing()&&c!=null&&c.proot().isEnvironmentReady();}
 
     @Override
     public void copyModeChanged(boolean copyMode) {

@@ -12,6 +12,43 @@ import java.io.IOException;
 public final class TerminalProcessCloser {
     private TerminalProcessCloser() { }
 
+    /** The simple terminal's fixed READY marker is only a claim until the host verifies this birth. */
+    public static ProcessIdentity captureSimpleLeader(int session, long started) throws IOException {
+        if (session <= 1 || started <= 0)
+            throw new IOException(com.deepseekharness.app.util.UiText.text("终端进程身份无效"));
+        ProcessIdentity leader = read(session, session);
+        if (leader == null || leader.exited() || leader.started != started || !leader.ownsSession())
+            throw new IOException(com.deepseekharness.app.util.UiText.text("终端本次进程身份不匹配，原环境保持保护"));
+        requireOwnUid(session);
+        if (!belongsToSession(session, session))
+            throw new IOException(com.deepseekharness.app.util.UiText.text("终端会话号已变化，原环境保持保护"));
+        return leader;
+    }
+
+    /** Never signal a raw group number. Recheck the captured leader and each member's birth. */
+    public static void closeSimple(ProcessIdentity expected, long timeoutMs) throws IOException, InterruptedException {
+        if (expected == null || !expected.ownsSession())
+            throw new IOException(com.deepseekharness.app.util.UiText.text("终端本次进程身份缺失"));
+        ProcessIdentity leader = read(expected.pid, expected.pid);
+        if (leader != null && !leader.exited()) {
+            if (!expected.sameProcess(leader) || !leader.ownsSession())
+                throw new IOException(com.deepseekharness.app.util.UiText.text("终端组长出生身份已变化，未发送信号"));
+            requireOwnUid(expected.pid);
+            close(expected, timeoutMs);
+        }
+        // A vanished leader cannot authorize a signal to a possibly reused PGID. Unknown members block cleanup.
+        requireSessionEmpty(expected.pid);
+    }
+
+    private static void requireOwnUid(int pid) throws IOException {
+        try {
+            if (Os.stat("/proc/" + pid).st_uid != android.os.Process.myUid())
+                throw new IOException(com.deepseekharness.app.util.UiText.text("终端进程 UID 不属于本应用"));
+        } catch (android.system.ErrnoException error) {
+            throw new IOException(com.deepseekharness.app.util.UiText.text("无法核验终端进程 UID"), error);
+        }
+    }
+
     /** proot 自己负责回收 tracee；结束后调用者还须核验本次独立会话已空。 */
     public static void closeProot(ProcessIdentity expected)throws IOException{
         ProcessIdentity current=read(expected.pid,expected.pid);

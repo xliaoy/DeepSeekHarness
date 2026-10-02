@@ -35,15 +35,15 @@ public final class PidMaintenanceAudit extends Instrumentation {
                 @Override public SharedPreferences getSharedPreferences(String name,int mode) { return super.getSharedPreferences("pid-fixture-"+name,mode); }
             };
             harness = new HarnessController(isolated); HarnessController target = harness;
-            check(harness.runCoreCommand().contains("echo $$ > /root/.deepseekharness-web.pid"), "启动命令必须记录实际 shell PID");
+            check(harness.runCoreCommand().contains("echo $$ > /root/.dsha-web.pid"), "启动命令必须记录实际 shell PID");
             File root = new File(harness.proot().getRootfsDir(), "root"); check(root.mkdirs(), "建立隔离 root");
-            File record = new File(root,".deepseekharness-web.pid"), marker = new File(root,"user-marker"); Compat.write(marker,"keep-data");
+            File record = new File(root,".dsha-web.pid"), marker = new File(root,"user-marker"); Compat.write(marker,"keep-data");
             int foreign = Integer.parseInt(args.getString("foreign_pid"));
             try { android.system.Os.kill(foreign,0); throw new AssertionError("需要真实无权控制的外部 PID"); }
             catch (android.system.ErrnoException error) { check(error.errno==android.system.OsConstants.EPERM,"重现 EPERM"); }
             Compat.write(record,foreign+"\n");
             check("ok".equals(BackupManager.runDataTask(harness,()->"ok")),"EPERM 残留编号不再阻塞维护");
-            check(!record.exists() && new File(root,".deepseekharness-web.pid.stale").isFile(),"只隔离过期编号");
+            check(!record.exists() && new File(root,".dsha-web.pid.stale").isFile(),"只隔离过期编号");
             check("keep-data".equals(Compat.readAll(marker)),"用户标记未改变");
             note("真实 EPERM 旧 PID：停止屏障放行，外部进程与原数据保留");
             unrelated = new ProcessBuilder("/system/bin/sleep","120").start();
@@ -64,7 +64,7 @@ public final class PidMaintenanceAudit extends Instrumentation {
             try { unreadable.confirmStopped(false); throw new AssertionError("未知系统错误不能放行"); }
             catch(IOException expected) { checks++; }
             check(record.exists() && "keep-data".equals(Compat.readAll(marker)),"核验失败保留编号和环境");
-            Compat.write(record,child+"\n"); Compat.write(new File(root,".deepseekharness-web.identity"),child+" 1");
+            Compat.write(record,child+"\n"); Compat.write(new File(root,".dsha-web.identity"),child+" 1");
             WebProcessManager reused = new WebProcessManager(harness.proot()) {
                 @Override ProcessState inspect(int pid) throws IOException {
                     ProcessState state=super.inspect(pid);
@@ -76,7 +76,7 @@ public final class PidMaintenanceAudit extends Instrumentation {
             note("PID 复用、同 UID 无关进程、活跃 Web 和系统读取失败回归通过");
             java.lang.reflect.Field field=HarnessController.class.getDeclaredField("lifecycle"); field.setAccessible(true);
             WebLifecycle lifecycle=(WebLifecycle)field.get(null);
-            File stopped=new File(root,".deepseekharness-stopped"); stopped.delete();
+            File stopped=new File(root,".dsha-stopped"); stopped.delete();
             int failures=harness.config().getWebFailures(); long generation=lifecycle.beginStart(false,false);
             check(generation>=0,"模拟仍在等待鉴权的启动");
             java.lang.reflect.Method slow=HarnessController.class.getDeclaredMethod("reportSlowStart",long.class,java.util.function.Consumer.class); slow.setAccessible(true);

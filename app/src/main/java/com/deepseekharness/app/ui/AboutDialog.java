@@ -10,7 +10,7 @@ import androidx.appcompat.app.AlertDialog;
 /** 关于对话框：GitHub 仓库 / QQ 交流群入口（欢迎页 + 设置页 + 顶栏共用）。 */
 public final class AboutDialog {
 
-    public static final String GITHUB_URL = "https://github.com/xliaoy/DeepSeekHarness";
+    public static final String GITHUB_URL = "https://github.com/qiannianhuanxiang/DeepSeekHarness";
     public static final String QQ_GROUP = "1125393952";
 
     private AboutDialog() {
@@ -22,14 +22,17 @@ public final class AboutDialog {
             version = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName;
         } catch (Exception ignored) {
         }
-        return AppDialogs.show(ctx, android.R.drawable.ic_dialog_info,
-                "DeepSeek Harness v" + version,
-                com.deepseekharness.app.util.UiText.text("DeepSeek Harness 安卓启动器\n")
-                        + ctx.getString(com.deepseekharness.app.R.string.edition_description) + "\n\n"
-                        + com.deepseekharness.app.util.UiText.text("🌟 GitHub：") + GITHUB_URL + "\n"
-                        + com.deepseekharness.app.util.UiText.text("🐧 QQ 交流群：") + QQ_GROUP,
-                "GitHub", com.deepseekharness.app.util.UiText.text("QQ 群"), com.deepseekharness.app.util.UiText.text("关闭"),
-                () -> openBrowser(ctx, GITHUB_URL), () -> openQQGroup(ctx));
+        android.view.View content=android.view.LayoutInflater.from(ctx).inflate(com.deepseekharness.app.R.layout.dialog_about,null);
+        ((android.widget.TextView)content.findViewById(com.deepseekharness.app.R.id.about_version)).setText("DeepSeekHarness v"+version);
+        android.widget.TextView repository=content.findViewById(com.deepseekharness.app.R.id.about_repository);
+        repository.setText(Uri.parse(GITHUB_URL).getPath().substring(1));
+        android.widget.TextView community=content.findViewById(com.deepseekharness.app.R.id.about_community);
+        community.setText(QQ_GROUP);
+        AlertDialog dialog=new DeepSeekHarnessDialogBuilder(ctx).setView(content).create();
+        content.findViewById(com.deepseekharness.app.R.id.about_close).setOnClickListener(v->dialog.dismiss());
+        content.findViewById(com.deepseekharness.app.R.id.about_github).setOnClickListener(v->openBrowser(ctx,GITHUB_URL));
+        content.findViewById(com.deepseekharness.app.R.id.about_qq).setOnClickListener(v->openQQGroup(ctx));
+        dialog.show();return dialog;
     }
 
     public static void openBrowser(Context ctx, String url) {

@@ -22,7 +22,10 @@ public final class RootShellMain {
             String command = request.getString("command");
             int smsUser = request.optInt("smsUser", -1);
             ShellService shell = new ShellService();
-            output = smsUser < 0 ? shell.exec(command) : shell.execAuthorizedSms(command, smsUser);
+            String operation = request.optString("operation", "");
+            if (operation.equals("virtual-screen-start")) output = shell.execVirtualScreen(command);
+            else if (operation.isEmpty()) output = smsUser < 0 ? shell.exec(command) : shell.execAuthorizedSms(command, smsUser);
+            else throw new SecurityException("未知 Root 操作");
         } catch (Throwable e) {
             output = "[ROOT_EXEC_FAILED] " + SensitiveData.redact(String.valueOf(e)) + "\n[EXIT=126]";
         }

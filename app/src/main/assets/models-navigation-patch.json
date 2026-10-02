@@ -1,10 +1,11 @@
 {
-  "dshVersion": "0.1.7-alpha.2",
+  "dshVersion": "0.1.7-rc.1",
+  "retiredFor": "0.1.7-rc.2",
   "module": "@deepseek-ai/dsh-client-ui-settings-general/lib/client.js",
   "patches": [
     {
       "before": "const openSection = (0, react.useCallback)((id) => {\n\t\t\t\tsetActiveId(id);\n\t\t\t\tsetOpen(true);\n\t\t\t}, []);",
-      "after": "const openSection = (0, react.useCallback)((id) => {\n\t\t\t\tsetActiveId(id);\n\t\t\t\tsetOpen(true);\n\t\t\t}, []);\n            // DEEPSEEK_HARNESS_MODELS_ENTRY_V2: reuse the real upstream model editor.\n            (0, react.useEffect)(() => {\n                const openModels = () => { if (!window.__DEEPSEEK_HARNESS_OPEN_MODELS__) return;\n                    window.__DEEPSEEK_HARNESS_OPEN_MODELS__ = false; props.deepseekharnessOpenSidebar(); openSection(\"models\"); };\n                window.addEventListener(\"deepseekharness-open-models\", openModels); openModels();\n                return () => window.removeEventListener(\"deepseekharness-open-models\", openModels);\n            }, [openSection, props.deepseekharnessOpenSidebar]);"
+      "after": "const openSection = (0, react.useCallback)((id) => {\n\t\t\t\tsetActiveId(id);\n\t\t\t\tsetOpen(true);\n\t\t\t}, []);\n            // DeepSeekHarness_MODELS_ENTRY_V2: reuse the real upstream model editor.\n            (0, react.useEffect)(() => {\n                const openModels = () => { if (!window.__DeepSeekHarness_OPEN_MODELS__) return;\n                    window.__DeepSeekHarness_OPEN_MODELS__ = false; props.deepseekharnessOpenSidebar(); openSection(\"models\"); };\n                window.addEventListener(\"deepseekharness-open-models\", openModels); openModels();\n                return () => window.removeEventListener(\"deepseekharness-open-models\", openModels);\n            }, [openSection, props.deepseekharnessOpenSidebar]);"
     },
     {
       "before": "const shellInjected = () => ({",

@@ -20,14 +20,6 @@
         <Button android:id="@+id/device_shizuku_open" style="@style/Widget.DEEPSEEK_HARNESS_TextButton" android:layout_width="0dp" android:layout_height="match_parent" android:text="@string/ui_m0125" android:layout_weight="1" android:layout_marginTop="0dp" android:textSize="12sp" />
       </LinearLayout>
     </LinearLayout>
-    <!-- Stellar（Shizuku 兼容分支）：java-port 回流 fork 的 Stellar 通道逻辑后，
-         DeviceGrantsFragment 引用 device_stellar_status / device_stellar_auth 两个 id。
-         结构与上游同款卡片（bg_card + 16dp 内边距），放在 Shizuku 之后、ADB 之前，与 fork 顺序一致。 -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="16dp" android:layout_marginBottom="12dp">
-      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/grants_stellar" android:textSize="14sp" android:textColor="@color/text" android:includeFontPadding="false" android:textStyle="bold" android:layout_marginTop="12dp" />
-      <TextView android:id="@+id/device_stellar_status" style="@style/DeepSeekHarnessText.Label" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/gap_tight" android:layout_marginStart="0dp" android:padding="12dp" android:background="@drawable/bg_selection" android:text="@string/grants_checking" android:maxLines="2" android:ellipsize="end" android:minHeight="0dp" />
-      <Button android:id="@+id/device_stellar_auth" style="@style/Widget.DEEPSEEK_HARNESS_Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/gap_control" android:minHeight="@dimen/btn_height" android:text="@string/grants_authorize_stellar" android:textColor="@color/primary" />
-    </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:padding="16dp" android:layout_marginBottom="12dp">
       <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/config_adb_enable" style="@style/DeepSeekHarnessText.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:minHeight="48dp" android:paddingStart="0dp" android:text="@string/ui_m0090" android:textSize="13sp" android:paddingTop="6dp" android:paddingBottom="6dp" />
       <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui134_adb_hint" android:textSize="11sp" android:textColor="@color/text_secondary" android:includeFontPadding="false" android:layout_marginTop="8dp" />

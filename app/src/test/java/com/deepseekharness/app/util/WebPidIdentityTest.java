@@ -25,7 +25,7 @@ public class WebPidIdentityTest {
     @Test public void onlyDirectNodeWebMayReceiveSignal() {
         assertTrue(WebProcSel.maySignalWeb("node --expose-internals /usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js web"));
         for (String text : new String[]{"sh -c node /usr/local/bin/dsh web", "node -e 'dsh web'", "node server.js web",
-                "node /tmp/bin.js web", "libproot.so -r /root /usr/local/bin/dsh web", "com.deepseek.harness", "node /usr/local/bin/dsh plugin"})
+                "node /tmp/bin.js web", "libproot.so -r /root /usr/local/bin/dsh web", "com.dsh.client", "node /usr/local/bin/dsh plugin"})
             assertFalse(text, WebProcSel.maySignalWeb(text));
     }
 }

@@ -26,7 +26,7 @@ public class DeviceShellPolicyTest {
         for (String cmd : new String[]{"mkdir -p /sdcard/Download/project/sub", "touch /sdcard/Download/a",
                 "cp /sdcard/DCIM/photo.jpg /sdcard/Download/photo.jpg", "cp /system/build.prop /sdcard/Download/info.txt",
                 "mv /sdcard/Download/a /sdcard/Download/b", "rename /sdcard/Download/a /sdcard/Download/b",
-                "rm -rf /sdcard/Download/project", "mkdir /data/local/tmp/deepseekharness-test", "touch /storage/ABCD-0123/Documents/a"})
+                "rm -rf /sdcard/Download/project", "mkdir /data/local/tmp/dsha-test", "touch /storage/ABCD-0123/Documents/a"})
             assertEquals(cmd, DeviceShellPolicy.Kind.FILE, DeviceShellPolicy.inspect(cmd).kind);
     }
     @Test public void unsafePathsAndUnknownOptionsFailClosed() {
@@ -42,7 +42,7 @@ public class DeviceShellPolicyTest {
                 "restorecon -RF /data", "settings put global x 1", "settings delete secure x", "setprop persist.foo 1",
                 "setprop debug.foo 1", "mount -o remount,rw /system", "umount /sdcard", "fastboot devices",
                 "flash boot image", "format data", "erase userdata", "wipe data", "pm uninstall example.app", "pm clear example.app",
-                "pm grant com.deepseek.harness android.permission.WRITE_SECURE_SETTINGS", "cmd settings put global x 1", "service call power 1");
+                "pm grant com.dsh.client android.permission.WRITE_SECURE_SETTINGS", "cmd settings put global x 1", "service call power 1");
     }
     @Test public void shellLanguageAndAlternateExecutorsCannotBypass() {
         denied("sh -c 'rm -rf /sdcard/Pictures'", "python3 -c 'print(1)'", "node -e 'process.exit()'", "env ls /",
@@ -68,11 +68,72 @@ public class DeviceShellPolicyTest {
         assertEquals("/sdcard/Download/c d", plan.argv.get(2));
         try { plan.argv.set(0, "dd"); fail(); } catch (UnsupportedOperationException expected) { }
     }
-    @Test public void virtualScreenLauncherIsNarrowlyAllowlisted() {
-        String command="app_process -Djava.class.path=/data/app/com.deepseek.harness/base.apk /system/bin "
-                + "com.deepseekharness.app.vscreen.VirtualScreenCore --launch --port 8998 --token "
-                + "0123456789abcdef0123456789abcdef";
-        assertEquals(DeviceShellPolicy.Kind.VIRTUAL_SCREEN,DeviceShellPolicy.inspect(command).kind);
-        denied("app_process /system/bin com.example.Main", "app_process -Djava.class.path=/data/app/x.apk /system/bin com.example.Main --launch --port 8998 --token 0123456789abcdef0123456789abcdef");
+    @Test public void genericDeviceCommandCannotStartAppProcess() {
+        denied("app_process /system/bin com.example.Main",
+                "app_process -Djava.class.path=/data/app/com.dsh.client/base.apk /system/bin "
+                        + "com.deepseekharness.app.vscreen.VirtualScreenCore --launch --port 8801 --token "
+                        + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    }
+    @Test public void typedVirtualScreenLauncherRequiresExactCanonicalInstalledApk() {
+        String apk="/data/app/com.dsh.client/base.apk";
+        String prefix="app_process -Djava.class.path="+apk+" /system/bin "
+                + "com.deepseekharness.app.vscreen.VirtualScreenCore --launch --port 8998";
+        assertEquals(DeviceShellPolicy.Kind.VIRTUAL_SCREEN,
+                DeviceShellPolicy.inspectVirtualScreenLaunch(prefix,apk).kind);
+        for(String bad:new String[]{
+                "/data/app/../../data/local/tmp/probe.apk",
+                "/data/app/com.attacker.client/base.apk",
+                "/data/app/com.dsh.client/../other.apk",
+                "/data/app/com.dsh.client/base.apk/../base.apk"}) {
+            String command=prefix.replace(apk,bad);
+            assertEquals(command,DeviceShellPolicy.Kind.DENY,
+                    DeviceShellPolicy.inspectVirtualScreenLaunch(command,apk).kind);
+        }
+        assertEquals(DeviceShellPolicy.Kind.DENY,
+                DeviceShellPolicy.inspectVirtualScreenLaunch(prefix.replace("8998","89999"),apk).kind);
+        assertEquals(DeviceShellPolicy.Kind.DENY,
+                DeviceShellPolicy.inspectVirtualScreenLaunch(prefix+" --token 0123456789abcdef0123456789abcdef0123456789abcdef",apk).kind);
+    }
+    @Test public void recursiveRootReadsCannotDescendIntoSmsProviderParents() {
+        for(String command:new String[]{"find /", "du", "du data", "du /data", "grep -R message /data/data", "ls -R", "ls -R data", "ls -R /data/user",
+                "cp -R /data/data /sdcard/Download/apps"}) {
+            DeviceShellPolicy.Plan plan=DeviceShellPolicy.inspect(command);
+            assertNotEquals(command,DeviceShellPolicy.Kind.DENY,plan.kind);
+            assertTrue(command,DeviceShellPolicy.rootReadMayDescend(plan));
+            assertFalse(command,DeviceShellPolicy.rootReadPaths(plan).isEmpty());
+            boolean coversSmsTree=false;
+            for(String path:DeviceShellPolicy.rootReadPaths(plan))
+                coversSmsTree|=path.equals(".")||!path.startsWith("/")||DeviceShellPolicy.smsProviderDescendant(path);
+            assertTrue(command+" omitted recursive input path: "+DeviceShellPolicy.rootReadPaths(plan),coversSmsTree);
+        }
+        assertTrue(DeviceShellPolicy.smsProviderDescendant("/"));
+        assertTrue(DeviceShellPolicy.smsProviderDescendant("/data"));
+        assertTrue(DeviceShellPolicy.smsProviderDescendant("/data/user/0"));
+        assertFalse(DeviceShellPolicy.smsProviderDescendant("/data/user/0/com.example.app"));
+        assertFalse(DeviceShellPolicy.smsProviderDescendant("/data/data/com.example.app"));
+        assertFalse(DeviceShellPolicy.rootReadMayDescend(DeviceShellPolicy.inspect("ls /")));
+    }
+    @Test public void multiSourceRootCopyChecksEverySource() {
+        String allowed="/data/local/tmp/source.txt";
+        String protectedPath="/data/user/0/com.android.providers.telephony/databases/mmssms.db";
+        DeviceShellPolicy.Plan plan=DeviceShellPolicy.inspect("cp "+allowed+" "+protectedPath+" /sdcard/Download/copied.db");
+        assertEquals(DeviceShellPolicy.Kind.FILE,plan.kind);
+        assertEquals(java.util.Arrays.asList(allowed,protectedPath),DeviceShellPolicy.rootReadPaths(plan));
+    }
+    @Test public void rootReadAndCopySourcesCannotBypassSmsCapability() {
+        String[] protectedPaths={
+                "/data/user/0/com.android.providers.telephony/databases/mmssms.db",
+                "/data/user_de/10/com.android.providers.telephony/databases/mmssms.db-wal",
+                "/data/data/com.android.providers.telephony/databases/mmssms.db-shm"};
+        for(String path:protectedPaths) {
+            assertTrue(path,DeviceShellPolicy.smsProviderPath(path));
+            DeviceShellPolicy.Plan cat=DeviceShellPolicy.inspect("cat "+path);
+            assertEquals(path,DeviceShellPolicy.Kind.READ,cat.kind);
+            assertTrue(path,DeviceShellPolicy.rootReadPaths(cat).contains(path));
+            DeviceShellPolicy.Plan copy=DeviceShellPolicy.inspect("cp "+path+" /sdcard/Download/messages.db");
+            assertEquals(path,DeviceShellPolicy.Kind.FILE,copy.kind);
+            assertTrue(path,DeviceShellPolicy.rootReadPaths(copy).contains(path));
+        }
+        assertFalse(DeviceShellPolicy.smsProviderPath("/data/user/0/example.app/databases/data.db"));
     }
 }

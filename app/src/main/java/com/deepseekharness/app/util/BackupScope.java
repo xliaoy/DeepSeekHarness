@@ -7,8 +7,8 @@ package com.deepseekharness.app.util;
  * 全都从这里出。这三件事必须一致：备份打了 A 而恢复只合并 B，用户就会拿到一个
  * 「恢复成功但东西没回来」的包，而且看不出哪一步错了。
  *
- * <p><b>文件名前缀是向后兼容的关键</b>：扫描端按这些前缀辨认备份的来源与范围，
- * 并且恢复时会把整个 {@code .dsh} 挪走再替换。要是把部分备份也叫 {@code DeepSeekHarness-backup-}，
+ * <p><b>文件名前缀是向后兼容的关键</b>：老版本按 {@code deepseekharness-backup-} 前缀扫描备份，
+ * 并且恢复时会把整个 {@code .dsh} 挪走再替换。要是把部分备份也叫 {@code deepseekharness-backup-*}，
  * 老版本（以及自动恢复提示）会把「只含对话的包」当全量恢复 —— 配置与插件全部丢失。
  *
  * <p>这个类刻意不碰 Android API，纯字符串与数组处理，好让 JVM 单元测试直接下断言。
@@ -51,7 +51,7 @@ public final class BackupScope {
         throw new IllegalArgumentException("UNKNOWN_BACKUP_SCOPE");
     }
 
-    /** 文件名前缀。部分备份刻意不叫 DeepSeekHarness-backup-（见类注释）。 */
+    /** 文件名前缀。部分备份刻意不叫 deepseekharness-backup-（见类注释）。 */
     public static String fileNamePrefix(int scope) {
         switch (scope) {
             case SESSIONS: return "DeepSeekHarness-sessions-";
@@ -75,13 +75,13 @@ public final class BackupScope {
         String n = name.trim();
         int slash = Math.max(n.lastIndexOf('/'), n.lastIndexOf('\\'));
         if (slash >= 0 && slash + 1 < n.length()) n = n.substring(slash + 1);
-        if (n.startsWith("DeepSeekHarness-sessions-") || n.startsWith("DEEPSEEK_HARNESS-sessions-")) return SESSIONS;
-        if (n.startsWith("DeepSeekHarness-plugins-") || n.startsWith("DEEPSEEK_HARNESS-plugins-")) return PLUGINS;
-        if (n.startsWith("DeepSeekHarness-settings-") || n.startsWith("DEEPSEEK_HARNESS-settings-")) return SETTINGS;
+        if (n.startsWith("DeepSeekHarness-sessions-")) return SESSIONS;
+        if (n.startsWith("DeepSeekHarness-plugins-")) return PLUGINS;
+        if (n.startsWith("DeepSeekHarness-settings-")) return SETTINGS;
         return FULL;
     }
 
-    /** 这个范围的包会不会被老版本当成全量备份（= 文件名带 DeepSeekHarness-backup- 前缀）。 */
+    /** 这个范围的包会不会被老版本当成全量备份（= 文件名带 deepseekharness-backup- 前缀）。 */
     public static boolean visibleToLegacyScan(int scope) {
         return fileNamePrefix(scope).equals("DeepSeekHarness-backup-");
     }

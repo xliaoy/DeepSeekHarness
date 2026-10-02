@@ -28,7 +28,7 @@ public final class VerifiedBackupCopy {
     }
     public static VerifiedBackupCopy inspect(BackupFileSystem fs,File operations,String id)throws IOException{
         if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("VERIFIED_COPY_ID");
-        File directory=fs.child(operations,id),artifact=fs.child(directory,"portable.dshbak");
+        File directory=HostOperationArchive.locate(fs,operations,id),artifact=fs.child(directory,"portable.dshbak");
         var copy=new VerifiedBackupCopy(id,artifact,BackupJson.read(fs.small(fs.child(directory,"verified.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST));
         var file=fs.stat(artifact);if(!file.type.equals("FILE")||file.size!=copy.bytes)throw new IOException("VERIFIED_COPY_CHANGED");return copy;
     }

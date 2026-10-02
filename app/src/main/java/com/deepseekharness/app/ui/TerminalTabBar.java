@@ -9,7 +9,7 @@ import com.deepseekharness.app.util.TerminalTabs;
 /** PTY 和简易终端共用的标签行；新建和关闭始终是独立的 48dp 触摸目标。 */
 final class TerminalTabBar {
     interface Actions { void select(long id); void close(long id); }
-    static <T> void render(View root,TerminalTabs<T> tabs,Actions actions) {
+    static <T> void render(View root,TerminalTabs.ReadOnly<T> tabs,Actions actions) {
         LinearLayout row=root.findViewById(R.id.terminal_tabs);row.removeAllViews();
         var current=tabs.current();
         for(var tab:tabs.snapshot()) {

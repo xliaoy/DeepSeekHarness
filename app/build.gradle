@@ -15,8 +15,8 @@ android {
         applicationId "com.deepseek.harness"
         minSdk 30
         targetSdk 37
-        versionCode 145
-        versionName "20260925"
+        versionCode 163
+        versionName "20261002-rc2"
         testInstrumentationRunner project.findProperty('deepseekharness.testRunner') ?: "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters 'arm64-v8a'
@@ -132,7 +132,8 @@ android {
     }
 
     sourceSets {
-        main.assets.setSrcDirs([layout.buildDirectory.dir("generated/standardAssets")])
+        main.assets.setSrcDirs([layout.buildDirectory.dir("generated/standardAssets"),
+                                layout.buildDirectory.dir("generated/recoveryAssets")])
         main.java.srcDir(layout.buildDirectory.dir("generated/uiLanguage").get().asFile)
     }
 }
@@ -151,7 +152,7 @@ def prepareStandardAssets = tasks.register("prepareStandardAssets", Exec) {
             "--source", file("src/main/assets").absolutePath,
             "--output", layout.buildDirectory.dir("generated/standardAssets").get().asFile.absolutePath])
 }
-tasks.named("preBuild").configure { dependsOn(prepareStandardAssets) }
+tasks.named("preBuild").configure { dependsOn(prepareStandardAssets, prepareRecoveryAssets) }
 
 /** 由 tools/prepare-backup-assets.py 从 dsh-runtime.bin 生成包来源证明（CurrentManagedPackages/NativePluginGraph 读取）。 */
 def prepareBackupAssets = tasks.register("prepareBackupAssets", Exec) {
@@ -172,6 +173,32 @@ def prepareRuntimeDescriptor = tasks.register("prepareRuntimeDescriptor", Exec) 
     commandLine(pythonForAssets() + ["-B", rootProject.file("tools/prepare-runtime-descriptor.py").absolutePath])
 }
 prepareStandardAssets.configure { dependsOn(prepareRuntimeDescriptor) }
+
+/** 应急运行时拥有独立锁；正式 DSH 更新不会把它隐式替换。 */
+def prepareRecoveryAssets = tasks.register("prepareRecoveryAssets", Exec) {
+    dependsOn(prepareStandardAssets)
+    inputs.file(rootProject.file("tools/prepare-recovery-assets.py"))
+    inputs.file(rootProject.file("tools/recovery_runtime_overlay.py"))
+    inputs.file(rootProject.file("tools/generated_asset_directory.py"))
+    inputs.file(rootProject.file("tools/recovery-runtime/lock.json"))
+    inputs.files(layout.buildDirectory.file("generated/standardAssets/offline-rootfs.bin"),
+            layout.buildDirectory.file("generated/standardAssets/dsh-runtime.bin"))
+            .withPropertyName("recoverySharedArchives").optional()
+    inputs.files(fileTree(rootProject.file("tools/recovery-runtime/archives")))
+            .withPropertyName("recoveryPinnedArchives")
+    inputs.files(file("src/main/assets/recovery-agent.js"), file("src/main/assets/recovery-profile-package.json"), file("src/main/assets/recovery-profile.patch.yml"))
+    inputs.files(file("src/main/assets/web-integration/es-compat.js"), file("src/main/assets/web-integration/startup.js"), file("src/main/assets/pdf-compat-patch.json"),
+            file("src/main/assets/language-patch.json"), file("src/main/assets/web-integration/language.js"))
+    inputs.files(fileTree("src/main/jniLibs"), fileTree("src/low/jniLibs"))
+    outputs.dir(layout.buildDirectory.dir("generated/recoveryAssets"))
+    commandLine(pythonForAssets() + ["-B",
+            rootProject.file("tools/prepare-recovery-assets.py").absolutePath,
+            "--output", layout.buildDirectory.dir("generated/recoveryAssets").get().asFile.absolutePath,
+            "--shared-assets", layout.buildDirectory.dir("generated/standardAssets").get().asFile.absolutePath])
+}
+tasks.configureEach {
+    if (name.matches("merge(Standard|Low).*Assets")) dependsOn(prepareRecoveryAssets)
+}
 
 /** 校验备份依赖版本与摘要被锁文件钉死，且对应许可资产在位。 */
 def verifyBackupDependencies = tasks.register("verifyBackupDependencies") {

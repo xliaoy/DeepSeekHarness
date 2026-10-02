@@ -315,8 +315,8 @@ public final class MaintenanceFixtureInstrumentation extends Instrumentation {
         check(!linux.exists(), "stop fixture 初始不存在 linux");
         expectStop(failures, stop.stop().isEmpty() && !linux.exists(), "空目录 stop 不创建 linux/rootfs");
         if (!root.isDirectory() && !root.mkdirs()) throw new IOException("无法建立 stop fixture");
-        File pidFile = new File(root, ".deepseekharness-web.pid");
-        File sentinel = new File(root, ".deepseekharness-stopped");
+        File pidFile = new File(root, ".dsha-web.pid");
+        File sentinel = new File(root, ".dsha-stopped");
         File marker = new File(root, "stop-fixture-user-marker");
         Compat.write(marker, "fixture-original");
 
@@ -405,7 +405,7 @@ public final class MaintenanceFixtureInstrumentation extends Instrumentation {
         File expected = new File(fixture.getFilesDir(), "linux/ubuntu/root").getCanonicalFile();
         if (!expected.getPath().startsWith(fixture.getFilesDir().getCanonicalPath() + File.separator)
                 || !expected.equals(file.getParentFile().getCanonicalFile())
-                || !(file.getName().equals(".deepseekharness-web.pid") || file.getName().equals(".deepseekharness-stopped")))
+                || !(file.getName().equals(".dsha-web.pid") || file.getName().equals(".dsha-stopped")))
             throw new IOException("拒绝清理非 stop fixture 入口");
         if ((file.exists() || Compat.isSymbolicLink(file)) && !file.delete()) throw new IOException("无法清理本次 fixture 入口");
     }
@@ -519,7 +519,7 @@ public final class MaintenanceFixtureInstrumentation extends Instrumentation {
                 os.link(root/'expected.sha256',root/'hardlink.txt')
                 (root/'relative-link').symlink_to('part-12')
                 (root/'external-link').symlink_to('/sdcard')
-                work=Path('/var/deepseekharness-registered-project');work.mkdir();(work/'user.txt').write_text('登记工作区')
+                work=Path('/var/dsha-registered-project');work.mkdir();(work/'user.txt').write_text('登记工作区')
                 home=Path('/mnt/local-project');home.mkdir(parents=True);(home/'user.txt').write_text('rootfs 本地文件')
                 reg=Path('/root/.dsh/storages/workspace.json');reg.parent.mkdir(parents=True,exist_ok=True)
                 reg.write_text(json.dumps({'tables':{'workspaces':{'fixture':{'path':str(work)}}}}))
@@ -542,7 +542,7 @@ public final class MaintenanceFixtureInstrumentation extends Instrumentation {
                 assert (root/'hardlink.txt').read_text()==(root/'expected.sha256').read_text()
                 assert os.readlink(root/'relative-link')=='part-12'
                 assert os.readlink(root/'external-link')=='/sdcard'
-                assert Path('/var/deepseekharness-registered-project/user.txt').read_text()=='登记工作区'
+                assert Path('/var/dsha-registered-project/user.txt').read_text()=='登记工作区'
                 assert Path('/mnt/local-project/user.txt').read_text()=='rootfs 本地文件'
                 """);
         report("PERSONAL_REBUILD_VERIFIED ms=" + (android.os.SystemClock.elapsedRealtime() - started));
@@ -564,7 +564,7 @@ public final class MaintenanceFixtureInstrumentation extends Instrumentation {
         @Override public void stopWeb(Consumer<String> status) {
             stops++;
             // 不经 Controller 的全局停止队列；真实停止协作者只看到独立 fixture 且绝不允许带入真实 PID。
-            File pid = new File(proot().getRootfsDir(), "root/.deepseekharness-web.pid");
+            File pid = new File(proot().getRootfsDir(), "root/.dsha-web.pid");
             if (pid.exists() || Compat.isSymbolicLink(pid)) throw new IllegalStateException("fixture 不允许对任何真实 PID 发停止信号");
             try {
                 String result = new com.deepseekharness.app.runtime.WebProcessManager(proot()).stop();
@@ -613,7 +613,7 @@ public final class MaintenanceFixtureInstrumentation extends Instrumentation {
         @Override public File getFilesDir() { return files; }
         @Override public File getCacheDir() { return cache; }
         @Override public SharedPreferences getSharedPreferences(String name, int mode) {
-            // 独立名字空间，只写新建 fixture 偏好，绝不读取或清除 DeepSeekHarness 的真实偏好。
+            // 独立名字空间，只写新建 fixture 偏好，绝不读取或清除 dsha 的真实偏好。
             return super.getSharedPreferences(prefix + name, mode);
         }
     }

@@ -69,7 +69,7 @@ public class SettingsFragment extends Fragment {
         TextView ver = v.findViewById(R.id.settings_ver);
         ver.setText(com.deepseekharness.app.util.UiText.text("DeepSeekHarness v" + version + com.deepseekharness.app.util.UiText.choose(" · MIT 许可", " · MIT License")));
         TextView updateSub = v.findViewById(R.id.settings_update_sub);
-        updateSub.setText(com.deepseekharness.app.util.UiText.text("软件更新与运行时更新，可自选版本"));
+        updateSub.setText(com.deepseekharness.app.util.UiText.text("稳定版与预览版更新"));
 
         v.findViewById(R.id.settings_about).setOnClickListener(x -> UiMotion.page(requireContext(),getParentFragmentManager().beginTransaction()).replace(R.id.fragment_container,new AboutFragment()).addToBackStack("settings").commit());
         v.findViewById(R.id.settings_update).setOnClickListener(x -> checkUpdate());
@@ -98,8 +98,8 @@ public class SettingsFragment extends Fragment {
                 ? com.deepseekharness.app.util.UiText.choose("跟随系统 · ", "Follow system · ") + currentLabel
                 : currentLabel;
         LinearLayout appearance=v.findViewById(R.id.settings_appearance);
-        TextView languageSummary=(TextView)((LinearLayout)appearance.getChildAt(1)).getChildAt(1);
-        languageSummary.setId(R.id.settings_language);languageSummary.setText(summary);
+        TextView languageSummary=v.findViewById(R.id.settings_language);
+        languageSummary.setText(summary);
         View.OnClickListener openLanguageDialog = x -> new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(requireContext())
                 .setTitle(com.deepseekharness.app.util.UiText.choose("界面语言 / Interface language", "Interface language"))
                 .setSingleChoiceItems(optionLabels, checked,

@@ -12,7 +12,7 @@ public class NativeSafeProfileTest {
     @Test public void createsBasicProfileWithoutAnyRuntimeAndPreservesWeb()throws Exception{
         File dsh=temp.newFolder(),web=new File(dsh,"profiles/web");Files.createDirectories(web.toPath());Files.writeString(new File(web,"package.json").toPath(),"broken user configuration");
         var fs=new JvmBackupFileSystem();String before=BackupTree.digest(fs,web,new BackupControl(null));String profile=NativeSafeProfile.create(fs,dsh,"0123456789abcdef");
-        assertEquals("deepseekharness-recovery-0123456789abcdef",profile);assertEquals(before,BackupTree.digest(fs,web,new BackupControl(null)));
+        assertEquals("dsha-recovery-0123456789abcdef",profile);assertEquals(before,BackupTree.digest(fs,web,new BackupControl(null)));
         Map<String,Object> pkg=BackupJson.read(fs.small(new File(dsh,"profiles/"+profile+"/package.json"),16384),16384);
         assertEquals(Collections.emptyMap(),pkg.get("dependencies"));var settings=(Map<?,?>)((Map<?,?>)pkg.get("dsh")).get("profile");
         assertEquals(List.of("@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"),settings.get("bundles"));assertEquals("startup",settings.get("patchReload"));

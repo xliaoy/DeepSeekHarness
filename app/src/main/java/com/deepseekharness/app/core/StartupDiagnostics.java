@@ -10,8 +10,6 @@ import org.json.JSONObject;
 
 /** 将实际运行输出和网页错误合并为有界时间线；不根据日志自动修改插件。 */
 public final class StartupDiagnostics {
-    /** 与 app/src/main/assets/startup-observer.cjs 的 prefix 必须逐字一致。 */
-    private static final String STARTUP_MARKER = "[DeepSeekHarness_STARTUP] ";
     private final StartupTrace trace = new StartupTrace();
     private final Map<String, String> owners = new LinkedHashMap<>();
     private final Context context;
@@ -45,9 +43,9 @@ public final class StartupDiagnostics {
     public synchronized void output(long generation, String chunk) {
         if (!trace.isCurrent(generation) || chunk == null) return;
         for (String line : chunk.split("\n")) {
-            if (line.startsWith(STARTUP_MARKER)) {
+            if (line.startsWith("[DeepSeekHarness_STARTUP] ")) {
                 try {
-                    JSONObject event = new JSONObject(line.substring(STARTUP_MARKER.length()));
+                    JSONObject event = new JSONObject(line.substring(15));
                     String type = event.optString("type"), name = event.optString("plugin"), message = event.optString("message");
                     if (name.length() > 214) name = "";
                     String path = event.optString("path");
@@ -85,7 +83,11 @@ public final class StartupDiagnostics {
     }
     public synchronized void browser(long generation, String detail) {
         if (!trace.isCurrent(generation)) return;
-        issue(generation, owner(detail), detail);
+        // 控制台 ERROR 不是启动故障证据；浏览器干预和运行错误仍完整保留在时间线。
+        String category = com.deepseekharness.app.util.BrowserDiagnostic.category(detail, snapshot().browserReady, false);
+        trace.add(generation, SystemClock.elapsedRealtime(), category + ": " + detail);
+        DiagnosticLog.record(context, category, SensitiveData.redact(detail));
+        persistHistory(false);
     }
     public synchronized boolean pageEvent(long generation, JSONObject event) {
         if (!trace.isCurrent(generation)) return false;
@@ -97,7 +99,9 @@ public final class StartupDiagnostics {
         if ("ready".equals(type)) { if (!alreadyReady) browserReady(generation); return false; }
         if ("issue".equals(type)) {
             String name = owner("\"" + id + "\" " + detail);
-            issue(generation, name, (id.isEmpty() ? "" : id + com.deepseekharness.app.util.UiText.text("：")) + detail);
+            String message = (id.isEmpty() ? "" : id + com.deepseekharness.app.util.UiText.text("：")) + detail;
+            if (alreadyReady || !event.optBoolean("fatal")) { browser(generation, message); return false; }
+            issue(generation, name, message);
             if (name.isEmpty()) for (String line : detail.split("\n")) {
                 String candidate = owner(line);
                 if (!candidate.isEmpty()) issue(generation, candidate, line);
@@ -109,7 +113,7 @@ public final class StartupDiagnostics {
     }
     public void issue(long generation, String name, String detail) {
         trace.issue(generation, SystemClock.elapsedRealtime(), name, detail);
-        DiagnosticLog.record(context, "STARTUP_ERROR", name + ": " + SensitiveData.redact(detail));
+        DiagnosticLog.record(context, snapshot().browserReady ? "RUNTIME_ERROR" : "STARTUP_ERROR", name + ": " + SensitiveData.redact(detail));
     }
     public synchronized void browserReady(long generation) {
         if(!trace.isCurrent(generation))return;

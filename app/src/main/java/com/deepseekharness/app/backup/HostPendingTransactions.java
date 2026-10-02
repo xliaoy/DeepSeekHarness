@@ -8,9 +8,14 @@ import java.util.*;
 public final class HostPendingTransactions {
     private HostPendingTransactions() { }
     public static List<File> pending(BackupFileSystem fs,File files)throws IOException{
-        File root=new File(files,"host-backup-operations");if(fs.stat(root).type.equals("MISSING"))return Collections.emptyList();
-        List<String> names=fs.list(root);if(names.size()>64)throw new IOException("TRANSACTION_LIMIT");List<File> result=new ArrayList<>();
-        for(String name:names){if(!name.matches("[a-f0-9-]{36}"))continue;File directory=fs.child(root,name);
+        HostOperationArchive.verifyCompleted(fs,files);
+        File root=HostOperationArchive.root(files);if(fs.stat(root).type.equals("MISSING"))return Collections.emptyList();
+        List<File> result=new ArrayList<>();File completed=HostOperationArchive.completedRoot(files);
+        for(String name:HostOperationArchive.activeEntries(fs,root)){
+            if(!name.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("OPERATION_ID");
+            if(!fs.stat(new File(completed,name)).type.equals("MISSING"))throw new IOException("OPERATION_DUPLICATE");
+            File directory=fs.child(root,name);
+            if(!fs.stat(directory).type.equals("DIRECTORY"))throw new IOException("OPERATION_DIRECTORY");
             boolean switching=marker(fs,directory,"switching"),finalized=marker(fs,directory,"finalized"),rolledBack=marker(fs,directory,"rolled-back");
             if(switching&&!finalized&&!rolledBack){if(!fs.stat(new File(directory,"plan.json")).type.equals("FILE"))throw new IOException("TRANSACTION_PLAN_MISSING");result.add(directory);}
         }return result;

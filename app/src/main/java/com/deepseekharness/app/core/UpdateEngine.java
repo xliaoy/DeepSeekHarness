@@ -35,10 +35,6 @@ public final class UpdateEngine {
         if (instance == null) instance = new UpdateEngine(context.getApplicationContext());
         return instance;
     }
-    // ⚠️ 本类涉及【两个不同的仓库】，不要混淆：
-    //   · APK 自更新       → 本应用自己的发行版仓库（下面 FEED）
-    //   · dsh runtime 更新 → 上游 npm 包（见 DshUpdater 的 npm registry）
-    // 两者协议、资产命名、版本号体系都不同，不能互相替换。
     public static final String FEED = "https://api.github.com/repos/xliaoy/DeepSeekHarness/releases";
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private final AtomicBoolean busy = new AtomicBoolean();
@@ -47,23 +43,14 @@ public final class UpdateEngine {
     private volatile String channel;
     // 预览通道也可选中稳定版，来源必须记录所选通道，不能从 release.channel 推断。
     private volatile String candidateChannel;
+    /** 用户自选的 APK 版本；null 表示自动选择最新（只允许升级，不允许降级）。 */
+    private volatile String requestedVersion;
+    /** 最近一次检查得到的全部可用版本（从新到旧，仅当前设备可升级的）。 */
+    private volatile ArrayList<UpdatePolicy.Release> available = new ArrayList<>();
     private boolean startupChecked;
     private volatile boolean startupNotice;
     private volatile UpdatePolicy.Release candidate;
     private volatile File verifiedApk;
-    /**
-     * 用户在「软件更新」页自选的版本号；null 表示跟随通道自动挑最新。
-     *
-     * <p>选中旧版本时本字段仍然生效：Android 不允许静默降级安装，但用户有权
-     * 【明确选择】并下载旧版本（例如回退到上一个可用版本）。此时我们把候选保留下来，
-     * 由界面明确提示「不可降级安装、仅可下载」，而不是默默失败或静默忽略。
-     */
-    private volatile String requestedVersion;
-    /** 自选版本对应的通道；与 candidateChannel 分开，避免自选把通道状态改脏。 */
-    private volatile String pickChannel;
-    /** 最近一次检查得到的全部候选（按版本从新到旧），供「自选版本」列表展示。 */
-    private volatile ArrayList<UpdatePolicy.Release> available =
-            new ArrayList<UpdatePolicy.Release>();
     private final MutableLiveData<State> state = new MutableLiveData<>(new State(com.deepseekharness.app.util.UiText.text("尚未检查更新"), false, 0, 0, null, null));
     private volatile String phase = "";
     private volatile String stopReason = "";
@@ -110,8 +97,7 @@ public final class UpdateEngine {
         }
         if(busy.get()||checking||runningDownload)throw new IOException("FORMAT_UPDATE_STILL_RUNNING");
         candidate=null;candidateChannel=null;verifiedApk=null;phase="";stopReason="";startupChecked=false;startupNotice=false;
-        // 自选也要清掉，否则格式化后仍按旧的自选版本重新挑候选。
-        requestedVersion=null;pickChannel=null;available=new ArrayList<UpdatePolicy.Release>();
+        requestedVersion=null;available=new ArrayList<>();
         state.postValue(new State(com.deepseekharness.app.util.UiText.choose("等待重新检查更新","Waiting for a fresh update check"),false,0,0,null,null));
     }
     private interface Task { String run() throws Exception; }
@@ -145,13 +131,68 @@ public final class UpdateEngine {
         if (busy.get() || shouldResume()) return;
         check(true);
     }
+    /** 未真正显示的提示继续保留，打开 Web 或旋转打断 Snackbar 动画也不会吞掉提示。 */
+    public UpdatePolicy.Release startupNotice() {
+        if (!startupNotice || busy.get() || !currentCandidate()) return null;
+        return candidate;
+    }
+    public void markStartupNoticeShown(UpdatePolicy.Release shown) {
+        if (shown != null && candidate == shown) startupNotice = false;
+    }
+    public void check() {
+        check(false);
+    }
+    private void check(boolean startup) {
+        final String requestedChannel = channel;
+        submit(com.deepseekharness.app.util.UiText.text("正在检查") + (UpdatePolicy.PREVIEW.equals(channel) ? com.deepseekharness.app.util.UiText.text("预览版") : com.deepseekharness.app.util.UiText.text("稳定版")) + com.deepseekharness.app.util.UiText.text("更新…"), () -> {
+            HttpURLConnection conn = transport.open(FEED, 0); connection = conn;
+            byte[] raw;
+            try (InputStream input = conn.getInputStream(); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192]; int n;
+                while ((n = input.read(buffer)) != -1) {
+                    ensureActive();
+                    if (bytes.size() + n > 1024 * 1024) throw new IOException(com.deepseekharness.app.util.UiText.text("更新清单过大"));
+                    bytes.write(buffer, 0, n);
+                }
+                raw = bytes.toByteArray();
+            } finally { conn.disconnect(); }
+            ArrayList<UpdatePolicy.Release> options = parseGitHubReleases(raw);
+            ensureActive();
+            available = options;
+            UpdatePolicy.Release selected = null;
+            if (requestedVersion != null) {
+                // 自选版本：只允许升级（versionCode 必须高于当前）；所选版本下架/不可用时回到自动选择并明确告知。
+                for (UpdatePolicy.Release r : options) {
+                    if (requestedVersion.equals(r.version) && r.valid()
+                            && (BuildConfig.LOW_ANDROID ? "low" : "standard").equals(r.flavor)
+                            && r.minSdk <= Build.VERSION.SDK_INT && r.versionCode > BuildConfig.VERSION_CODE
+                            && !(UpdatePolicy.STABLE.equals(requestedChannel) && !UpdatePolicy.STABLE.equals(r.channel))) { selected = r; break; }
+                }
+                if (selected == null) requestedVersion = null;
+            }
+            if (selected == null) {
+                selected = UpdatePolicy.select(options, BuildConfig.VERSION_CODE, BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT, requestedChannel);
+            }
+            if (!requestedChannel.equals(candidateChannel) || candidate == null || selected == null
+                    || candidate.versionCode != selected.versionCode || !candidate.version.equals(selected.version)
+                    || candidate.bytes != selected.bytes || !candidate.sha256.equalsIgnoreCase(selected.sha256)) verifiedApk = null;
+            candidate = selected;
+            candidateChannel = selected == null ? null : requestedChannel;
+            startupNotice = startup && selected != null;
+            return candidate != null
+                    ? (requestedVersion != null && requestedVersion.equals(candidate.version)
+                        ? com.deepseekharness.app.util.UiText.text("已选择版本 ") + candidate.version
+                        : com.deepseekharness.app.util.UiText.text("发现新版本 ") + candidate.version)
+                    : com.deepseekharness.app.util.UiText.text("此通道暂无适合当前设备的更新；当前版本码 ") + BuildConfig.VERSION_CODE;
+        });
+    }
+
     /**
      * 解析 GitHub Releases API 的顶层数组，映射为本模块统一的 {@link UpdatePolicy.Release}。
      *
-     * <p>与旧自建清单（{@code {"schemaVersion":1,"releases":[…]}}）的差异：
-     * 顶层是【数组】、没有 schemaVersion；没有 versionCode/minSdk/abi 字段，
-     * 只能从 tag 推断版本号与通道；校验和优先取 {@code asset.digest}，
-     * 缺失时回退同名 {@code .sha256} 资产，两者都没有则作废该资产——绝不静默跳过校验。
+     * <p>顶层是【数组】；没有 versionCode/minSdk/abi 字段，只能从 tag 推断版本号与通道；
+     * 校验和优先取 {@code asset.digest}，缺失时回退同名 {@code .sha256} 资产，
+     * 两者都没有则作废该资产——绝不静默跳过校验。
      */
     static ArrayList<UpdatePolicy.Release> parseGitHubReleases(byte[] raw) throws Exception {
         JSONArray releases = new JSONArray(new String(raw, java.nio.charset.StandardCharsets.UTF_8));
@@ -195,6 +236,7 @@ public final class UpdateEngine {
         }
         return options;
     }
+
     /** 取 {@code asset.digest} 的 sha256 部分；null 表示缺失或格式不符。 */
     private static String digestOf(JSONObject asset) {
         String digest = asset.optString("digest", "");
@@ -203,131 +245,47 @@ public final class UpdateEngine {
         String value = colon >= 0 ? digest.substring(colon + 1) : digest;
         return value.matches("[a-fA-F0-9]{64}") ? value : null;
     }
-    /** 未真正显示的提示继续保留，打开 Web 或旋转打断 Snackbar 动画也不会吞掉提示。 */
-    public UpdatePolicy.Release startupNotice() {
-        if (!startupNotice || busy.get() || !currentCandidate()) return null;
-        return candidate;
-    }
-    public void markStartupNoticeShown(UpdatePolicy.Release shown) {
-        if (shown != null && candidate == shown) startupNotice = false;
-    }
-    public void check() {
-        check(false);
-    }
-    private void check(boolean startup) {
-        final String requestedChannel = channel;
-        submit(com.deepseekharness.app.util.UiText.text("正在检查") + (UpdatePolicy.PREVIEW.equals(channel) ? com.deepseekharness.app.util.UiText.text("预览版") : com.deepseekharness.app.util.UiText.text("稳定版")) + com.deepseekharness.app.util.UiText.text("更新…"), () -> {
-            HttpURLConnection conn = transport.open(FEED, 0); connection = conn;
-            byte[] raw;
-            try (InputStream input = conn.getInputStream(); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
-                byte[] buffer = new byte[8192]; int n;
-                while ((n = input.read(buffer)) != -1) {
-                    ensureActive();
-                    if (bytes.size() + n > 1024 * 1024) throw new IOException(com.deepseekharness.app.util.UiText.text("更新清单过大"));
-                    bytes.write(buffer, 0, n);
-                }
-                raw = bytes.toByteArray();
-            } finally { conn.disconnect(); }
-            ArrayList<UpdatePolicy.Release> options = parseGitHubReleases(raw);
-            ensureActive();
-            // 全部候选按版本从新到旧保留，供「自选版本」入口展示；下载仍受校验约束。
-            ArrayList<UpdatePolicy.Release> listed = new ArrayList<>();
-            for (UpdatePolicy.Release r : options) {
-                if (r.valid() && r.versionCode != 0) listed.add(r);
-            }
-            listed.sort((a, b) -> Integer.compare(b.versionCode, a.versionCode));
-            available = listed;
-            // 自动选择：沿用所选通道，挑出比本机新且设备兼容的最新版本。
-            UpdatePolicy.Release selected = UpdatePolicy.selectFromReleases(options,
-                    UpdatePolicy.comparableCode(BuildConfig.VERSION_NAME),
-                    BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT, requestedChannel);
-            // 通道记录必须用【本次请求的通道】，不能等被自选改写后再读。
-            String resolvedChannel = requestedChannel;
-            pickChannel = null;
-            if (requestedVersion != null) {
-                // 自选优先：允许选中旧版本（降级），由界面明确标注「不可降级安装，仅下载」。
-                UpdatePolicy.Release picked = findRequested(listed);
-                if (picked != null) {
-                    selected = picked;
-                    resolvedChannel = picked.channel;
-                } else {
-                    requestedVersion = null;
-                    selected = null;
-                }
-            }
-            if (!channelMatches(resolvedChannel, candidateChannel) || candidate == null || selected == null
-                    || candidate.versionCode != selected.versionCode || !candidate.version.equals(selected.version)
-                    || candidate.bytes != selected.bytes || !candidate.sha256.equalsIgnoreCase(selected.sha256)) verifiedApk = null;
-            candidate = selected;
-            candidateChannel = selected == null ? null : resolvedChannel;
-            // 降级候选不算「发现新版本」，不应弹升级提示。
-            startupNotice = startup && selected != null && !isDowngrade(selected);
-            return describeSelection(selected, listed);
-        });
-    }
 
-    /** 通道比较：自选版本可能跨通道，此时不能用原通道判定候选是否变化。 */
-    private static boolean channelMatches(String left, String right) {
-        return left == null ? right == null : left.equals(right);
-    }
-
-    /** 自选版本是否低于本机（Android 不允许静默降级，界面必须据此给出明确文案）。 */
-    public boolean isDowngrade(UpdatePolicy.Release release) {
-        return release != null && release.versionCode < UpdatePolicy.comparableCode(BuildConfig.VERSION_NAME);
-    }
-
-    /** 当前候选是否为用户自选（而非通道自动挑选）。 */
-    public boolean isManualPick() {
-        return requestedVersion != null && candidate != null && requestedVersion.equals(candidate.version);
-    }
-
-    /** 已发布且与本机 flavor/系统兼容的候选，从新到旧；供「自选版本」列表使用。 */
+    /** 最近一次检查得到的可升级版本（从新到旧）；供「软件更新」的自选版本列表使用。
+     *  只保留当前设备可安装且比已装版本新的候选，并遵循当前通道策略（稳定通道不含预览包）。 */
     public ArrayList<UpdatePolicy.Release> availableReleases() {
-        ArrayList<UpdatePolicy.Release> result = new ArrayList<>();
+        ArrayList<UpdatePolicy.Release> upgrades = new ArrayList<>();
         String flavor = BuildConfig.LOW_ANDROID ? "low" : "standard";
         for (UpdatePolicy.Release r : available) {
-            if (r.valid() && flavor.equals(r.flavor) && r.minSdk <= Build.VERSION.SDK_INT) result.add(r);
+            if (r.valid() && flavor.equals(r.flavor) && r.minSdk <= Build.VERSION.SDK_INT
+                    && r.versionCode > BuildConfig.VERSION_CODE
+                    && !(UpdatePolicy.STABLE.equals(channel) && !UpdatePolicy.STABLE.equals(r.channel))) upgrades.add(r);
         }
-        return result;
+        upgrades.sort((a, b) -> Integer.compare(b.versionCode, a.versionCode));
+        return upgrades;
     }
 
-    /** 当前选中的自选版本号；null 表示自动跟随通道。 */
+    /** 用户自选的 APK 版本；null 表示自动选择最新。 */
     public String requestedVersion() { return requestedVersion; }
 
-    /** 用户自选版本后重新检查；{@code version} 为 null 表示清除自选、回到通道自动选择。 */
+    /** 自选 APK 版本。只允许升级：低于/等于当前版本码的候选不会进入列表，也不会被选中。 */
     public void selectVersion(String version) {
         if (busy.get()) return;
-        requestedVersion = version == null || version.isEmpty() ? null : version;
-        pickChannel = channel;
+        String wanted = version == null || version.isEmpty() ? null : version;
+        if (wanted != null && !isUpgradeCandidate(wanted)) {
+            state.setValue(snapshot(com.deepseekharness.app.util.UiText.text("所选版本 ") + wanted
+                    + com.deepseekharness.app.util.UiText.text(" 不是可升级版本（只允许升级，不能降级）"), false));
+            return;
+        }
+        requestedVersion = wanted;
         check();
     }
 
-    private UpdatePolicy.Release findRequested(ArrayList<UpdatePolicy.Release> listed) {
-        String wanted = requestedVersion;
-        if (wanted == null) return null;
-        String flavor = BuildConfig.LOW_ANDROID ? "low" : "standard";
-        for (UpdatePolicy.Release r : listed) {
-            if (wanted.equals(r.version) && flavor.equals(r.flavor) && r.minSdk <= Build.VERSION.SDK_INT) return r;
+    private boolean isUpgradeCandidate(String version) {
+        for (UpdatePolicy.Release r : availableReleases()) {
+            if (version.equals(r.version)) return true;
         }
-        return null;
+        return false;
     }
 
-    /** 让状态区同时说清「选中了谁」和「能不能装」，避免降级时看起来像正常更新。 */
-    private String describeSelection(UpdatePolicy.Release selected, ArrayList<UpdatePolicy.Release> listed) {
-        if (selected == null) {
-            if (requestedVersion == null && !listed.isEmpty()) {
-                return com.deepseekharness.app.util.UiText.text("此通道暂无适合当前设备的更新；可在「自选版本」中选择其它版本（旧版本不可安装，仅可下载）");
-            }
-            if (listed.isEmpty()) return com.deepseekharness.app.util.UiText.text("发布列表中没有适合当前设备的安装包");
-            return com.deepseekharness.app.util.UiText.text("所选版本不可用或不适配当前设备，请重新选择");
-        }
-        if (isDowngrade(selected)) {
-            return com.deepseekharness.app.util.UiText.text("已选择旧版本 ") + selected.version
-                    + com.deepseekharness.app.util.UiText.text("（当前 " + BuildConfig.VERSION_NAME
-                    + "）：Android 不允许降级安装，只能下载留存，安装会被系统拒绝");
-        }
-        if (isManualPick()) return com.deepseekharness.app.util.UiText.text("已选择版本 ") + selected.version;
-        return com.deepseekharness.app.util.UiText.text("发现新版本 ") + selected.version;
+    /** 候选版本码是否低于当前已安装版本（回退，界面须明确提示；自选列表已过滤，正常情况下不会出现）。 */
+    public boolean isDowngrade(UpdatePolicy.Release release) {
+        return release != null && release.versionCode < BuildConfig.VERSION_CODE;
     }
     public void download() {
         if (!currentCandidate() || !candidate.valid() || !busy.compareAndSet(false, true)) return;
@@ -412,18 +370,7 @@ public final class UpdateEngine {
     private File partial() { return new File(context.getFilesDir(), "updates/" + candidate.sha256.toLowerCase(java.util.Locale.ROOT) + ".part"); }
     private File apk() { return new File(context.getFilesDir(), "updates/" + candidate.sha256.toLowerCase(java.util.Locale.ROOT) + ".apk"); }
 
-    /**
-     * 候选是否仍可用。
-     *
-     * <p>常规情况要求来源通道 == 当前通道；但用户【自选版本】时可以跨通道
-     * （例如在稳定通道里选预览版），此时以「自选版本号仍匹配候选」作为凭据，
-     * 否则自选功能会被通道校验静默挡掉，表现为「选了没反应」。
-     */
-    private boolean currentCandidate() {
-        if (candidate == null) return false;
-        if (channel.equals(candidateChannel)) return true;
-        return isManualPick();
-    }
+    private boolean currentCandidate() { return candidate != null && channel.equals(candidateChannel); }
     public static String channelName(String value) { return UpdatePolicy.PREVIEW.equals(value) ? com.deepseekharness.app.util.UiText.text("预览通道") : com.deepseekharness.app.util.UiText.text("稳定通道"); }
     private State snapshot(String message, boolean working) {
         boolean matches = currentCandidate();
@@ -457,8 +404,6 @@ public final class UpdateEngine {
                     // 空字符串明确表示未知；后续恢复不能把它再次当成可推断的旧字段缺失。
                     .put("checkedChannel", candidateChannel == null ? "" : candidateChannel);
         }
-        // 自选版本一并持久化，否则重启后筛「比本机新」会把降级候选丢掉。
-        doc.put("picked", requestedVersion == null ? "" : requestedVersion);
         if (!prefs().edit().putString("task", doc.toString()).putString("phase", nextPhase).putString("message", message).commit())
             throw new IOException(com.deepseekharness.app.util.UiText.text("任务状态无法写入存储"));
         phase = nextPhase;
@@ -473,22 +418,10 @@ public final class UpdateEngine {
                     doc.getLong("bytes"), doc.optString("notes"), doc.getString("pageUrl"));
             candidateChannel = UpdatePolicy.restoreCheckedChannel(doc.has("checkedChannel"),
                     doc.optString("checkedChannel", ""), r.channel);
-            requestedVersion = doc.optString("picked", "");
-            if (requestedVersion.isEmpty()) requestedVersion = null;
             // 未知来源仅保留设备兼容的候选和文件，currentCandidate 会阻止使用。
-            // 该候选来自 GitHub 链路 ⇒ 基准必须用 versionName 换算，与 check() 保持一致。
-            boolean compatible = r.valid() && r.versionCode != 0
-                    && (BuildConfig.LOW_ANDROID ? "low" : "standard").equals(r.flavor)
-                    && r.minSdk <= Build.VERSION.SDK_INT;
-            if (compatible && requestedVersion != null && requestedVersion.equals(r.version)) {
-                // 自选候选（可能是降级版本）：不再过「必须比本机新」的筛选。
-                candidate = r;
-            } else {
-                candidate = UpdatePolicy.selectFromReleases(java.util.Collections.singletonList(r),
-                        UpdatePolicy.comparableCode(BuildConfig.VERSION_NAME),
-                        BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT,
-                        candidateChannel == null ? UpdatePolicy.PREVIEW : candidateChannel);
-            }
+            candidate = UpdatePolicy.select(java.util.Collections.singletonList(r), BuildConfig.VERSION_CODE,
+                    BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT,
+                    candidateChannel == null ? UpdatePolicy.PREVIEW : candidateChannel);
             if (candidate == null) return;
             phase = prefs().getString("phase", "paused");
             verifiedApk = "ready".equals(phase) && apk().isFile() ? apk() : null;
@@ -521,11 +454,8 @@ public final class UpdateEngine {
     }
     /** 领取安装结果时再次核对身份，阻止校验期间发生的检查/切通道竞态。 */
     boolean isCurrentInstall(File file, UpdatePolicy.Release release, String sourceChannel) {
-        // 自选版本允许跨通道，此时来源通道就是候选自身的通道，不能再拿当前通道比。
-        boolean sourceOk = channel.equals(sourceChannel)
-                || (isManualPick() && candidateChannel != null && candidateChannel.equals(sourceChannel));
         return !busy.get() && currentCandidate() && release != null && candidate == release
-                && file != null && file.equals(verifiedApk) && sourceOk;
+                && file != null && file.equals(verifiedApk) && channel.equals(sourceChannel);
     }
     void validatePackage(File apk, UpdatePolicy.Release release) throws Exception {
         PackageManager pm = context.getPackageManager();
@@ -534,12 +464,12 @@ public final class UpdateEngine {
         PackageInfo installed = pm.getPackageInfo(context.getPackageName(), flags);
         if (next == null || !installed.packageName.equals(next.packageName)) throw new IOException(com.deepseekharness.app.util.UiText.text("安装包不是 DeepSeekHarness"));
         long code = Build.VERSION.SDK_INT >= 28 ? next.getLongVersionCode() : next.versionCode;
-        // ⚠️ 只拿 APK 自带的真 versionCode 与本机比较：release.versionCode 在 GitHub 链路
-        // 承载的是 tag 推出的【日期数值】(20260922)，与 APK 真 versionCode(小整数) 不同体系，
-        // 直接做相等比较会【永远失败】。本处是下载后复核，属本链路唯一的权威判据（步骤 (a)）。
+        // GitHub 链路的 release.versionCode 承载的是 tag 推出的【日期数值】（如 20260925），
+        // 与 APK 真 versionCode（小整数）不同体系，不能做相等比较。只拿 APK 自带的真
+        // versionCode 与本机比较，确认它是更新版本即可（日期数值只用于排序/选版）。
         if (code <= BuildConfig.VERSION_CODE) throw new IOException(com.deepseekharness.app.util.UiText.text("安装包版本不匹配或不是更新版本"));
         if (Build.VERSION.SDK_INT >= 24 && next.applicationInfo.minSdkVersion > Build.VERSION.SDK_INT) throw new IOException(com.deepseekharness.app.util.UiText.text("安装包不支持当前 Android 版本"));
-        // 版本名校验放宽：发布日期 tag(2026.09.22) 与本机 versionName(20260925) 形态不同，
+        // 版本名校验放宽：发布日期 tag（2026.09.22）与本机 versionName（20261002-rc2）形态不同，
         // 去掉分隔点后再比，避免把合法同版本判成不匹配。
         String expectedVersion = (release.version + (BuildConfig.LOW_ANDROID ? "low" : "")).replace(".", "");
         if (!expectedVersion.equals(next.versionName == null ? "" : next.versionName.replace(".", "")))
@@ -564,7 +494,7 @@ public final class UpdateEngine {
             HttpURLConnection conn = (HttpURLConnection) new URL(target).openConnection(); connection = conn;
             ((javax.net.ssl.HttpsURLConnection) conn).setSSLSocketFactory(TrustedNetwork.sockets(context));
             conn.setConnectTimeout(15000); conn.setReadTimeout(30000); conn.setInstanceFollowRedirects(false);
-            conn.setRequestProperty("User-Agent", "DEEPSEEK_HARNESS/" + BuildConfig.VERSION_NAME);
+            conn.setRequestProperty("User-Agent", "DeepSeekHarness/" + BuildConfig.VERSION_NAME);
             conn.setRequestProperty("Accept-Encoding", "identity");
             if (offset > 0) conn.setRequestProperty("Range", "bytes=" + offset + "-");
             int code = conn.getResponseCode();

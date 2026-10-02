@@ -1,18 +1,18 @@
 {
-  "version": "0.1.7-alpha.2",
+  "version": "0.1.7-rc.2",
   "inputs": {
     "tools/build-dsh-runtime.py": "1c8b81e5d0095671f1ebe0c9ad73ef4e8371b1347a336eba83226549e58ab05d",
-    "tools/dsh-runtime/package.json": "5b74ccc198c3c16116c7a44af8982d42c1cf848f82dfb38603402b3e9c3cbc2a",
-    "tools/dsh-runtime/package-lock.json": "f91020c93013bd9151781cdf8deb99beb5edb5bd4abca842764a0cf04d3a12aa",
+    "tools/dsh-runtime/package.json": "35107c3f644fe3deffe27d96d3d70ce6fafa9d05a8776318633523a93b69bed3",
+    "tools/dsh-runtime/package-lock.json": "47cbce895098dcf0e108658c832e71ee7583435197710c91ff492ae88a4dfe64",
     "app/src/main/assets/runtime-fs/index.js": "c51f37ad70bb16c2fa0e91cc8c3aa502dd4bb856cb8619743916f880ab4ede88",
     "app/src/main/assets/runtime-fs/package.json": "56d23297ab9b0ce35dc1b04466b33180e41060101e6fafb67268fd5911eb87d2",
     "app/src/main/assets/session-compat/index.js": "b0deae6d4da08847e5464b48d4dda17eba94dc60bd21f6871fd5e9a701244884",
     "app/src/main/assets/session-compat/package.json": "ac3a2d60826330b6eb99c7407d09030d7febbb89accf3ebefbbef5dd1c0dcf12",
     "app/src/main/assets/client-combo-cache/index.js": "982c0cdce192d71274b679983ee19549d0089f88a22bdd6177857124ab6de0e7",
     "app/src/main/assets/client-combo-cache/package.json": "3aa2873e3608e53f64b6e0f97ebbdee42bcf70d20408664a7e27e4bd55e2b3e7",
-    "app/src/main/assets/client-combo-patch.json": "b31ce899171572ed8608d472b624ce7953c2db4ea694c1da62b20408bdee9a62",
-    "app/src/main/assets/deepseek-messages-compat-patch.json": "6af0deaf0ded3da0d6b82e3789b6d13f7f9123b07c476c850ac0062cf20749a8",
-    "app/src/main/assets/deepseekharness-deepseek-messages-compat.js": "68b67144d2d6c1abb9cf5210b15e46446ef3a529cc78b13e0d0517debcdf362a"
+    "app/src/main/assets/client-combo-patch.json": "8283e8eb5ac85ab805ba52105f6196e53919530445ec886da774e974ae8f8311",
+    "app/src/main/assets/deepseek-messages-compat-patch.json": "c06d4a610bb16de7d717da175f19cd9ad525ba9e692d91eb7f044df5b2067d40",
+    "app/src/main/assets/deepseekharness-deepseek-messages-compat.js": "ecaed254bff32b497112d524984aa5b58f3cdbf6fb9ee2b77876e1197f132f37"
   },
-  "archive_sha256": "fd9e4451a232654af876d3a1bdb4a0c60b51f8cd8d8214c0e42a50928097878e"
+  "archive_sha256": "c1f2dd9ca7897e7167f0d0489cfe801fa31974b2ae1a038fa665a8971eee5b19"
 }

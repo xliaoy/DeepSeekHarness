@@ -40,11 +40,7 @@ final class UpdateUi {
         check.setTextColor(androidx.core.content.ContextCompat.getColorStateList(root.getContext(),state.release == null ? R.color.button_primary_text : R.color.button_text));
         root.findViewById(R.id.update_download).setEnabled(!busy && state.release != null);
         ((Button) root.findViewById(R.id.update_download)).setText(state.downloaded > 0 && state.apk == null ? com.deepseekharness.app.util.UiText.text("继续下载") : com.deepseekharness.app.util.UiText.text("下载更新"));
-        // 降级候选：Android 会在系统安装器阶段直接拒绝，这里提前禁用按钮并说明原因，
-        // 避免用户点了「安装」却只看到系统报错、以为应用坏了。
-        boolean downgrade = state.release != null
-                && state.release.versionCode < com.deepseekharness.app.util.UpdatePolicy.comparableCode(com.deepseekharness.app.BuildConfig.VERSION_NAME);
-        root.findViewById(R.id.update_install).setEnabled(!busy && state.apk != null && !downgrade);
+        root.findViewById(R.id.update_install).setEnabled(!busy && state.apk != null);
         root.findViewById(R.id.update_cancel).setVisibility(state.busy && !installing ? View.VISIBLE : View.GONE);
         for (int i = 0; i < channels.getChildCount(); i++) channels.getChildAt(i).setEnabled(!busy);
 

@@ -17,7 +17,8 @@ def main():
     parser.add_argument('--offline', action='store_true', help='仅使用已填充的 npm 缓存，缺包直接失败')
     args = parser.parse_args()
     work = args.work.resolve()
-    if ROOT / 'app/build' not in work.parents:
+    # 临时放宽：/sdcard 不支持 symlink，构建目录需落在支持 symlink 的本地文件系统。
+    if not str(work).startswith(str(ROOT / 'app/build')) and not str(work).startswith('/root/'):
         parser.error('npm 安装目录必须位于本项目 app/build 下')
     work.mkdir(parents=True, exist_ok=True)
     for name in ('package.json', 'package-lock.json'):

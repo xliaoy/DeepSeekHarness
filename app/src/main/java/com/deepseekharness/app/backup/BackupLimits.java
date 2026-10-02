@@ -14,6 +14,9 @@ public final class BackupLimits {
      * 这里只放宽历史记录数量，不删除任何旧原件或失败候选。
      */
     public static final int TRANSACTION_RECORDS = 64;
+    /** Active host journals are bounded; completed originals are retained under a separate history root. */
+    public static final int HOST_OPERATION_ACTIVE_RECORDS = 64;
+    public static final int CONFIGURATION_OPERATION_ACTIVE_RECORDS = 64;
     public static final int RECORD = 16 * 1024, MANIFEST = 2 * 1024 * 1024, METADATA = 32 * 1024 * 1024;
     private BackupLimits() { }
     public static String path(String name) throws IOException {

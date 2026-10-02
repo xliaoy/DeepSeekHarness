@@ -19,7 +19,7 @@ public final class MaintenanceDataSnapshot {
     public File mapping(){return new File(task,"data-roots.json");}
     private static String id(String relative){return "local-"+NativeDataLocations.hash(relative);}
     private static String join(String base,String child){return child.isEmpty()?base:base+"/"+child;}
-    private static boolean placeholder(String path){return path.matches("data/(?:data|user(?:_de)?/[0-9]+)/(?:com\\.deepseek\\.harness|com\\.dsh\\.client)/files/linux/ubuntu/\\.l2s(?:/.*)?");}
+    private static boolean placeholder(String path){return path.matches("data/(?:data|user(?:_de)?/[0-9]+)/com\\.dsh\\.client/files/linux/ubuntu/\\.l2s(?:/.*)?");}
     private boolean managed(String path){return ManagedRuntimeLayout.paths().stream().anyMatch(root->path.equals(root)||path.startsWith(root+"/"));}
     private boolean machine(String relative){String leaf=new File(relative).getName();
         String checkpoints="root/.dsh/deepseekharness-startup-checkpoints";

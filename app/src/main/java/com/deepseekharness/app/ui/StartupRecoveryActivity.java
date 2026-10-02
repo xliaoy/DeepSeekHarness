@@ -32,6 +32,8 @@ public final class StartupRecoveryActivity extends AppCompatActivity {
         if(reason.isEmpty())reason=controller.startupDiagnostics().snapshot().stage;
         layout=new StartupRecoveryLayout(this,StartupText.render(reason),()->finish());setContentView(layout.root);
         content=layout.content;attempts=layout.attempts;snapshots=layout.snapshots;plugins=layout.plugins;progress=layout.progress;
+        action(layout.recovery,t("启动独立应急 DSH","Start independent emergency DSH"),R.drawable.ic_recovery_shield,
+                ()->startActivity(new Intent(this,RecoveryActivity.class)),false);
         action(layout.tools,t("宿主备份与只读救援","Host backup and read-only rescue"),R.drawable.ic_recovery_document,
                 ()->startActivity(new Intent(this,NativeDataActivity.class)),false);
         action(layout.tools,t("回退兼容运行时","Roll back compatible runtime"),R.drawable.ic_recovery_refresh,()->RuntimeRecoveryUi.show(this),true);

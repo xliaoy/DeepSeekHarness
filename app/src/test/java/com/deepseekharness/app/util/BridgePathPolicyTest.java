@@ -54,7 +54,7 @@ public class BridgePathPolicyTest {
                 "/sdcard/Download/x.pdf",
                 "/tmp/scratch.log",
                 "/root/.dsh-backup-note.md",   // 前缀相似但不是 .dsh 目录
-                "/root/.deepseekharness-report.txt",      // 同上
+                "/root/.dsha-report.txt",      // 同上
         };
         for (String path : allowed) {
             assertFalse("不应误伤：" + path, BridgePathPolicy.denied(path));
@@ -82,7 +82,7 @@ public class BridgePathPolicyTest {
      * 不能让通用拒绝表把整个 rootfs 封死（否则连正常产物都导不出去）。
      */
     @Test public void rootfsContentIsNotBlanketDenied() {
-        String rootfs = "/data/data/com.deepseek.harness/files/linux/ubuntu";
+        String rootfs = "/data/data/com.dsh.client/files/linux/ubuntu";
         // rootfs 内的正常产物：放行
         assertFalse(BridgePathPolicy.deniedGuestView(rootfs + "/root/report.md", rootfs));
         assertFalse(BridgePathPolicy.deniedGuestView(rootfs + "/root/harness/out.txt", rootfs));
@@ -91,7 +91,7 @@ public class BridgePathPolicyTest {
         assertTrue(BridgePathPolicy.deniedGuestView(rootfs + "/root/.dsh/.bridge_token", rootfs));
         assertTrue(BridgePathPolicy.deniedGuestView(rootfs + "/root/.ssh/id_rsa", rootfs));
         // rootfs 之外的 App 私有数据：拒绝
-        assertTrue(BridgePathPolicy.deniedGuestView("/data/data/com.deepseek.harness/shared_prefs/x.xml", rootfs));
+        assertTrue(BridgePathPolicy.deniedGuestView("/data/data/com.dsh.client/shared_prefs/x.xml", rootfs));
         // rootfs 根本没有的宿主路径：拒绝
         assertTrue(BridgePathPolicy.deniedGuestView("/sdcard/report.md", rootfs));
     }
@@ -99,7 +99,7 @@ public class BridgePathPolicyTest {
     /** rootfs 为 null（拿不到容器目录）时，只按通用宿主判据走，不能崩。 */
     @Test public void handlesMissingRootfs() {
         assertFalse(BridgePathPolicy.deniedGuestView("/tmp/x", null));
-        assertTrue(BridgePathPolicy.deniedGuestView("/data/data/com.deepseek.harness/x", null));
+        assertTrue(BridgePathPolicy.deniedGuestView("/data/data/com.dsh.client/x", null));
         assertTrue(BridgePathPolicy.deniedGuestView(null, null));
         assertTrue(BridgePathPolicy.deniedGuestView("", null));
     }

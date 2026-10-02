@@ -59,7 +59,7 @@ public final class GuestDataResolver {
         if(!target.startsWith("/")&&!new File(target).isAbsolute())return normalize(new File(source.getParentFile(),target));
         File physical=normalize(new File(target));if(approved(physical))return physical;
         // 旧 L2S 链的宿主别名只重映射到本次读取的 rootfs，绝不读取该字面路径。
-        String legacy=target.replaceFirst("^/data/(?:data|user(?:_de)?/[0-9]+)/(?:com\\.deepseek\\.harness|com\\.dsh\\.client)/files/linux/ubuntu(?=/|$)", "");
+        String legacy=target.replaceFirst("^/data/(?:data|user(?:_de)?/[0-9]+)/com\\.dsh\\.client/files/linux/ubuntu(?=/|$)", "");
         if(!legacy.equals(target))return normalize(new File(rootfs,legacy.replaceFirst("^/", "")));
         if(publicRoot!=null){String publicPath=target.replaceFirst("^/(?:sdcard|storage/emulated/[0-9]+)(?=/|$)", "");
             if(!publicPath.equals(target))return normalize(new File(publicRoot,publicPath.replaceFirst("^/", "")));}

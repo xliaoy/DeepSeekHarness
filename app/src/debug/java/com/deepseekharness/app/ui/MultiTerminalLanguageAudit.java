@@ -60,7 +60,7 @@ public final class MultiTerminalLanguageAudit extends Instrumentation {
         ownedPty.add(tabs.current());click(R.id.terminal_new);ownedPty.add(tabs.current());click(R.id.terminal_new);ownedPty.add(tabs.current());
         check(new HashSet<>(Arrays.asList(ownedPty.get(0).value.session().getPid(),ownedPty.get(1).value.session().getPid(),ownedPty.get(2).value.session().getPid())).size()==3,"PTY 没有三个独立进程");
         String[] dirs={"/tmp","/var/tmp","/root"};
-        for(int i=0;i<3;i++){final int n=i;ui(()->ownedPty.get(n).value.write("unset HISTFILE; export DeepSeekHarness_MULTI=P"+n+"; cd "+dirs[n]+"; printf 'MULTI_READY=%s:%s\\n' \"$DeepSeekHarness_MULTI\" \"$PWD\"\n"));waitPty(ownedPty.get(i).value,"MULTI_READY=P"+i+":"+dirs[i]);}
+        for(int i=0;i<3;i++){final int n=i;ui(()->ownedPty.get(n).value.write("unset HISTFILE; export DSHA_MULTI=P"+n+"; cd "+dirs[n]+"; printf 'MULTI_READY=%s:%s\\n' \"$DSHA_MULTI\" \"$PWD\"\n"));waitPty(ownedPty.get(i).value,"MULTI_READY=P"+i+":"+dirs[i]);}
         tabAction(tabs,ownedPty.get(1).id,false);
         int[] pids=ownedPty.stream().mapToInt(t->t.value.session().getPid()).toArray();language("en");
         check(((TextView)page.findViewById(R.id.terminal_new)).getText().toString().contains("New"),"英文新建按钮未显示");
@@ -68,7 +68,7 @@ public final class MultiTerminalLanguageAudit extends Instrumentation {
         check(tabs.current().id==ownedPty.get(1).id,"语言切换丢失当前 PTY 标签");
         tabAction(tabs,ownedPty.get(0).id,true);waitRemoved(tabs,ownedPty.get(0).id);
         check(ownedPty.get(1).value.isRunning()&&ownedPty.get(2).value.isRunning(),"关闭一个 PTY 影响了其他会话");
-        ui(()->ownedPty.get(1).value.write("printf 'AFTER_CLOSE=%s:%s\\n' \"$DeepSeekHarness_MULTI\" \"$PWD\"\n"));waitPty(ownedPty.get(1).value,"AFTER_CLOSE=P1:/var/tmp");
+        ui(()->ownedPty.get(1).value.write("printf 'AFTER_CLOSE=%s:%s\\n' \"$DSHA_MULTI\" \"$PWD\"\n"));waitPty(ownedPty.get(1).value,"AFTER_CLOSE=P1:/var/tmp");
         language("zh");check(((TextView)page.findViewById(R.id.terminal_new)).getText().toString().contains("新建"),"返回中文失败");
         for(int i=1;i<3;i++){tabAction(tabs,ownedPty.get(i).id,true);waitRemoved(tabs,ownedPty.get(i).id);}
         if(before.isEmpty()){check(tabs.current()==null,"关闭最后一个 PTY 后仍选中会话");check(page.findViewById(R.id.pty_empty).getVisibility()==android.view.View.VISIBLE,"未展示空终端状态");}
@@ -93,7 +93,7 @@ public final class MultiTerminalLanguageAudit extends Instrumentation {
         ownedSimple.add(tabs.current());waitSimpleReady(tabs.current().value);waitForIdleSync();click(R.id.terminal_new);ownedSimple.add(tabs.current());
         check(ownedSimple.get(0).id!=ownedSimple.get(1).id&&ownedSimple.get(0).value!=ownedSimple.get(1).value,"新建未产生独立的简易终端标签");
         waitSimpleReady(ownedSimple.get(1).value);
-        for(int i=0;i<2;i++){simpleSession(ownedSimple.get(i).value).submit("export DeepSeekHarness_MULTI=S"+i+"; cd /tmp; printf 'SIMPLE_READY=%s:%s\\n' \"$DeepSeekHarness_MULTI\" \"$PWD\"");waitSimple(ownedSimple.get(i).value,"SIMPLE_READY=S"+i+":/tmp");}
+        for(int i=0;i<2;i++){simpleSession(ownedSimple.get(i).value).submit("export DSHA_MULTI=S"+i+"; cd /tmp; printf 'SIMPLE_READY=%s:%s\\n' \"$DSHA_MULTI\" \"$PWD\"");waitSimple(ownedSimple.get(i).value,"SIMPLE_READY=S"+i+":/tmp");}
         evidence.add("Simple before language: "+simpleState(ownedSimple.get(0).value)+" / "+simpleState(ownedSimple.get(1).value));
         String draft="echo 用户自己的中文命令";ui(()->{EditText input=page.findViewById(R.id.term_input);input.setText(draft);input.setSelection(6);});
         tabAction(tabs,ownedSimple.get(0).id,false);language("en");tabAction(tabs,ownedSimple.get(1).id,false);
@@ -101,7 +101,7 @@ public final class MultiTerminalLanguageAudit extends Instrumentation {
         ui(()->{EditText input=page.findViewById(R.id.term_input);check(draft.equals(input.getText().toString()),"语言切换或标签切换改变了命令草稿");check(input.getSelectionStart()==6,"命令光标未保留");});
         tabAction(tabs,ownedSimple.get(0).id,true);waitRemoved(tabs,ownedSimple.get(0).id);
         evidence.add("Simple after closing first: "+simpleState(ownedSimple.get(1).value));
-        simpleSession(ownedSimple.get(1).value).submit("printf 'SIMPLE_SURVIVES=%s\\n' \"$DeepSeekHarness_MULTI\"");waitSimple(ownedSimple.get(1).value,"SIMPLE_SURVIVES=S1");
+        simpleSession(ownedSimple.get(1).value).submit("printf 'SIMPLE_SURVIVES=%s\\n' \"$DSHA_MULTI\"");waitSimple(ownedSimple.get(1).value,"SIMPLE_SURVIVES=S1");
         tabAction(tabs,ownedSimple.get(1).id,true);waitRemoved(tabs,ownedSimple.get(1).id);
         if(before.isEmpty())check(tabs.current()==null&&!page.findViewById(R.id.term_input).isEnabled(),"简易终端关闭后仍可输入");
         if(before.isEmpty()) {
@@ -114,7 +114,7 @@ public final class MultiTerminalLanguageAudit extends Instrumentation {
     @Override public void onStart(){
         Bundle result=new Bundle();Context app=getTargetContext();var prefs=app.getSharedPreferences(Constants.PREFS,0);boolean had=prefs.contains("ui_language");String original=new ConfigStore(app).getUiLanguage();
         try{
-            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
+            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
             long ready=System.currentTimeMillis()+120000;while((!HarnessController.get(app).proot().isEnvironmentReady()||com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy())&&System.currentTimeMillis()<ready)Thread.sleep(200);
             check(HarnessController.get(app).proot().isEnvironmentReady(),"环境尚未就绪");
             check(!com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy(),"维护尚未安全收尾");

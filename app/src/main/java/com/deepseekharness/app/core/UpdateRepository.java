@@ -59,13 +59,6 @@ public final class UpdateRepository extends AndroidViewModel {
     public LiveData<State> state() { return engine.state(); }
     public String channel() { return engine.channel(); }
     public void setChannel(String channel) { if (!installationPending()) engine.setChannel(channel); }
-    /** 已发布且适配本机的候选（从新到旧），供「软件更新」的自选版本列表使用。 */
-    public java.util.List<UpdatePolicy.Release> availableReleases() { return engine.availableReleases(); }
-    /** 自选版本；null 表示清除自选、回到通道自动选择。 */
-    public void selectVersion(String version) { if (!installationPending()) engine.selectVersion(version); }
-    public String requestedVersion() { return engine.requestedVersion(); }
-    /** 当前候选是否为降级版本（Android 不允许降级安装，界面须明确提示）。 */
-    public boolean downgrade() { State current = state().getValue(); return current != null && engine.isDowngrade(current.release); }
     public boolean hasTask() { return engine.hasTask(); }
     public void check() { if (!installationPending()) engine.check(); }
     public void download() { if (!installationPending()) engine.download(); }
@@ -73,6 +66,17 @@ public final class UpdateRepository extends AndroidViewModel {
     public File installableApk() throws Exception { return engine.installableApk(); }
     public LiveData<InstallState> installation() { return installation; }
     public boolean installationPending() { return installation.getValue().pending(); }
+    /** 最近一次检查得到的可升级版本（从新到旧）；供「软件更新」自选版本列表使用。 */
+    public java.util.ArrayList<UpdatePolicy.Release> availableReleases() { return engine.availableReleases(); }
+    /** 用户自选的 APK 版本；null 表示自动选择最新。 */
+    public String requestedVersion() { return engine.requestedVersion(); }
+    /** 自选 APK 版本（只允许升级，不能降级）。 */
+    public void selectVersion(String version) { if (!installationPending()) engine.selectVersion(version); }
+    /** 当前候选是否为降级（自选列表已过滤，正常不会出现）。 */
+    public boolean downgrade() {
+        State current = state().getValue();
+        return current != null && engine.isDowngrade(current.release);
+    }
     public void requestInstall() {
         State current = state().getValue();
         if (cleared || installationPending() || current == null || current.busy) return;

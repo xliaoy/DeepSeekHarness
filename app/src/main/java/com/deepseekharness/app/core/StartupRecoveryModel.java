@@ -28,7 +28,7 @@ public final class StartupRecoveryModel extends AndroidViewModel {
                         JSONObject snapshots=StartupRepairs.list(c);out.put("snapshots",snapshots.getJSONArray("snapshots"));
                         out.put("pending",snapshots.optBoolean("pending"));
                         // 配置损坏时仍显示诊断与配置快照；插件清单单独报告读取失败。
-                        try { if(c.isEnvironmentReady()&&!com.deepseekharness.app.BackupManager.hasPendingMaintenance(c))out.put("items",StartupRepairs.plugins(c).getJSONArray("items")); }
+                        try { if(c.isEnvironmentReady()&&!com.deepseekharness.app.core.MaintenanceCoordinator.pending(c))out.put("items",StartupRepairs.plugins(c).getJSONArray("items")); }
                         catch(Exception failure) { out.put("pluginError",SensitiveData.redact(String.valueOf(failure.getMessage()))); }
                         return null;
                     }); }

@@ -10,6 +10,7 @@ import com.deepseekharness.app.BackupManager;
 import com.deepseekharness.app.BuildConfig;
 import com.deepseekharness.app.core.ConfigStore;
 import com.deepseekharness.app.core.HarnessController;
+import com.deepseekharness.app.core.MaintenanceCoordinator;
 import java.io.*;
 import java.util.*;
 
@@ -35,17 +36,54 @@ public final class NativeBackupJobs {
     private Boolean decision;
     private final Object approval=new Object();
     private NativeBackupJobs(Context context){this.context=context;loadLastState();changes.postValue(state);}
+    private static final String LAST_TASK="host-backup-last-task-v1.json";
+    private static final class LastRecord {
+        final long updated;final State state;
+        LastRecord(long updated,State state){this.updated=updated;this.state=state;}
+    }
+    private LastRecord lastRecord(File owner,String id)throws IOException{
+        File record=fs.child(owner,"operation.json");
+        if(fs.stat(record).type.equals("MISSING"))record=fs.child(owner,"operation.json.previous");
+        if(fs.stat(record).type.equals("MISSING"))return null;
+        Map<String,Object> value=BackupJson.read(fs.small(record,16384),16384);
+        if(!id.equals(BackupJson.string(value,"id"))||BackupJson.number(value,"version")!=1)throw new IOException("OPERATION_RECORD");
+        long updated=value.get("updatedAt") instanceof Number?((Number)value.get("updatedAt")).longValue():fs.stat(record).modified*1000;
+        String artifact=BackupJson.string(value,"artifact");if(!artifact.isEmpty()&&!artifact.equals("portable.dshbak"))throw new IOException("OPERATION_RECORD");
+        boolean busy=Boolean.TRUE.equals(value.get("busy"));
+        return new LastRecord(updated,new State(id,busy?"INTERRUPTED":BackupJson.string(value,"stage"),BackupJson.string(value,"result"),
+                busy?"PASSWORD_NOT_RETAINED":BackupJson.string(value,"error"),artifact,BackupJson.number(value,"entries"),BackupJson.number(value,"bytes"),false));
+    }
     private void loadLastState(){
         try {
-            File root=new File(context.getFilesDir().getCanonicalFile(),"host-backup-operations");if(fs.stat(root).type.equals("MISSING"))return;
-            long newest=-1;List<String> names=fs.list(root);if(names.size()>BackupLimits.TRANSACTION_RECORDS)throw new IOException("OPERATION_LIMIT");
-            for(String name:names){if(!name.matches("[a-f0-9-]{36}"))continue;File owner=fs.child(root,name),record=fs.child(owner,"operation.json");
-                if(fs.stat(record).type.equals("MISSING"))record=fs.child(owner,"operation.json.previous");if(fs.stat(record).type.equals("MISSING"))continue;
-                Map<String,Object> value=BackupJson.read(fs.small(record,16384),16384);if(!name.equals(BackupJson.string(value,"id"))||BackupJson.number(value,"version")!=1)throw new IOException("OPERATION_RECORD");
-                long time=value.get("updatedAt") instanceof Number?((Number)value.get("updatedAt")).longValue():fs.stat(record).modified*1000;
-                String artifact=BackupJson.string(value,"artifact");if(!artifact.isEmpty()&&!artifact.equals("portable.dshbak"))throw new IOException("OPERATION_RECORD");
-                if(time>=newest){newest=time;boolean busy=Boolean.TRUE.equals(value.get("busy"));state=new State(name,busy?"INTERRUPTED":BackupJson.string(value,"stage"),BackupJson.string(value,"result"),busy?"PASSWORD_NOT_RETAINED":BackupJson.string(value,"error"),artifact,BackupJson.number(value,"entries"),BackupJson.number(value,"bytes"),false);}
+            File files=context.getFilesDir().getCanonicalFile(),root=HostOperationArchive.root(files);if(fs.stat(root).type.equals("MISSING"))return;
+            HostOperationArchive.verifyCompleted(fs,files);
+            File pointer=fs.child(files,LAST_TASK);String pointed="";long newest=-1;
+            String pointerType=fs.stat(pointer).type;
+            if(pointerType.equals("FILE")){
+                Map<String,Object> value=BackupJson.read(fs.small(pointer,1024),1024);
+                if(BackupJson.number(value,"version")!=1)throw new IOException("OPERATION_LAST_TASK");
+                pointed=BackupJson.string(value,"id");
+                if(!pointed.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("OPERATION_LAST_TASK");
+                LastRecord selected=lastRecord(HostOperationArchive.locate(fs,root,pointed),pointed);
+                if(selected==null)throw new IOException("OPERATION_LAST_TASK");newest=selected.updated;state=selected.state;
+            }else if(!pointerType.equals("MISSING"))throw new IOException("OPERATION_LAST_TASK");
+            Set<String> seen=new HashSet<>();
+            for(String name:HostOperationArchive.activeEntries(fs,root)){
+                if(!name.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))continue;
+                if(!seen.add(name))throw new IOException("OPERATION_DUPLICATE");
+                LastRecord record=lastRecord(fs.child(root,name),name);
+                if(record!=null&&record.updated>=newest){newest=record.updated;state=record.state;pointed=name;}
             }
+            File completed=HostOperationArchive.completedRoot(files);
+            if(pointerType.equals("MISSING")&&fs.stat(completed).type.equals("DIRECTORY")){
+                for(String name:fs.list(completed)){
+                    if(!name.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))continue;
+                    if(seen.contains(name))throw new IOException("OPERATION_DUPLICATE");
+                    LastRecord record=lastRecord(fs.child(completed,name),name);
+                    if(record!=null&&record.updated>=newest){newest=record.updated;state=record.state;pointed=name;}
+                }
+            }
+            if(!pointed.isEmpty()&&pointerType.equals("MISSING"))fs.atomic(files,LAST_TASK,BackupJson.write(Map.of("version",1L,"id",pointed),1024));
         }catch(IOException error){state=new State("","FAILED_RETAINED","","OPERATION_RECORD_UNREADABLE","",0,0,false);}
     }
     public LiveData<State> changes(){return changes;}
@@ -56,28 +94,30 @@ public final class NativeBackupJobs {
         Copies(List<VerifiedBackupCopy> valid,Map<String,String> unreadable){this.valid=Collections.unmodifiableList(valid);this.unreadable=Collections.unmodifiableMap(unreadable);}
     }
     public Copies verifiedCopies()throws IOException{
-        File parent=operations();List<String> names=fs.list(parent);if(names.size()>BackupLimits.TRANSACTION_RECORDS)throw new IOException("OPERATION_LIMIT");
         List<VerifiedBackupCopy> result=new ArrayList<>();Map<String,String> unreadable=new LinkedHashMap<>();
-        for(String name:names){
+        File root=operations();
+        for(File parent:HostOperationArchive.roots(fs,root))for(String name:fs.list(parent)){
             if(!name.matches("[a-f0-9-]{36}"))continue;File directory=fs.child(parent,name);
             if(fs.stat(new File(directory,"verified.json")).type.equals("MISSING"))continue;
-            try{result.add(VerifiedBackupCopy.inspect(fs,parent,name));}catch(IOException error){unreadable.put(name,BackupErrorCode.from(error));}
+            try{result.add(VerifiedBackupCopy.inspect(fs,root,name));}catch(IOException error){unreadable.put(name,BackupErrorCode.from(error));}
         }
         result.sort((a,b)->Long.compare(b.created,a.created));return new Copies(result,unreadable);
     }
     public synchronized boolean reexport(String sourceId,Uri destination,String name){
         if(state.busy||workers.isClosed()||AutomaticBackups.factoryResetPending(context))return false;
         final VerifiedBackupCopy source;
+        final DataProtectionService.StartTicket protection;
         try{
             File parent=operations();source=VerifiedBackupCopy.inspect(fs,parent,sourceId);
-            if(fs.list(parent).size()>=BackupLimits.TRANSACTION_RECORDS)throw new IOException("RETAINED_OPERATION_LIMIT");
+            parent=HostOperationArchive.reserve(fs,context.getFilesDir().getCanonicalFile());
             task=new File(parent,UUID.randomUUID().toString());fs.directory(task);control=new BackupControl(this::progress);
             fs.atomic(task,"reexport.json",BackupJson.write(Map.of("version",1L,"source",sourceId,"sha256",source.sha256),4096));
-            update("VERIFYING","","","",source.entries,source.bytes,true);foreground();
+            update("VERIFYING","","","",source.entries,source.bytes,true);protection=foreground();
         }catch(IOException error){beginFailed(error);return false;}
-        BackupControl cancellation=control;
+        BackupControl cancellation=control;File owned=task;
         return launch(()->{
             try{
+                protection.await();
                 source.verify(fs,cancellation);update("EXPORTING","","","",source.entries,source.bytes,true);
                 boolean readback=copyToDocument(source.artifact,source.sha256,destination,name,cancellation);String result=source.result(readback);
                 if(result.equals("COMPLETE")){
@@ -86,12 +126,16 @@ public final class NativeBackupJobs {
                     new ConfigStore(context).recordVerifiedNativeBackup(destination.toString(),name,source.scope);
                 }
                 update("FINISHED",result,"","",source.entries,source.bytes,false);
-            }catch(Exception error){failed(error);}finally{synchronized(this){if(control==cancellation)control=null;}}
+            }catch(Exception error){failed(error);}finally{
+                try{HostOperationArchive.archiveIfTerminal(fs,context.getFilesDir().getCanonicalFile(),owned);}catch(IOException ignored){}
+                synchronized(this){if(control==cancellation)control=null;}
+            }
         },"host-backup-reexport",null);
     }
     public Map<String,Object> preview(String id)throws IOException{
         if(!id.equals(state().id)||!state().stage.equals("PREVIEW"))throw new IOException("PREVIEW_CHANGED");
-        return BackupJson.read(fs.small(new File(operations(),id+"/preview.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST);
+        File operation=HostOperationArchive.locate(fs,operations(),id);
+        return BackupJson.read(fs.small(fs.child(operation,"preview.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST);
     }
     public synchronized void cancel(){if(control!=null)control.cancel();synchronized(approval){approval.notifyAll();}}
 
@@ -133,13 +177,18 @@ public final class NativeBackupJobs {
         Map<String,Object> record=new LinkedHashMap<>();record.put("version",1L);record.put("id",next.id);record.put("stage",stage);record.put("result",result);record.put("error",error);
         record.put("artifact",artifact);record.put("entries",entries);record.put("bytes",bytes);record.put("busy",busy);
         record.put("updatedAt",System.currentTimeMillis());
-        if(task!=null)fs.atomic(task,"operation.json",BackupJson.write(record,16384));state=next;main.post(()->changes.setValue(next));
+        if(task!=null){
+            fs.atomic(task,"operation.json",BackupJson.write(record,16384));
+            if(!next.id.equals(state.id))fs.atomic(context.getFilesDir().getCanonicalFile(),LAST_TASK,
+                    BackupJson.write(Map.of("version",1L,"id",next.id),1024));
+        }
+        state=next;main.post(()->changes.setValue(next));
     }
     private void progress(String phase,long entries,long bytes)throws IOException{
         long now=android.os.SystemClock.elapsedRealtime();if(now-lastProgress<350)return;lastProgress=now;update(phase,"","","",entries,bytes,true);
     }
-    private void foreground()throws IOException{
-        DataProtectionService.start(context);
+    private DataProtectionService.StartTicket foreground()throws IOException{
+        return DataProtectionService.start(context);
     }
     private synchronized void beginFailed(Exception error){
         if(task!=null&&state.busy&&task.getName().equals(state.id)){
@@ -172,7 +221,7 @@ public final class NativeBackupJobs {
     }
     private synchronized boolean exportInternal(NativeDataLocations.Selection selection,char[] suppliedPassword,Uri destination,String expectedName,boolean rescue,boolean automatic){
         if(state.busy||workers.isClosed()||AutomaticBackups.factoryResetPending(context))return false;
-        if(!rescue&&BackupManager.hasPendingMaintenance(context.getFilesDir()))return false;
+        if(!rescue&&MaintenanceCoordinator.pending(context.getFilesDir()))return false;
         if(suppliedPassword==null||suppliedPassword.length<12||suppliedPassword.length>1024)return false;
         char[] password=suppliedPassword.clone();
         NativeDataLocations.Selection frozen=new NativeDataLocations.Selection();frozen.scope=selection.scope;frozen.includeApiKey=selection.includeApiKey;
@@ -181,15 +230,18 @@ public final class NativeBackupJobs {
         frozen.guestProjects.addAll(selection.guestProjects);
         try{for(BackupSource source:selection.documentProjects)frozen.documentProjects.add(source instanceof SafBackupSource?((SafBackupSource)source).copyForOperation():source);}
         catch(IOException error){Arrays.fill(password,'\0');return false;}
+        DataProtectionService.StartTicket protection=null;
         try {
-            File parent=operations();if(fs.list(parent).size()>=BackupLimits.TRANSACTION_RECORDS)throw new IOException("RETAINED_OPERATION_LIMIT");
+            File parent=HostOperationArchive.reserve(fs,context.getFilesDir().getCanonicalFile());
             task=new File(parent,UUID.randomUUID().toString());fs.directory(task);
-            control=new BackupControl(this::progress);update("PREPARING","","","",0,0,true);if(!automatic)foreground();
+            control=new BackupControl(this::progress);update("PREPARING","","","",0,0,true);if(!automatic)protection=foreground();
         }catch(IOException error){Arrays.fill(password,'\0');beginFailed(error);return false;}
+        final DataProtectionService.StartTicket activeProtection=protection;
         File owned=task;BackupControl cancellation=control;
         return launch(()->{
             File plain=new File(owned,"snapshot.dshdata"),encrypted=new File(owned,"portable.dshbak");
             try {
+                if(activeProtection!=null)activeProtection.await();
                 NativeDataLocations locations=new NativeDataLocations(context);NativeDataLocations.Located located=locations.locate(frozen,cancellation);
                 Map<String,Object> provenance=new LinkedHashMap<>();provenance.put("operation",rescue?"RESCUE":"EXPORT");provenance.put("createdAt",System.currentTimeMillis());
                 provenance.put("requestedScope",frozen.scope);if(automatic)provenance.put("automatic",true);
@@ -201,7 +253,7 @@ public final class NativeBackupJobs {
                 HostSnapshot.FinalCheck check=located.plugins==null?null:located.plugins::verify;
                 Map<String,Object> summary;
                 if(rescue)summary=HostSnapshot.create(fs,located.sources,owned,plain,provenance,true,cancellation,check);
-                else if(automatic)summary=BackupManager.runSnapshotTask(HarnessController.get(context),()->{
+                else if(automatic)summary=MaintenanceCoordinator.snapshot(HarnessController.get(context),()->{
                     if(!AutomaticBackups.enabled(context)||!AutomaticBackups.idleForOwner(context))throw new IOException("AUTOMATIC_BACKUP_DEFERRED");
                     // 当前线程已有快照任务；维护屏障只允许本线程，不停止任何运行中的任务。
                     try(var idle=com.deepseekharness.app.core.RuntimeTasks.tryEnterMaintenance()){
@@ -209,7 +261,7 @@ public final class NativeBackupJobs {
                         return HostSnapshot.create(fs,located.sources,owned,plain,provenance,false,cancellation,check);
                     }
                 });
-                else summary=BackupManager.runDataTask(HarnessController.get(context),()->HostSnapshot.create(fs,located.sources,owned,plain,provenance,false,cancellation,check));
+                else summary=MaintenanceCoordinator.exclusive(HarnessController.get(context),()->HostSnapshot.create(fs,located.sources,owned,plain,provenance,false,cancellation,check));
                 try(InputStream input=fs.read(plain,fs.stat(plain))){BackupArchive.read(input,null,cancellation);}
                 String plainHash;try(InputStream input=fs.read(plain,fs.stat(plain))){plainHash=BackupArchive.digest(input,cancellation);}
                 update("ENCRYPTING","","","",BackupJson.number(summary,"entries"),BackupJson.number(summary,"bytes"),true);
@@ -237,7 +289,9 @@ public final class NativeBackupJobs {
                 }
                 update("FINISHED",result,"","portable.dshbak",BackupJson.number(summary,"entries"),fs.stat(encrypted).size,false);
             }catch(Exception error){try{update(error instanceof InterruptedIOException||cancellation.isCancelled()||"CANCELLED".equals(code(error))?"CANCELLED":"FAILED","",code(error),fs.stat(new File(owned,"verified.json")).type.equals("FILE")?"portable.dshbak":"",0,0,false);}catch(IOException retained){synchronized(this){state=new State(owned.getName(),"FAILED_RETAINED","","STATE_PERSISTENCE_FAILED","",0,0,false);}main.post(()->changes.setValue(state()));}}
-            finally{Arrays.fill(password,'\0');try{if(!fs.stat(plain).type.equals("MISSING"))fs.delete(plain);}catch(IOException ignored){}synchronized(this){if(control==cancellation)control=null;}}
+            finally{Arrays.fill(password,'\0');try{if(!fs.stat(plain).type.equals("MISSING"))fs.delete(plain);}catch(IOException ignored){}
+                try{HostOperationArchive.archiveIfTerminal(fs,context.getFilesDir().getCanonicalFile(),owned);}catch(IOException ignored){}
+                synchronized(this){if(control==cancellation)control=null;}}
         },"host-data-export",password);
     }
     private boolean copyToDocument(File source,String expected,Uri target,String name,BackupControl cancellation)throws IOException{
@@ -276,17 +330,19 @@ public final class NativeBackupJobs {
     }
     private synchronized boolean prepareRestoreInput(Uri uri,VerifiedBackupCopy retained,RetainedCatalogue.Entry retainedTree,char[] supplied,Set<String> selected,boolean includeKey,String projects){
         if(state.busy||workers.isClosed()||AutomaticBackups.factoryResetPending(context)||(retained==null&&retainedTree==null&&(uri==null||!"content".equals(uri.getScheme()))))return false;
-        if(BackupManager.hasPendingMaintenance(context.getFilesDir()))return false;
+        if(MaintenanceCoordinator.pending(context.getFilesDir()))return false;
         if(!NativeDataLocations.SCOPES.containsAll(selected)||selected.isEmpty())return false;
         if(!Set.of("PRIVATE","GUEST_HOME").contains(projects))return false;
         char[] password=supplied==null?null:supplied.clone();Set<String> scopes=new HashSet<>(selected);
-        try{File parent=operations();if(fs.list(parent).size()>=BackupLimits.TRANSACTION_RECORDS)throw new IOException("RETAINED_OPERATION_LIMIT");task=new File(parent,UUID.randomUUID().toString());fs.directory(task);
-            control=new BackupControl(this::progress);decision=null;update("COPYING_INPUT","","","",0,0,true);foreground();}
+        final DataProtectionService.StartTicket protection;
+        try{File parent=HostOperationArchive.reserve(fs,context.getFilesDir().getCanonicalFile());task=new File(parent,UUID.randomUUID().toString());fs.directory(task);
+            control=new BackupControl(this::progress);decision=null;update("COPYING_INPUT","","","",0,0,true);protection=foreground();}
         catch(IOException error){if(password!=null)Arrays.fill(password,'\0');beginFailed(error);return false;}
         File owned=task;BackupControl cancellation=control;
         return launch(()->{
             File input=new File(owned,"input.archive"),plain=new File(owned,"restore.dshdata");
             try {
+                protection.await();
                 if(retainedTree!=null){
                     File files=context.getFilesDir().getCanonicalFile();var catalogue=new RetainedCatalogue(fs,files,new UserDataLayout(fs,files).current());
                     Map<String,Object> provenance=new LinkedHashMap<>();provenance.put("operation","RESCUE");provenance.put("purpose","RESTORE_PREVIEW");provenance.put("createdAt",System.currentTimeMillis());
@@ -321,7 +377,7 @@ public final class NativeBackupJobs {
                 update("PREVIEW","CONFIRM_STOP_AND_RESTORE","","",BackupJson.number(plan.manifest,"entries"),BackupJson.number(plan.manifest,"bytes"),true);
                 synchronized(approval){while(decision==null){cancellation.check();try{approval.wait(500);}catch(InterruptedException error){Thread.currentThread().interrupt();throw new InterruptedIOException("CANCELLED");}}if(!decision)throw new InterruptedIOException("CANCELLED");}
                 update("STOPPING_WRITERS","","","",0,0,true);
-                BackupManager.runDataTask(HarnessController.get(context),()->{
+                MaintenanceCoordinator.exclusive(HarnessController.get(context),()->{
                     try(InputStream source=fs.read(plain,fs.stat(plain))){if(!hash.equals(BackupArchive.digest(source,cancellation)))throw new IOException("INPUT_CHANGED");}
                     List<String> roots=plan.buildCandidates(true,cancellation);mapping.prepareLayout(roots,plan.before,new File(owned,"candidate"));mapping.prepareParents(roots);
                     if(roots.contains("plugin-store")&&(scopes.contains("application")||scopes.contains("plugins"))&&plan.manifest.get("plugins") instanceof Map){
@@ -343,23 +399,36 @@ public final class NativeBackupJobs {
                 // 明确区分「用户选择不带 key」与「勾选后仍未恢复」，避免再次出现
                 // 只显示“数据已恢复”却让用户下一次对话才发现凭据为空的假成功。
                 String result;
-                if(includeKey&&!keyAvailable) result="DATA_RESTORED_API_KEY_MISSING";
+                if(plan.warnings.contains("PROFILE_CONFIGURATION_REQUIRES_REVIEW")) result="DATA_RESTORED_SETTINGS_REVIEW"+(!keyAvailable?(includeKey?"_API_KEY_MISSING":"_API_KEY_OMITTED"):"");
+                else if(includeKey&&!keyAvailable) result="DATA_RESTORED_API_KEY_MISSING";
                 else if(!includeKey&&!keyAvailable) result="DATA_RESTORED_API_KEY_OMITTED";
                 else result=plugins?"DATA_RESTORED_PLUGINS_QUARANTINED":plan.warnings.isEmpty()?"DATA_RESTORED":"DATA_RESTORED_WITH_WARNINGS";
                 update("FINISHED",result,"","",BackupJson.number(plan.manifest,"entries"),BackupJson.number(plan.manifest,"bytes"),false);
             }catch(Exception error){failed(error);}
-            finally{if(password!=null)Arrays.fill(password,'\0');synchronized(this){if(control==cancellation)control=null;}}
+            finally{if(password!=null)Arrays.fill(password,'\0');
+                if(!HostPendingTransactions.blocked(context.getFilesDir()))try{RestoreStaging.clearSensitivePlaintext(fs,owned);}catch(IOException ignored){}
+                try{HostOperationArchive.archiveIfTerminal(fs,context.getFilesDir().getCanonicalFile(),owned);}catch(IOException ignored){}
+                synchronized(this){if(control==cancellation)control=null;}}
         },"host-data-restore",password);
     }
     public synchronized boolean recoverPending(){
         if(state.busy||workers.isClosed()||AutomaticBackups.factoryResetPending(context))return false;
-        List<File> pending;try{pending=HostPendingTransactions.pending(fs,context.getFilesDir().getCanonicalFile());if(pending.isEmpty())return false;if(pending.size()!=1)throw new IOException("MULTIPLE_TRANSACTIONS");task=pending.get(0);control=new BackupControl(this::progress);update("STOPPING_WRITERS","","","",0,0,true);foreground();}
+        final DataProtectionService.StartTicket protection;
+        List<File> pending;try{pending=HostPendingTransactions.pending(fs,context.getFilesDir().getCanonicalFile());
+            if(pending.isEmpty()&&!state.stage.equals("INTERRUPTED"))return false;
+            if(pending.size()>1)throw new IOException("MULTIPLE_TRANSACTIONS");
+            if(!pending.isEmpty())task=pending.get(0);else task=HostOperationArchive.locate(fs,operations(),state.id);
+            control=new BackupControl(this::progress);update("STOPPING_WRITERS","","","",0,0,true);protection=foreground();}
         catch(IOException error){beginFailed(error);return false;}
         File owned=task;BackupControl cancellation=control;
         return launch(()->{try{
-            BackupManager.runDataTask(HarnessController.get(context),()->com.deepseekharness.app.core.EnvironmentMaintenance.recover(HarnessController.get(context)));
+            protection.await();
+            MaintenanceCoordinator.exclusive(HarnessController.get(context),()->com.deepseekharness.app.core.EnvironmentMaintenance.recover(HarnessController.get(context)));
+            if(!HostPendingTransactions.blocked(context.getFilesDir()))RestoreStaging.clearSensitivePlaintext(fs,owned);
             update("FINISHED","RECOVERED_INTERRUPTED_COMMIT","","",0,0,false);
         }catch(Exception error){failed(error);}
-        finally{synchronized(this){if(control==cancellation)control=null;}}},"host-data-recovery",null);
+        finally{try{HostOperationArchive.archiveIfTerminal(fs,context.getFilesDir().getCanonicalFile(),owned);}catch(IOException ignored){}
+            synchronized(this){if(control==cancellation)control=null;}}},"host-data-recovery",null);
     }
+
 }

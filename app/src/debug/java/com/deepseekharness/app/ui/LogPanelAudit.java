@@ -67,7 +67,7 @@ public final class LogPanelAudit extends Instrumentation {
     @Override public void onStart(){
         Bundle result=new Bundle();ConfigStore store=new ConfigStore(getTargetContext());String language=store.getUiLanguage(),theme=store.getUiTheme();
         try{
-            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
+            try(var fd=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");var input=new ParcelFileDescriptor.AutoCloseInputStream(fd)){while(input.read()!=-1){}}
             long ready=SystemClock.elapsedRealtime()+120000;var controller=com.deepseekharness.app.core.HarnessController.get(getTargetContext());
             while((!controller.isEnvironmentReady()||com.deepseekharness.app.BackupManager.isEnvironmentTaskBusy())&&SystemClock.elapsedRealtime()<ready)Thread.sleep(100);
             check(controller.isEnvironmentReady(),"环境尚未更新完成");

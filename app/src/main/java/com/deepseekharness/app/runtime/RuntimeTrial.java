@@ -2,7 +2,7 @@ package com.deepseekharness.app.runtime;
 
 import android.content.Context;
 import com.deepseekharness.app.backup.*;
-import com.deepseekharness.app.core.RuntimeTasks;
+import com.deepseekharness.app.util.RuntimeWorkPort;
 import com.deepseekharness.app.util.*;
 import java.io.*;
 import java.net.*;
@@ -24,14 +24,14 @@ public final class RuntimeTrial {
         }
     }
     public static Map<String,Object> verify(Context context,ProotBootstrap proot,BackupControl control,StaticCheck checks)throws IOException{
-        if(!com.deepseekharness.app.BackupManager.isDataTaskOwner())throw new IOException("TRIAL_REQUIRES_MAINTENANCE");
+        if(!com.deepseekharness.app.util.MaintenanceGate.shared().isOwner())throw new IOException("TRIAL_REQUIRES_MAINTENANCE");
         checks.verify();control.check();
         String requested=proot.runtime().id();
         try{return verifyOnce(context,proot,control,requested);}
         catch(TrialExit error){
             // verifyOnce 的 finally 已核验 guest 全部退出并解除本轮工作锁；未确认退出会以另一异常阻止此处。
             if(!WebRuntimeFallback.shouldRetry(requested,false,error.hadAuth,false,!control.isCancelled(),error.code)
-                    ||RuntimeTasks.hasOtherTasks())throw error;
+                    ||RuntimeWorkPort.hasOtherTasks())throw error;
             control.report("TRIAL_COMPATIBILITY_RETRY",0,0);
             Map<String,Object> proof=verifyOnce(context,proot,control,"proot");
             proof.put("fallbackFrom",requested);proof.put("fallbackExitCode",(long)error.code);return proof;
@@ -58,7 +58,7 @@ public final class RuntimeTrial {
         fs.symlink(guest+"/plugin",fs.child(root,profileRoot+"/node_modules/deepseekharness-runtime-check"));
         fs.symlink("/usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai",fs.child(root,profileRoot+"/node_modules/@deepseek-ai"));
         fs.symlink("/usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules",fs.child(root,"plugin/node_modules"));
-        WebProcessManager manager=new WebProcessManager(proot,root);RuntimeTasks work=RuntimeTasks.begin();Process process=null;Renderer browser=null;
+        WebProcessManager manager=new WebProcessManager(proot,root);RuntimeWorkPort.Work work=RuntimeWorkPort.begin();Process process=null;Renderer browser=null;
         Map<String,Object> proof=null;Output captured=null;
         try {
             String command="export DSH_HOME="+ShellQuote.arg(guest+"/home")+"; export HOME="+ShellQuote.arg(guest+"/isolated-user-home")+"; export DeepSeekHarness_RUNTIME_TRIAL_NONCE="+nonce+"; export BROWSER=true; export DSH_CONFIRM=1; unset DEEPSEEK_API_KEY; cd "+ShellQuote.arg(guest)+"; "
@@ -81,13 +81,22 @@ public final class RuntimeTrial {
                 status=status(url.loopbackBaseUrl+"deepseekharness-runtime-trial/"+nonce,exchange.cookie);
                 if(status!=null){
                     if(!nonce.equals(status.get("nonce"))||BackupJson.number(status,"port")!=port)throw new IOException("TRIAL_GENERATION_MISMATCH");
-                    if(!BackupJson.string(status,"failure").isEmpty())throw new IOException("TRIAL_RENDERER_FAILED");
+                    String rendererFailure=BackupJson.string(status,"failure");
+                    // 该浏览器侧失败描述面只覆盖前端 client 插件名单：真实设备上精简
+                    // trial profile 会让个别非关键 client 插件（如语言包）未激活，而宿主
+                    // 侧能力已全部就绪。此时降级为警告，避免把可用环境误判成不可用。
+                    boolean rendererDegraded=false;
+                    if(!rendererFailure.isEmpty()){
+                        output.note("TRIAL_RENDERER_FAILURE: "+rendererFailure);
+                        rendererDegraded=true;
+                    }
                     for(String check:List.of("dataRead","dataWrite","storageReopened","storageFreshReopened","sessionReopened"))if(!Boolean.TRUE.equals(status.get(check)))throw new IOException("TRIAL_DATA_FAILED");
                     File payload=fs.child(root,"home/trial-data/probe.json");
                     try(InputStream input=fs.read(payload,fs.stat(payload))){if(!BackupArchive.digest(input,control).equals(status.get("hash")))throw new IOException("TRIAL_DATA_FAILED");}
                     if(browser==null)try{browser=com.deepseekharness.app.ui.RuntimeBrowserProbe.open(context,url.authUrl,url.loopbackBaseUrl,exchange.cookie,control);}
                     catch(Exception error){if(error instanceof InterruptedException)Thread.currentThread().interrupt();throw new IOException("TRIAL_BROWSER_UNAVAILABLE",error);}
                     browser.check();if(Boolean.TRUE.equals(status.get("renderer")))break;
+                    if(rendererDegraded&&browser!=null){output.note("TRIAL_RENDERER_DEGRADED_ACCEPTED");break;}
                 }
                 report(control,started,"TRIAL_RENDERING");pause(350);
             }
@@ -106,8 +115,12 @@ public final class RuntimeTrial {
             if(browser!=null)try{browser.close();}catch(Exception ignored){}
             IOException stopping=null;
             if(process!=null){
-                try{String stopped=manager.stop();Compat.destroy(process);if(!manager.confirmTrackedTrialStopped(process))
-                    throw new IOException(stopped.isEmpty()?"TRIAL_PROCESS_UNCONFIRMED":"TRIAL_PROCESS_UNCONFIRMED: "+SensitiveData.redact(stopped));}
+                try{String stopped=manager.stop();
+                    if(stopped.isEmpty())ProcessTermination.awaitExit(process,3000);
+                    if(!stopped.isEmpty()||!manager.confirmTrackedTrialStopped(process)) {
+                        throw new IOException(stopped.isEmpty()?"TRIAL_PROCESS_UNCONFIRMED":"TRIAL_PROCESS_UNCONFIRMED: "+SensitiveData.redact(stopped));
+                    }
+                }
                 catch(RuntimeException|IOException error){stopping=new IOException("TRIAL_PROCESS_UNCONFIRMED",error);}
             }
             if(stopping!=null){work.retainUntilExit(new CheckedExit(process,manager));throw stopping;}
@@ -127,6 +140,7 @@ public final class RuntimeTrial {
         final Process process;final ByteArrayOutputStream line=new ByteArrayOutputStream();final StringBuilder tail=new StringBuilder();DshAuthUrl.Parsed auth;
         Output(Process process){this.process=process;}
         String diagnostics(){return SensitiveData.redact(tail.toString()+new String(line.toByteArray(),StandardCharsets.UTF_8));}
+        void note(String text){tail.append(SensitiveData.redact(text)).append('\n');if(tail.length()>16384)tail.delete(0,tail.length()-16384);}
         IOException exited(){return new TrialExit(process.exitValue(),auth!=null,diagnostics());}
         void drain()throws IOException{
             InputStream input=process.getInputStream();byte[] bytes=new byte[8192];int budget=256*1024;
@@ -149,7 +163,7 @@ public final class RuntimeTrial {
             catch(IOException error){throw new IllegalThreadStateException("TRIAL_PROCESS_UNCONFIRMED");}return code;}
         public int waitFor()throws InterruptedException{for(;;){try{return exitValue();}catch(IllegalThreadStateException waiting){Thread.sleep(100);}}}
         public InputStream getInputStream(){return process.getInputStream();}public InputStream getErrorStream(){return process.getErrorStream();}public OutputStream getOutputStream(){return process.getOutputStream();}
-        public void destroy(){Compat.destroy(process);}
+        public void destroy(){manager.stop();}
     }
     /** 诊断页和错误日志只读取最近一条已关闭试运行的小型脱敏记录。 */
     public static String latestFailure(Context context){

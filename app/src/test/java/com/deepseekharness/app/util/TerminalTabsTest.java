@@ -34,4 +34,23 @@ public class TerminalTabsTest {
         TerminalTabs<String> tabs=new TerminalTabs<>();tabs.add("one");var copy=tabs.snapshot();tabs.add("two");
         assertEquals(1,copy.size());try{copy.clear();fail();}catch(UnsupportedOperationException expected){}
     }
+    @Test public void readOnlyViewIsLiveButCannotBecomeTheMutableTable() {
+        TerminalTabs<String> tabs=new TerminalTabs<>();
+        TerminalTabs.ReadOnly<String> view=tabs.readOnly();
+        assertSame(view,tabs.readOnly());
+        assertFalse(((Object)view) instanceof TerminalTabs);
+        assertFalse(view.wasInitialized());
+        var first=tabs.add("one");
+        var detached=view.snapshot();
+        assertSame(first,view.current());
+        assertTrue(view.wasInitialized());
+        assertTrue(tabs.beginClose(first.id));
+        assertTrue(view.find(first.id).isClosing());
+        tabs.closeFailed(first.id);
+        assertFalse(view.find(first.id).isClosing());
+        tabs.add("two");
+        assertEquals(1,detached.size());
+        assertEquals(2,view.snapshot().size());
+        try { detached.clear(); fail(); } catch (UnsupportedOperationException expected) { }
+    }
 }

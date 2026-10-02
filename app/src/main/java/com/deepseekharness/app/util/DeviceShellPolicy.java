@@ -27,13 +27,17 @@ public final class DeviceShellPolicy {
     private static final Set<String> READ = set("id whoami pwd uname getprop getenforce ps pidof ls cat head tail wc grep stat readlink realpath df du free uptime printenv echo printf md5sum sha1sum sha256sum sha512sum true false");
     private static final Set<String> BLOCK = set("dd mkfs mke2fs mkfs.ext4 mkfs.f2fs fdisk sfdisk cfdisk parted sgdisk blockdev losetup wipefs setenforce chcon restorecon setprop mount umount unmount fastboot flash flash_image format erase wipe recovery reboot shutdown poweroff halt bootctl boot_control lpmake lpflash update_engine_client avbctl dmctl fsck tune2fs");
     private static final Set<String> FILE = set("mkdir touch cp mv rm rmdir rename");
+    private static final Set<String> CONTENT_READ = set("cat head tail wc grep stat readlink realpath du ls find md5sum sha1sum sha256sum sha512sum");
     private static final String[] PROTECTED = {"/dcim", "/pictures", "/android/data", "/android/obb"};
+    private static final String SMS_PROVIDER = "com.android.providers.telephony";
     private static final String[] ALIASES = {"/sdcard", "/mnt/sdcard", "/storage/self/primary", "/mnt/user/0/primary"};
     private static final String STORAGE = "^/storage/(?:emulated/[0-9]+|[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4})(/.*)?$";
     /** ADB 客户端使用由原生侧提供的同一份目录规则，不再维护另一份路径黑名单。 */
     public static java.util.Map<String,Object> pathRules() {
         java.util.Map<String,Object> rules = new java.util.LinkedHashMap<>();
         rules.put("protected", Arrays.asList(PROTECTED)); rules.put("aliases", Arrays.asList(ALIASES));
+        rules.put("smsProvider", SMS_PROVIDER); rules.put("smsReadRoots", Arrays.asList(
+                "/data/data/" + SMS_PROVIDER, "/data/user/*/" + SMS_PROVIDER, "/data/user_de/*/" + SMS_PROVIDER));
         rules.put("storage", STORAGE); rules.put("temporary", "/data/local/tmp"); return rules;
     }
     private static Plan plan(Kind kind, List<String> args, List<String> paths) { return new Plan(kind, args, paths, ""); }
@@ -105,7 +109,9 @@ public final class DeviceShellPolicy {
         if (name.equals("logcat")) return inspectLogcat(args);
         if (name.equals("am") && args.size() == 2 && args.get(1).equals("get-current-user"))
             return plan(Kind.READ, args, Collections.emptyList());
-        if (name.equals("app_process")) return inspectVirtualScreen(args);
+        // app_process can load arbitrary DEX code. The narrowly managed virtual-screen
+        // launcher has a separate typed entry point and is never accepted as a shell command.
+        if (name.equals("app_process")) return deny(com.deepseekharness.app.util.UiText.text("app_process 仅允许原生受管虚拟屏入口"));
         if (name.equals("am") && args.size() == 3 && set("force-stop kill").contains(args.get(1)) && packageName(args.get(2)))
             return plan(Kind.STOP, args, Collections.singletonList(args.get(2)));
         if (name.equals("kill") || name.equals("killall") || name.equals("pkill")) {
@@ -124,17 +130,94 @@ public final class DeviceShellPolicy {
         return deny(com.deepseekharness.app.util.UiText.text("不认识的命令不执行：") + name);
     }
 
-    /** 仅允许 DeepSeekHarness 自己生成的 app_process 启动器；不把 app_process 变成通用 shell。 */
-    private static Plan inspectVirtualScreen(List<String> args) {
-        if (args.size() != 9 || !args.get(1).startsWith("-Djava.class.path=/data/app/")
-                || !args.get(1).endsWith(".apk") || !args.get(2).equals("/system/bin")
+    /** Native-only operation: validate a launcher against PackageManager's current DeepSeekHarness APK. */
+    public static Plan inspectVirtualScreenLaunch(String command, String installedApkPath) {
+        final List<String> args;
+        try { args = split(command); }
+        catch (IllegalArgumentException error) { return deny(error.getMessage()); }
+        if (args.isEmpty()) return deny(com.deepseekharness.app.util.UiText.text("虚拟屏启动命令为空"));
+        String name = executable(args.get(0));
+        if (!"app_process".equals(name)) return deny(com.deepseekharness.app.util.UiText.text("虚拟屏启动器无法核验"));
+        args.set(0, name);
+        // The child creates its own bearer secret after exec. Keeping the launcher argv
+        // free of secrets prevents disclosure through process listings and crash tools.
+        if (args.size() != 7 || !canonicalApkPath(installedApkPath)
+                || !args.get(1).equals("-Djava.class.path=" + installedApkPath) || !args.get(2).equals("/system/bin")
                 || !args.get(3).equals("com.deepseekharness.app.vscreen.VirtualScreenCore")
                 || !args.get(4).equals("--launch") || !args.get(5).equals("--port")
-                || !args.get(7).equals("--token")
-                || !args.get(6).matches("8[0-9]{3,4}")
-                || !args.get(8).matches("[a-f0-9]{32,128}"))
+                || !args.get(6).matches("8[0-9]{3}"))
             return deny(com.deepseekharness.app.util.UiText.text("虚拟屏启动参数无法核验"));
         return plan(Kind.VIRTUAL_SCREEN, args, Collections.emptyList());
+    }
+
+    /** Android package-manager path syntax, kept pure so all transports share the same rule. */
+    public static boolean canonicalApkPath(String path) {
+        if (path == null || !path.startsWith("/data/app/") || !path.endsWith(".apk")
+                || path.indexOf('\\') >= 0 || path.indexOf('\0') >= 0 || path.matches(".*[\\s].*")) return false;
+        for (String part : path.split("/")) if (part.equals(".") || part.equals("..")) return false;
+        return !path.contains("//");
+    }
+
+    /** Paths read by a Root command or copied by Root must not expose SMS storage. */
+    public static List<String> rootReadPaths(Plan plan) {
+        if (plan == null) return Collections.emptyList();
+        List<String> paths = new ArrayList<>();
+        if (plan.kind == Kind.FILE && plan.command().equals("cp")) {
+            for (int i = 0; i + 1 < plan.operands.size(); i++) paths.add(plan.operands.get(i));
+            return Collections.unmodifiableList(paths);
+        }
+        if (plan.kind != Kind.READ || !CONTENT_READ.contains(plan.command())) return Collections.emptyList();
+        boolean afterSeparator = false;
+        for (int i = 1; i < plan.argv.size(); i++) {
+            String arg = plan.argv.get(i);
+            if (!afterSeparator && arg.equals("--")) { afterSeparator = true; continue; }
+            if (!afterSeparator && arg.startsWith("-")) {
+                if (arg.startsWith("--") && arg.contains("=")) arg = arg.substring(arg.indexOf('=') + 1);
+                else if (arg.length() > 2 && arg.charAt(0) == '-' && arg.charAt(2) == '/') arg = arg.substring(2);
+                else continue;
+            }
+            if (arg.startsWith("/") || arg.contains("/") || !arg.startsWith("-")) paths.add(arg);
+        }
+        if (paths.isEmpty() && plan.command().equals("du")) paths.add(".");
+        if (paths.isEmpty() && plan.command().equals("ls") && rootReadMayDescend(plan)) paths.add(".");
+        return Collections.unmodifiableList(paths);
+    }
+
+    /** Recursive reads/copies of an ancestor could enumerate or expose the SMS provider tree. */
+    public static boolean rootReadMayDescend(Plan plan) {
+        if (plan == null) return false;
+        String command = plan.command();
+        if (plan.kind == Kind.FILE && command.equals("cp")) {
+            for (String arg : plan.argv) {
+                if (arg.equals("--")) break;
+                if (arg.startsWith("-") && (arg.indexOf('R') >= 0 || arg.indexOf('r') >= 0)) return true;
+            }
+            return false;
+        }
+        if (plan.kind != Kind.READ) return false;
+        if (command.equals("find") || command.equals("du")) return true;
+        if (command.equals("ls") || command.equals("grep")) {
+            for (String arg : plan.argv) {
+                if (arg.equals("-R") || arg.equals("-r") || arg.equals("--recursive")) return true;
+                if (arg.startsWith("-") && !arg.startsWith("--") && (arg.indexOf('R') >= 0 || arg.indexOf('r') >= 0)) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Exact Android per-user telephony-provider private tree, including database sidecars. */
+    public static boolean smsProviderPath(String raw) {
+        String path = normalize(raw).toLowerCase(Locale.ROOT);
+        return path.matches("^/data/(?:data|user/[0-9]+|user_de/[0-9]+)/com\\.android\\.providers\\.telephony(?:/.*)?$");
+    }
+
+    /** Whether a recursive root traversal starting here can enter a telephony-provider tree. */
+    public static boolean smsProviderDescendant(String raw) {
+        String path = normalize(raw).toLowerCase(Locale.ROOT);
+        if (path.equals("/") || path.equals("/data") || path.equals("/data/data")
+                || path.equals("/data/user") || path.equals("/data/user_de")
+                || path.matches("^/data/user/[0-9]+$") || path.matches("^/data/user_de/[0-9]+$")) return true;
+        return smsProviderPath(path);
     }
 
     private static Plan inspectFile(List<String> args) {

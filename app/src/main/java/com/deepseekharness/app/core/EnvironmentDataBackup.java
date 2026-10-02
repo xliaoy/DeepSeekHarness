@@ -16,8 +16,6 @@ import java.util.function.Consumer;
 /** 全量 .dsh 归档之外的个人目录保护；仅用于已停止运行任务的环境维护。 */
 final class EnvironmentDataBackup {
     private static final long LIMIT = 16L * 1024 * 1024 * 1024;
-    private static final String ENV_DATA = "DeepSeekHarness_ENV_DATA=";
-    private static final String ENV_PROGRESS = "DeepSeekHarness_ENV_PROGRESS=";
     static final class Snapshot {
         final String hash;
         final long unpackedBytes;
@@ -56,10 +54,10 @@ final class EnvironmentDataBackup {
         Compat.write(new File(controller.proot().getRootfsDir(), "root/.deepseekharness-environment-data.py"), asset.getBytes(StandardCharsets.UTF_8));
         final String[] result = {null};
         Consumer<String> lines = line -> {
-            if (line.startsWith(ENV_DATA)) result[0] = line.substring(ENV_DATA.length());
-            else if (line.startsWith(ENV_PROGRESS)) {
+            if (line.startsWith("DeepSeekHarness_ENV_DATA=")) result[0] = line.substring(14);
+            else if (line.startsWith("DeepSeekHarness_ENV_PROGRESS=")) {
                 try {
-                    JSONObject value = new JSONObject(line.substring(ENV_PROGRESS.length()));
+                    JSONObject value = new JSONObject(line.substring(18));
                     progress.accept(com.deepseekharness.app.util.UiText.text(value.getString("stage")) + com.deepseekharness.app.util.UiText.text("：") + value.getLong("files") + com.deepseekharness.app.util.UiText.text(" 项，")
                             + com.deepseekharness.app.util.Fmt.bytes(value.getLong("bytes"))
                             + com.deepseekharness.app.util.UiText.text("，已用 ") + value.getLong("seconds") + com.deepseekharness.app.util.UiText.text(" 秒"));
@@ -78,7 +76,7 @@ final class EnvironmentDataBackup {
         return new JSONObject(result[0]);
     }
     private static void requireOwner() throws IOException {
-        if (!BackupManager.isDataTaskOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("个人文件迁移必须持有维护任务锁"));
+        if (!MaintenanceCoordinator.isOwner()) throw new IOException(com.deepseekharness.app.util.UiText.text("个人文件迁移必须持有维护任务锁"));
     }
     private static void verify(File file, String expected) throws IOException {
         if (expected == null || !expected.matches("[a-f0-9]{64}")) throw new IOException(com.deepseekharness.app.util.UiText.text("个人文件摘要无效"));

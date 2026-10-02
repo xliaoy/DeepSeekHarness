@@ -5,8 +5,12 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 
-/** 接收本应用深链传入的下载请求；作者和版本最终由实际压缩包校验，不执行链接中的命令。 */
+/** 网页只传入下载请求；作者和版本最终由实际压缩包校验，不执行链接中的命令。 */
 public final class PluginInstallLink {
+    /** 网页只导航到原生管理页；不接受任意路径、参数或嵌入命令。 */
+    public static boolean management(String value) {
+        return "https://deepseekharness.cc/app/plugins".equals(value)||"https://deepseekharness.cc/app/plugins/".equals(value);
+    }
     public final String url, sha256, name, version, builtin;
     private PluginInstallLink(Map<String, String> params) {
         url=params.getOrDefault("url", ""); sha256=params.getOrDefault("sha256", "");
@@ -18,7 +22,9 @@ public final class PluginInstallLink {
             URI uri = new URI(value);
             boolean custom = "deepseekharness".equalsIgnoreCase(uri.getScheme()) && "install".equalsIgnoreCase(uri.getHost())
                     && (uri.getPath().isEmpty() || "/".equals(uri.getPath()));
-            if (!custom || uri.getPort() != -1 || uri.getRawUserInfo() != null || uri.getFragment() != null) throw new IllegalArgumentException();
+            boolean web = "https".equalsIgnoreCase(uri.getScheme()) && "deepseekharness.cc".equalsIgnoreCase(uri.getHost())
+                    && ("/install".equals(uri.getPath()) || "/install/".equals(uri.getPath()));
+            if ((!custom && !web) || uri.getPort() != -1 || uri.getRawUserInfo() != null || uri.getFragment() != null) throw new IllegalArgumentException();
             Map<String, String> params = new HashMap<>();
             String query = uri.getRawQuery();
             if (query == null) throw new IllegalArgumentException();
@@ -39,7 +45,7 @@ public final class PluginInstallLink {
                 if (link.version.length() > 100) throw new IllegalArgumentException();
             }
             return link;
-        } catch (Exception e) { throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("安装链接无效，请在插件页粘贴有效的下载链接")); }
+        } catch (Exception e) { throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("安装链接无效，请从 deepseekharness.cc 重新选择插件，或在插件页粘贴下载链接")); }
     }
     private static boolean validName(String value) { return value.length() <= 214 && value.matches("(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*"); }
 }

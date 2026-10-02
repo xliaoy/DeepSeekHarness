@@ -16,7 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.deepseekharness.app.R;
-import com.deepseekharness.app.BackupManager;
+import com.deepseekharness.app.core.MaintenanceCoordinator;
 import com.deepseekharness.app.core.BackupTask;
 import com.deepseekharness.app.core.InstallRepository;
 import com.deepseekharness.app.util.EnvironmentTaskGate;
@@ -95,7 +95,7 @@ public class InstallFragment extends Fragment {
         androidx.appcompat.app.AlertDialog.Builder dialog = new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(requireContext())
                 .setTitle(com.deepseekharness.app.util.UiText.text(InstallTask.NAMES[step - 1])).setMessage(com.deepseekharness.app.util.MaintenanceErrorText.render(state.details[step - 1]))
                 .setNeutralButton(com.deepseekharness.app.util.UiText.text("关闭"), null);
-        if (!state.busy() && !BackupManager.isEnvironmentTaskBusy() && !BackupTask.get(requireContext()).pendingMaintenance()) {
+        if (!state.busy() && !MaintenanceCoordinator.isEnvironmentTaskBusy() && !BackupTask.get(requireContext()).pendingMaintenance()) {
             dialog.setPositiveButton(com.deepseekharness.app.util.UiText.text("按需修复"), (d, which) -> start(true, step))
                     .setNegativeButton(com.deepseekharness.app.util.UiText.text("重新检查"), (d, which) -> start(false, step));
         }
@@ -105,7 +105,7 @@ public class InstallFragment extends Fragment {
     private void render() {
         View view = getView(); if (view == null || repository == null) return;
         InstallTask.Snapshot state = repository.snapshot();
-        boolean environmentBusy = BackupManager.isEnvironmentTaskBusy();
+        boolean environmentBusy = MaintenanceCoordinator.isEnvironmentTaskBusy();
         BackupTask maintenanceTask = BackupTask.get(requireContext());
         boolean pending = maintenanceTask.pendingMaintenanceForUi();
         String renderKey = state.revision + ":" + state.elapsedSeconds + ":" + state.stageSeconds + ":"

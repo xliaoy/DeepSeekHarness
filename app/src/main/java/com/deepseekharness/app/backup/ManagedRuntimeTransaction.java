@@ -7,6 +7,7 @@ import java.util.*;
 /** 受管更新复用宿主多根事务。用户目录不进入切换清单，健康验证结束前不提交。 */
 public final class ManagedRuntimeTransaction implements HostDataTransaction.Targets {
     public static final String HOME="host-runtime-operations";
+    private static final String COMPLETED="completed",HISTORY_PROOF="host-runtime-completed-v1.json";
     private final BackupFileSystem fs;
     private final File files,directory;
     private final Map<String,String> paths=new LinkedHashMap<>();
@@ -22,7 +23,8 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
         File log=fs.child(directory,"runtime-mapping.json");
         if(!fs.stat(log).type.equals("MISSING")){
             mapping=BackupJson.read(fs.small(log,BackupLimits.MANIFEST),BackupLimits.MANIFEST);
-            if(BackupJson.number(mapping,"version")!=1||!directory.getName().equals(BackupJson.string(mapping,"id")))throw new IOException("RUNTIME_MAPPING");
+            long format=BackupJson.number(mapping,"version");
+            if((format!=1&&format!=2)||!directory.getName().equals(BackupJson.string(mapping,"id")))throw new IOException("RUNTIME_MAPPING");
             Object records=mapping.get("paths");if(!(records instanceof Map)||((Map<?,?>)records).isEmpty()||((Map<?,?>)records).size()>2048)throw new IOException("RUNTIME_MAPPING");
             Set<String> unique=new HashSet<>();for(var entry:((Map<?,?>)records).entrySet()){
                 if(!(entry.getKey() instanceof String)||!((String)entry.getKey()).matches("runtime-[0-9]{1,4}")||!(entry.getValue() instanceof String))throw new IOException("RUNTIME_MAPPING");
@@ -39,15 +41,20 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
     public static ManagedRuntimeTransaction create(BackupFileSystem fs,File files,HostDataTransaction.Fault fault)throws IOException{
         File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))fs.directory(home);
         if(!pending(fs,files).isEmpty())throw new IOException("RUNTIME_RECOVERY_REQUIRED");
-        if(fs.list(home).size()>=BackupLimits.TRANSACTION_RECORDS)throw new IOException("RUNTIME_RETENTION_LIMIT");
+        pruneEmptyPlaceholders(fs,home);
         File entry=fs.child(home,UUID.randomUUID().toString());fs.directory(entry);fs.directory(new File(entry,"candidate"));fs.directory(new File(entry,"stage"));
-        return new ManagedRuntimeTransaction(fs,files,entry,fault);
+        ManagedRuntimeTransaction created=new ManagedRuntimeTransaction(fs,files,entry,fault);created.markerWrite("created");return created;
     }
-    public File directory(){return directory;}
+    public File directory(){File retained=new File(new File(files,HOME),COMPLETED+"/"+directory.getName());return directory.exists()?directory:retained.exists()?retained:directory;}
     public File stage(){return new File(directory,"stage");}
     public static ManagedRuntimeTransaction open(BackupFileSystem fs,File files,String id,HostDataTransaction.Fault fault)throws IOException{
         if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RUNTIME_OPERATION_ID");
-        return new ManagedRuntimeTransaction(fs,files,fs.child(files,HOME+"/"+id),fault);
+        File home=fs.child(files,HOME),active=fs.child(home,id),retained=new File(home,COMPLETED+"/"+id);
+        String a=fs.stat(active).type,h=fs.stat(retained).type;
+        if(!a.equals("MISSING")&&!h.equals("MISSING"))throw new IOException("RUNTIME_OPERATION_DUPLICATE");
+        File selected=a.equals("DIRECTORY")?active:h.equals("DIRECTORY")?retained:null;
+        if(selected==null)throw new IOException("RUNTIME_OPERATION_ID");
+        return new ManagedRuntimeTransaction(fs,files,selected,fault);
     }
     @Override public File resolve(String root)throws IOException{
         String path=paths.get(root);if(path==null)throw new IOException("UNKNOWN_RUNTIME_ROOT");
@@ -69,6 +76,7 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
         if(!previousBytesVerified(previousHealth,before))previousHealth=null;
         saveMapping(candidate,previous,previousHealth,"");
         transaction.prepare(new ArrayList<>(paths.keySet()),before,Collections.emptyMap(),control);
+        writeArchiveSeal();
     }
     private boolean previousBytesVerified(Map<String,Object> receipt,Map<String,String> before)throws IOException{
         if(receipt==null||!(receipt.get("managedHashes") instanceof Map))return false;
@@ -77,7 +85,7 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
         return true;
     }
     private void saveMapping(RuntimeDescriptor candidate,RuntimeDescriptor previous,Map<String,Object> previousHealth,String source)throws IOException{
-        mapping=new LinkedHashMap<>();mapping.put("version",1L);mapping.put("id",directory.getName());mapping.put("paths",paths);
+        mapping=new LinkedHashMap<>();mapping.put("version",2L);mapping.put("id",directory.getName());mapping.put("paths",paths);
         mapping.put("candidateDescriptor",candidate.json());mapping.put("previousDescriptor",previous==null?Collections.emptyMap():previous.json());
         mapping.put("previousHealth",previousHealth==null?Collections.emptyMap():previousHealth);mapping.put("source",source);mapping.put("createdAt",System.currentTimeMillis());
         try(OutputStream out=fs.create(fs.child(directory,"runtime-mapping.json"))){out.write(BackupJson.write(mapping,BackupLimits.MANIFEST));}fs.syncDirectory(directory);
@@ -92,18 +100,121 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
             public boolean mayRecover(){return mayRecover.getAsBoolean();}
         });
     }
-    public void recover()throws IOException{transaction.recover();}
+    private ManagedRuntimeTransaction relocated()throws IOException{
+        File active=new File(files,HOME+"/"+directory.getName());
+        File history=new File(files,HOME+"/"+COMPLETED+"/"+directory.getName());
+        String old=fs.stat(active).type,retained=fs.stat(history).type;
+        if(!old.equals("MISSING")&&!retained.equals("MISSING"))throw new IOException("RUNTIME_OPERATION_DUPLICATE");
+        if(directory.equals(history)){
+            if(!retained.equals("DIRECTORY"))throw new IOException("RUNTIME_OPERATION_MISSING");
+            return this;
+        }
+        if(old.equals("MISSING")){
+            if(!retained.equals("DIRECTORY"))throw new IOException("RUNTIME_OPERATION_MISSING");
+            return new ManagedRuntimeTransaction(fs,files,history,null);
+        }
+        if(!old.equals("DIRECTORY"))throw new IOException("RUNTIME_OPERATION_DIRECTORY");
+        return this;
+    }
+    private String recordHash(String name)throws IOException{
+        return BackupArchive.hex(BackupArchive.sha().digest(fs.small(fs.child(directory,name),BackupLimits.MANIFEST)));
+    }
+    private void writeArchiveSeal()throws IOException{
+        Map<String,Object> proof=Map.of("version",1L,"id",directory.getName(),
+                "mapping",recordHash("runtime-mapping.json"),"plan",recordHash("plan.json"));
+        try(OutputStream out=fs.create(fs.child(directory,"archive-seal.json"))){out.write(BackupJson.write(proof,4096));}
+        fs.syncDirectory(directory);
+    }
+    private boolean archiveSealed()throws IOException{
+        if(mapping==null||BackupJson.number(mapping,"version")!=2)return false;
+        File seal=fs.child(directory,"archive-seal.json");if(!fs.stat(seal).type.equals("FILE"))return false;
+        Map<String,Object> proof=BackupJson.read(fs.small(seal,4096),4096);
+        if(BackupJson.number(proof,"version")!=1||!directory.getName().equals(BackupJson.string(proof,"id"))
+                ||!recordHash("runtime-mapping.json").equals(BackupJson.string(proof,"mapping"))
+                ||!recordHash("plan.json").equals(BackupJson.string(proof,"plan")))return false;
+        Set<String> allowed=Set.of("created","candidate","stage","runtime-mapping.json","plan.json","verified","switching",
+                "files-committed","settings-committed","health.json","finalized","previous","failed","previous-cleaned",
+                "rolling-back","rolled-back","archive-seal.json");
+        if(!allowed.containsAll(fs.list(directory)))return false;
+        if(!marker("finalized"))return false;
+        if(marker("previous-cleaned"))return emptyDirectory(fs,fs.child(directory,"previous"));
+        return retainedBytesUnchanged();
+    }
+    public void recover()throws IOException{ManagedRuntimeTransaction current=relocated();current.transaction.recover();}
     public static List<ManagedRuntimeTransaction> pending(BackupFileSystem fs,File files)throws IOException{
-        List<ManagedRuntimeTransaction> result=new ArrayList<>();for(ManagedRuntimeTransaction item:all(fs,files)){
+        verifyHistory(fs,files);
+        List<ManagedRuntimeTransaction> result=new ArrayList<>();for(ManagedRuntimeTransaction item:active(fs,files)){
             if(item.marker("switching")&&!item.marker("finalized")&&!item.marker("rolled-back"))result.add(item);
         }if(result.size()>1)throw new IOException("MULTIPLE_RUNTIME_TRANSACTIONS");return result;
     }
     public static boolean blocked(File files){try{return !pending(new AndroidBackupFileSystem(),files.getCanonicalFile()).isEmpty();}catch(IOException error){return true;}}
     private static List<ManagedRuntimeTransaction> all(BackupFileSystem fs,File files)throws IOException{
-        File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))return Collections.emptyList();
-        List<String> children=fs.list(home);if(children.size()>BackupLimits.TRANSACTION_RECORDS)throw new IOException("RUNTIME_RETENTION_LIMIT");List<ManagedRuntimeTransaction> result=new ArrayList<>();
-        for(String id:children){if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RUNTIME_OPERATION_ID");result.add(new ManagedRuntimeTransaction(fs,files,fs.child(home,id),null));}
+        List<ManagedRuntimeTransaction> result=active(fs,files);
+        File history=new File(files,HOME+"/"+COMPLETED);if(fs.stat(history).type.equals("DIRECTORY"))for(String id:fs.list(history)){
+            if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RUNTIME_OPERATION_ID");
+            if(!fs.stat(new File(files,HOME+"/"+id)).type.equals("MISSING"))throw new IOException("RUNTIME_OPERATION_DUPLICATE");
+            result.add(new ManagedRuntimeTransaction(fs,files,fs.child(history,id),null));
+        }
         return result;
+    }
+    private static List<ManagedRuntimeTransaction> active(BackupFileSystem fs,File files)throws IOException{
+        File home=fs.child(files,HOME);if(fs.stat(home).type.equals("MISSING"))return Collections.emptyList();
+        List<String> children=fs.list(home);List<ManagedRuntimeTransaction> result=new ArrayList<>();
+        for(String id:children){if(id.equals(COMPLETED))continue;if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RUNTIME_OPERATION_ID");
+            if(!fs.stat(new File(home,COMPLETED+"/"+id)).type.equals("MISSING"))throw new IOException("RUNTIME_OPERATION_DUPLICATE");
+            result.add(new ManagedRuntimeTransaction(fs,files,fs.child(home,id),null));}
+        return result;
+    }
+    private static void verifyHistory(BackupFileSystem fs,File files)throws IOException{
+        File home=new File(files,HOME),history=new File(home,COMPLETED),proof=new File(files,HISTORY_PROOF);
+        String type=fs.stat(history).type;
+        if(type.equals("MISSING")){if(!fs.stat(proof).type.equals("MISSING"))throw new IOException("RUNTIME_HISTORY_PROOF_ORPHAN");return;}
+        if(!type.equals("DIRECTORY")||!fs.stat(home).type.equals("DIRECTORY"))throw new IOException("RUNTIME_HISTORY_TYPE");
+        String filesKey=fs.stat(files).key,historyKey=fs.stat(history).key;
+        String proofType=fs.stat(proof).type;
+        if(!proofType.equals("MISSING")){
+            if(!proofType.equals("FILE"))throw new IOException("RUNTIME_HISTORY_PROOF_TYPE");
+            Map<String,Object> value=BackupJson.read(fs.small(proof,4096),4096);
+            if(BackupJson.number(value,"version")!=1)throw new IOException("RUNTIME_HISTORY_PROOF_FORMAT");
+            if(filesKey.equals(BackupJson.string(value,"filesKey"))&&historyKey.equals(BackupJson.string(value,"historyKey")))return;
+        }
+        for(String id:fs.list(history)){
+            if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RUNTIME_HISTORY_ID");
+            ManagedRuntimeTransaction item=new ManagedRuntimeTransaction(fs,files,fs.child(history,id),null);
+            if(!item.terminal())throw new IOException("RUNTIME_HISTORY_NOT_TERMINAL");
+            if(!fs.stat(new File(home,id)).type.equals("MISSING"))throw new IOException("RUNTIME_OPERATION_DUPLICATE");
+        }
+        fs.atomic(files,HISTORY_PROOF,BackupJson.write(Map.of("version",1L,"filesKey",filesKey,"historyKey",historyKey),4096));
+    }
+    private boolean terminal()throws IOException{
+        boolean finalized=marker("finalized"),rolledBack=marker("rolled-back");
+        if(finalized==rolledBack)return false;
+        if(mapping==null)return false;
+        Map<String,Object> plan=BackupJson.read(fs.small(fs.child(directory,"plan.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST);
+        return BackupJson.number(plan,"version")==1&&directory.getName().equals(BackupJson.string(plan,"id"));
+    }
+    public static boolean isTerminalRecord(BackupFileSystem fs,File files,String id)throws IOException{
+        if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))return false;
+        File entry=new File(files,HOME+"/"+id);
+        return fs.stat(entry).type.equals("DIRECTORY")&&new ManagedRuntimeTransaction(fs,files,entry,null).terminal();
+    }
+    public static void archiveCompleted(BackupFileSystem fs,File files)throws IOException{
+        File home=new File(files,HOME);if(fs.stat(home).type.equals("MISSING")){verifyHistory(fs,files);return;}
+        verifyHistory(fs,files);File history=new File(home,COMPLETED);
+        for(ManagedRuntimeTransaction item:active(fs,files)){
+            if(!item.marker("finalized")&&!item.marker("rolled-back"))continue;
+            if(!item.terminal())throw new IOException("RUNTIME_HISTORY_NOT_TERMINAL");
+            try{if(!item.archiveSealed())continue;}
+            catch(IOException modified){continue;}
+            if(fs.stat(history).type.equals("MISSING"))fs.directory(history);
+            File destination=fs.child(history,item.directory.getName());
+            if(!fs.stat(destination).type.equals("MISSING"))throw new IOException("RUNTIME_OPERATION_DUPLICATE");
+            BackupFileSystem.Node before=fs.stat(item.directory);String digest=BackupArchive.hex(BackupArchive.sha().digest(fs.small(fs.child(item.directory,"plan.json"),BackupLimits.MANIFEST)));
+            fs.move(item.directory,destination);fs.syncDirectory(home);fs.syncDirectory(history);
+            if(!before.key.equals(fs.stat(destination).key)||!digest.equals(BackupArchive.hex(BackupArchive.sha().digest(fs.small(fs.child(destination,"plan.json"),BackupLimits.MANIFEST)))))
+                throw new IOException("RUNTIME_ARCHIVE_IDENTITY");
+            verifyHistory(fs,files);
+        }
     }
     private boolean marker(String name)throws IOException{
         File file=fs.child(directory,name);if(fs.stat(file).type.equals("MISSING"))return false;
@@ -114,7 +225,11 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
         Map<String,Object> value=object(mapping,"previousDescriptor");return value.isEmpty()?null:new RuntimeDescriptor(value);
     }
     public boolean hasHealthyPrevious()throws IOException{
-        if(mapping==null||!marker("finalized")||marker("previous-cleaned"))return false;RuntimeDescriptor previous=previousDescriptor();
+        ManagedRuntimeTransaction current=relocated();if(current!=this)return current.hasHealthyPrevious();
+        if(mapping==null||!marker("finalized")||marker("previous-cleaned"))return false;
+        long format=BackupJson.number(mapping,"version");
+        if(format==2&&!archiveSealed()||format==1&&!retainedBytesUnchanged())return false;
+        RuntimeDescriptor previous=previousDescriptor();
         return previous!=null&&RuntimeDescriptor.healthy(object(mapping,"previousHealth"),previous.id());
     }
     public static final class RollbackOption {
@@ -156,7 +271,7 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
         }
         if(!next.previousBytesVerified(currentHealth,before))currentHealth=null;
         next.saveMapping(source.previousDescriptor(),current,currentHealth,sourceId);
-        next.transaction.prepare(new ArrayList<>(next.paths.keySet()),before,Collections.emptyMap(),control,removals);return next;
+        next.transaction.prepare(new ArrayList<>(next.paths.keySet()),before,Collections.emptyMap(),control,removals);next.writeArchiveSeal();return next;
     }
     private static long treeBytes(BackupFileSystem fs,File file,BackupControl control,int depth,int[] count)throws IOException{
         control.check();if(depth>BackupLimits.DEPTH||++count[0]>BackupLimits.ENTRIES)throw new IOException("RUNTIME_LIMIT");var node=fs.stat(file);
@@ -165,16 +280,47 @@ public final class ManagedRuntimeTransaction implements HostDataTransaction.Targ
     }
     public static void trimOlder(BackupFileSystem fs,File files,RuntimeDescriptor active,Map<String,Object> health)throws IOException{
         if(!RuntimeDescriptor.healthy(health,active.id())||!pending(fs,files).isEmpty())return;
-        List<ManagedRuntimeTransaction> healthy=new ArrayList<>();for(var item:all(fs,files))if(item.hasHealthyPrevious()){
+        List<ManagedRuntimeTransaction> history=all(fs,files);
+        // A first install has no predecessor to retain. Record that fact explicitly
+        // so its payload-free predecessor state is distinguishable from an unknown one.
+        for(var item:history)if(item.finalizedWithoutPrevious())item.markerWrite("previous-cleaned");
+        List<ManagedRuntimeTransaction> healthy=new ArrayList<>();for(var item:history)if(item.hasHealthyPrevious()){
             // 旧读写格式不兼容时不能回退，但不应因此永久保留所有旧系统组件。
             // 清理只处理有健康记录、逐根摘要仍与切换前一致的受管树。
             // 回执只证明当时的内容。计入可保留/清理的数量前，重新核对现有原件。
-            try{if(item.retainedBytesUnchanged())healthy.add(item);}catch(IOException retained){/* 无法核验时保留原件。 */}
+            try{if(item.archiveSealed())healthy.add(item);}catch(IOException retained){/* 无法核验时保留原件。 */}
         }
         healthy.sort((a,b)->Long.compare(((Number)b.mapping.get("createdAt")).longValue(),((Number)a.mapping.get("createdAt")).longValue()));
         // 最近两份已验证旧运行时保留；未知/失败原件永远不作为自动清理对象。
         for(int i=2;i<healthy.size();i++){var item=healthy.get(i);if(!item.retainedBytesUnchanged())continue;fs.removeOwned(item.directory,"previous");item.markerWrite("previous-cleaned");}
+        archiveCompleted(fs,files);
     }
+
+    /** 只删除 create() 明确登记且仍为空的失败占位；部分 stage 一律保留。 */
+    private static void pruneEmptyPlaceholders(BackupFileSystem fs,File home)throws IOException{
+        if(!fs.stat(home).type.equals("DIRECTORY"))return;
+        for(String id:fs.list(home)){
+            if(id.equals(COMPLETED))continue;
+            if(!id.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))throw new IOException("RUNTIME_OPERATION_ID");
+            File directory=fs.child(home,id);if(!fs.stat(directory).type.equals("DIRECTORY"))throw new IOException("RUNTIME_OPERATION_DIRECTORY");
+            File marker=fs.child(directory,"created");var markerNode=fs.stat(marker);if(markerNode.type.equals("MISSING"))continue;
+            if(!markerNode.type.equals("FILE")||!(id+"\ncreated\n").equals(new String(fs.small(marker,256),java.nio.charset.StandardCharsets.UTF_8)))continue;
+            if(!fs.stat(fs.child(directory,"runtime-mapping.json")).type.equals("MISSING"))continue;
+            List<String> children=fs.list(directory);if(!new HashSet<>(children).equals(Set.of("candidate","stage","created")))continue;
+            if(emptyDirectory(fs,fs.child(directory,"candidate"))&&emptyDirectory(fs,fs.child(directory,"stage")))fs.removeOwned(home,id);
+        }
+    }
+
+    private static boolean emptyDirectory(BackupFileSystem fs,File directory)throws IOException{
+        String type=fs.stat(directory).type;return type.equals("MISSING")||type.equals("DIRECTORY")&&fs.list(directory).isEmpty();
+    }
+
+    private boolean finalizedWithoutPrevious()throws IOException{
+        if(mapping==null||!marker("finalized")||marker("previous-cleaned"))return false;
+        if(!object(mapping,"previousDescriptor").isEmpty())return false;
+        return emptyDirectory(fs,fs.child(directory,"previous"));
+    }
+
     private boolean retainedBytesUnchanged()throws IOException{
         Map<String,Object> plan=BackupJson.read(fs.small(fs.child(directory,"plan.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST);
         if(!directory.getName().equals(plan.get("id"))||!(plan.get("roots") instanceof List))return false;

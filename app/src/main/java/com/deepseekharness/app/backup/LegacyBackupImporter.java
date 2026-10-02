@@ -42,7 +42,7 @@ public final class LegacyBackupImporter {
         String base=findDsh(),snapshot=findSnapshot();
         Map<String,String> roots=new LinkedHashMap<>();
         for(String path:members.keySet())if(path.startsWith(base)){String tail=path.substring(base.length());if(tail.isEmpty())continue;String name=tail.split("/",2)[0];
-            if(!name.equals(MANIFEST)&&!name.equals(".deepseekharness-pub")&&!name.equals("DEEPSEEK_HARNESS-README.txt")&&!name.equals("DeepSeekHarness-README.txt"))roots.putIfAbsent(name,base+name);}
+            if(!name.equals(MANIFEST)&&!name.equals(".deepseekharness-pub")&&!name.equals("DeepSeekHarness-README.txt"))roots.putIfAbsent(name,base+name);}
         if(!snapshot.isEmpty())for(String name:HOT)if(has(snapshot+name))roots.put(name,snapshot+name);
         List<Map<String,Object>> descriptions=new ArrayList<>();
         try(OutputStream out=fs.create(output)){
@@ -102,12 +102,8 @@ public final class LegacyBackupImporter {
     }
     private String scopeFromName(String filename)throws IOException{
         if(filename==null)throw new IOException("LEGACY_SCOPE_CONFIRMATION_REQUIRED");
-        if(startsWithAny(filename,"DeepSeekHarness-sessions-","DEEPSEEK_HARNESS-sessions-"))return "sessions";if(startsWithAny(filename,"DeepSeekHarness-settings-","DEEPSEEK_HARNESS-settings-"))return "settings";if(startsWithAny(filename,"DeepSeekHarness-plugins-","DEEPSEEK_HARNESS-plugins-"))return "plugins";
-        if(startsWithAny(filename,"DeepSeekHarness-backup-","DEEPSEEK_HARNESS-backup-")){warnings.add("LEGACY_SCOPE_FROM_FILENAME");return "full";}throw new IOException("LEGACY_SCOPE_CONFIRMATION_REQUIRED");
-    }
-    /** 导入端必须认识【所有历史上真实出现过的】名字：本版新名 + 上游旧名。 */
-    private static boolean startsWithAny(String name,String... prefixes){
-        for(String prefix:prefixes)if(name.startsWith(prefix))return true;return false;
+        if(filename.startsWith("DeepSeekHarness-sessions-"))return "sessions";if(filename.startsWith("DeepSeekHarness-settings-"))return "settings";if(filename.startsWith("DeepSeekHarness-plugins-"))return "plugins";
+        if(filename.startsWith("DeepSeekHarness-backup-")){warnings.add("LEGACY_SCOPE_FROM_FILENAME");return "full";}throw new IOException("LEGACY_SCOPE_CONFIRMATION_REQUIRED");
     }
     private String findDsh()throws IOException{
         Set<String> roots=new TreeSet<>();for(String path:members.keySet()){String[] parts=path.split("/");for(int i=0;i<parts.length;i++)if(parts[i].equals(".dsh")){roots.add(String.join("/",Arrays.copyOf(parts,i+1))+"/");break;}}

@@ -10,7 +10,7 @@
   <a href="https://awesome-dsh-plugin.com/p/mexiaosqwq/dsh-web-mobile/"><img src="https://awesome-dsh-plugin.com/badge.svg" alt="awesome · DSH plugin" /></a>
 </p>
 
-> 📦 **已内置于 [DEEPSEEK_HARNESS](https://github.com/qiannianhuanxiang/DEEPSEEK_HARNESS)** —— DeepSeek Harness 安卓启动器把本插件作为内置移动端适配，装 APK 开箱即用。感谢作者 [@qiannianhuanxiang](https://github.com/qiannianhuanxiang) 的集成与推广 🙏
+> 📦 **已内置于 [DSHA](https://github.com/qiannianhuanxiang/DSHA)** —— DeepSeek Harness 安卓启动器把本插件作为内置移动端适配，装 APK 开箱即用。感谢作者 [@qiannianhuanxiang](https://github.com/qiannianhuanxiang) 的集成与推广 🙏
 
 ---
 
@@ -31,6 +31,31 @@
 | ![移动端会话主页](assets/hero.png) | ![目录抽屉](assets/drawer.png) | ![移动端设置界面](assets/settings.png) |
 
 ## 更新内容
+
+### v3.0.3 (兼容 0.1.7-rc.1 / rc.2)
+
+- 3.0.1 / 3.0.2 只有 tag 与 GitHub Release、从未发布 npm，两个版本的内容全部并入本版：npm 用户从 3.0.0 直升即得全部改动。宿主 0.1.6-alpha.2 建议维持 3.0.0、0.1.5 之前建议 2.4.1。
+
+**新功能**
+
+- 会话删除端点安全加固（#114, PR #117）：跨源请求一律 403（Origin 同源校验）、请求体上限 1 MiB（超限 413）、删除改走 `.sessions-trash` 回收站——删除的会话先改名再整目录移入回收站，`manifest.json` 记录恢复映射（零解压可还原），超过 24 小时的回收站条目在下次删除时顺带清理
+- 宿主图标跨代兼容（PR #88/#89 by @133563825as-ai）：宿主 rc 代与 0.1.7 代的图标导出名互不相交，写死任何一代都会白屏，新增运行时取用层两代通吃
+- DSHA（Android 启动器）内置适配层落地（PR #81）：装 APK 即用，无需单独安装本插件
+
+**修复**
+
+- 加号菜单三连（PR #88/#89 by @133563825as-ai）：加号「再点关闭」恢复可关；点加号不再把软键盘顶起导致第二击落空；点两下后输入框永久失焦、键盘再也弹不出来的问题修复
+- 输入区与头部批（PR #90–#99）：模型菜单锚定/居中修正、点开时才发请求；模式与预设 chip 的 caret 方向、按压反馈；行内 pill 不再出现两个；谱系 chip 基线对齐；触屏点按高亮治理
+- 「再点关不掉」两处 + 层带（#102 by @133563825as-ai）：工作区 chip 与智能体团队 chip 第二击恢复关闭；全屏右侧面板不再压住悬浮球（唯一的返回入口）；头部右侧留白 26 → 10px
+- 设置区批：开关不再被拉成整行宽、内容区不再横向溢出 36px、会话头部页签条收紧 77 → 67px（PR #88/#89）；0.1.7 紧凑行重设计适配（#111, PR #109）；工具栏改纯 CSS 锚定、两个 reparent 任务删除（#105, PR #107）；手机档魔数收口进手机 media、平板档 768–1023px 回上游排布（PR #88）
+- 会话菜单与删除：0.1.7 宿主会话菜单再换形适配（菜单项识别跟随新形态、归档行不再误注入删除项、删除确认卡重设计为居中毛玻璃卡、点遮罩才关）；删除活跃会话在清理阶段失败时如实改报并补 workspace 记账，不再误报可重试（#115, PR #117）
+- 0.1.7-rc.2 弹窗回归（PR #116 by @BuvkB）：宿主把设置弹窗 portal 到 body 后插件整族规则失效——设置导航恢复单行横滚、右上角工具栏不再遮挡内容且 ✕ 扩大热区、市场 byline 恢复单行、市场页顶恢复留白
+- 其余修复：模型选择 chip 窄屏分档（#101, PR #108/#109）；stats 环在离线会话不再残留（#104, PR #106）；第三方 thinking-effort 插件座位冲突（#60, PR #87）；抽屉长按误触（#82, PR #83）与抽屉弹层层带（PR #85）；面板头部按钮净空（PR #77 by @133563825as-ai）；usage-stats 面板层级（PR #75）；响应压缩写回调顺序与 end 参数（#80, PR #79 by @nanami-0713 / PR #86）；样式 effect 热重载先删旧表再挂新表，不再残留旧样式
+
+**兼容与安全**
+
+- 0.1.7-alpha.2 静态对账 28 条：插件代码 0 处需改（PR #88/#89 配套审计）
+- js-yaml 升至 4.3.2（GHSA 安全通告，PR #74）
 
 ### v3.0.0 (兼容 0.1.6-alpha.2)
 
@@ -115,7 +140,7 @@
 
 ## 安装
 
-> [DEEPSEEK_HARNESS](https://github.com/qiannianhuanxiang/DEEPSEEK_HARNESS) 用户无需单独安装：DEEPSEEK_HARNESS 已内置本插件，装 APK 即用。
+> [DSHA](https://github.com/qiannianhuanxiang/DSHA) 用户无需单独安装：DSHA 已内置本插件，装 APK 即用。
 
 从 npm 一行装（仓库自带构建产物，无需构建配置），装完重启 `dsh web`：
 
@@ -146,7 +171,7 @@ pnpm build
 
 欢迎大家的 issue 和 PR，我会尽可能地进行解决!
 
-工程约定见 [AGENTS.md](AGENTS.md)；回归探针 `scripts/probes/` 21 个锚点可单跑，兼作宿主升级绊线。
+工程约定见 [AGENTS.md](AGENTS.md)；回归探针 `scripts/probes/` 22 个锚点可单跑，兼作宿主升级绊线。
 
 ## License
 

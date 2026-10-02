@@ -1,6 +1,9 @@
 package com.deepseekharness.app.util;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class UiLanguagePreferenceTest {
 
@@ -31,7 +34,7 @@ public class UiLanguagePreferenceTest {
             assertEquals("中文应识别：" + tag, "zh", UiLanguagePreference.resolveLanguage(tag));
         }
         for (String tag : new String[]{"en", "en-US", "fr", "de-DE", "ja", "ko", "ar", "ru",
-                null, "", "  ", "zho", "en-zh"}) {
+                "zho", "en-zh"}) {
             assertEquals("非中文应落英文：" + tag, "en", UiLanguagePreference.resolveLanguage(tag));
         }
     }
@@ -48,6 +51,13 @@ public class UiLanguagePreferenceTest {
         // 法语等非中文系统落英文：英语是唯一可用的国际通用语言
         assertEquals("en", UiLanguagePreference.resolve(null, "fr"));
         assertEquals("en", UiLanguagePreference.resolve("system", "fr-FR"));
+    }
+
+    @Test public void unidentifiedSystemDefaultsToChineseButExplicitChoiceWins() {
+        for (String tag : new String[]{null, "", "  ", "und", "?", "123", "x-private"}) {
+            assertEquals("zh", UiLanguagePreference.resolveLanguage(tag));
+            assertEquals("en", UiLanguagePreference.resolve("en", tag));
+        }
     }
 
     @Test public void isChineseHandlesSeparatorsAndCase() {
@@ -104,6 +114,73 @@ public class UiLanguagePreferenceTest {
             java.util.Locale.setDefault(before);
             SystemLanguage.resetForTest();
         }
+    }
+
+    @Test public void globalChineseBeatsPersistedEnglishAppLocale() {
+        java.util.Locale before = java.util.Locale.getDefault();
+        try {
+            SystemLanguage.resetForTest();
+            java.util.Locale.setDefault(java.util.Locale.US); // app locale already restored before Application.onCreate
+            assertEquals("en-US", SystemLanguage.tag()); // possible provider read before Application.onCreate
+            SystemLanguage.initializeFromSystemTag("zh-CN"); // LocaleManager.getSystemLocales()
+            assertEquals("zh-CN", SystemLanguage.tag());
+            assertEquals("zh", UiLanguagePreference.resolve("system", SystemLanguage.tag()));
+            SystemLanguage.initializeFromSystemTag("en-US"); // later app apply must not replace the first lock
+            java.util.Locale.setDefault(java.util.Locale.US);
+            assertEquals("zh-CN", SystemLanguage.tag());
+        } finally {
+            java.util.Locale.setDefault(before);
+            SystemLanguage.resetForTest();
+        }
+    }
+
+    @Test public void missingLocaleManagerFallsBackToEarlyLegacySource() {
+        java.util.Locale before = java.util.Locale.getDefault();
+        try {
+            SystemLanguage.resetForTest();
+            java.util.Locale.setDefault(java.util.Locale.US);
+            SystemLanguage.initializeFromSystemTag(null); // API 23–32 or unavailable service
+            assertEquals("en-US", SystemLanguage.tag());
+            java.util.Locale.setDefault(java.util.Locale.SIMPLIFIED_CHINESE);
+            assertEquals("en-US", SystemLanguage.tag());
+        } finally {
+            java.util.Locale.setDefault(before);
+            SystemLanguage.resetForTest();
+        }
+    }
+
+    @Test public void lateAppLocaleProbeCannotOverwritePublishedSystemLocale() throws Exception {
+        SystemLanguage.resetForTest();
+        CountDownLatch probing = new CountDownLatch(1), resumeProbe = new CountDownLatch(1);
+        AtomicReference<String> observed = new AtomicReference<>();
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread early = new Thread(() -> {
+            try {
+                observed.set(SystemLanguage.tagWithDetector(() -> {
+                    probing.countDown();
+                    try {
+                        if (!resumeProbe.await(2, TimeUnit.SECONDS)) throw new AssertionError("probe was not released");
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt(); throw new AssertionError(interrupted);
+                    }
+                    return "en-US"; // older app-locale source returns after authoritative publication
+                }));
+            } catch (Throwable error) { failure.set(error); }
+        }, "early-language-probe");
+        early.setDaemon(true);
+        try {
+            early.start();
+            assertTrue("old probe did not begin", probing.await(5, TimeUnit.SECONDS));
+            SystemLanguage.initializeFromSystemTag("zh-CN");
+        } finally {
+            resumeProbe.countDown();
+            early.join(5000);
+        }
+        assertFalse("old probe remained blocked", early.isAlive());
+        if (failure.get() != null) throw new AssertionError(failure.get());
+        assertEquals("zh-CN", observed.get());
+        assertEquals("zh-CN", SystemLanguage.tag());
+        SystemLanguage.resetForTest();
     }
 
     @Test public void runtimeTextSwitchesBothWays() {

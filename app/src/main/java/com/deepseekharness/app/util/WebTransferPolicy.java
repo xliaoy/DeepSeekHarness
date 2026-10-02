@@ -4,7 +4,7 @@ package com.deepseekharness.app.util;
 public final class WebTransferPolicy {
     public static final long DOWNLOAD_LIMIT = 2L * 1024 * 1024 * 1024;
     public static final long UPLOAD_LIMIT = 256L * 1024 * 1024;
-    public static final int UPLOAD_COUNT = 20;
+    public static final int UPLOAD_COUNT = WebUploadSessionBudget.MAX_BATCH_FILES;
     private WebTransferPolicy() { }
     public static String fileName(String name) {
         String safe = name == null ? "" : name.replaceAll("[\\\\/\\p{Cntrl}]", "_").trim();

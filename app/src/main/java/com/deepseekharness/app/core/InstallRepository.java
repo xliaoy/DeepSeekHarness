@@ -24,7 +24,7 @@ public final class InstallRepository {
         worker = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "deepseekharness-install"); thread.setDaemon(true); return thread;
         });
-        blocked = () -> BackupManager.isRestoring() || BackupManager.hasPendingMaintenance(app.getFilesDir());
+        blocked = () -> MaintenanceCoordinator.isExclusive() || MaintenanceCoordinator.pending(app.getFilesDir());
         installation = (task, repair, selected) -> {
             try (RuntimeTasks ignored = RuntimeTasks.begin("安装与环境")) { new InstallPipeline(app).run(task, repair, selected); }
         };

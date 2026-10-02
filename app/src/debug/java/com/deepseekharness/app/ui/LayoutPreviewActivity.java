@@ -62,10 +62,7 @@ public final class LayoutPreviewActivity extends AppCompatActivity {
             visible(R.id.sub_back,nested);visible(R.id.app_logo,!nested);
             ((TextView)canvas.findViewById(R.id.btn_theme)).setText(com.deepseekharness.app.util.UiText.text(ThemeController.isDark(this)?"黑夜":"白天"));
             com.google.android.material.bottomnavigation.BottomNavigationView nav = canvas.findViewById(R.id.bottom_nav);
-            // 底栏只保留 启动/插件/终端 三项；「设置」等场景已整体移入侧边栏。
-            // 这里是【纯布局预览】，没有 MainActivity 实例，不能调 openSettings()，
-            // 底栏保持无选中态即可。
-            nav.setSelectedItemId(title.equals("插件")?R.id.nav_plugins:title.equals("终端")?R.id.nav_terminal:R.id.nav_launch);
+            nav.setSelectedItemId(title.equals("插件")?R.id.nav_plugins:title.equals("终端")?R.id.nav_terminal:title.equals("启动")?R.id.nav_launch:R.id.nav_settings);
         }
         frame.addView(canvas,new FrameLayout.LayoutParams(dp(LayoutAuditInstrumentation.width),dp(LayoutAuditInstrumentation.height),Gravity.TOP|Gravity.CENTER_HORIZONTAL));
         TextView notice = new TextView(this);
@@ -85,7 +82,7 @@ public final class LayoutPreviewActivity extends AppCompatActivity {
             ((android.widget.RadioGroup)canvas.findViewById(R.id.update_channels)).check(R.id.update_preview);
             text(R.id.update_current,BuildConfig.VERSION_NAME+" · 版本码 113");
             boolean available=!scene.equals("update_idle");
-            UpdatePolicy.Release release=available?new UpdatePolicy.Release(114,"布局样例",UpdatePolicy.PREVIEW,BuildConfig.LOW_ANDROID?"low":"standard",23,"arm64-v8a","https://deepseekharness-test.invalid/example.apk","0".repeat(64),33554432,"本条仅用于测试长版本说明的排版。不会下载或安装样例。","https://deepseekharness-test.invalid/download/"):null;
+            UpdatePolicy.Release release=available?new UpdatePolicy.Release(114,"布局样例",UpdatePolicy.PREVIEW,BuildConfig.LOW_ANDROID?"low":"standard",23,"arm64-v8a","https://dsha.cc/example.apk","0".repeat(64),33554432,"本条仅用于测试长版本说明的排版。不会下载或安装样例。","https://dsha.cc/download/"):null;
             boolean busy=scene.equals("update_busy"), ready=scene.equals("update_ready");
             try {
                 java.lang.reflect.Constructor<UpdateRepository.State> ctor = UpdateRepository.State.class.getDeclaredConstructor(String.class,boolean.class,long.class,long.class,UpdatePolicy.Release.class,java.io.File.class);
@@ -98,12 +95,10 @@ public final class LayoutPreviewActivity extends AppCompatActivity {
             text(R.id.launch_log,"[布局样例] 检查运行环境\n[布局样例] 等待启动\n\n本页面不启动 dsh，不执行模型请求。");
             if (scene.equals("launch_error")) { visible(R.id.launch_recovery,true);text(R.id.launch_recovery,"恢复选项");text(R.id.launch_run_state,"自动重启已暂停"); }
         } else if (scene.startsWith("plugins")) {
-            // 无商城版：在线商城卡片、社区入口、内联链接输入区、已装分段控件均已移除。
-            // 插件页现在恒为「插件列表 + 在线安装 + 命令行安装」，两个场景只差空列表样例。
-            boolean empty=scene.equals("plugins_empty");
-            text(R.id.pluginCount,"共 12 个插件");
-            visible(R.id.pluginEmpty,empty);
-            if(empty) text(R.id.pluginEmpty,"布局检查样例：插件列表会显示在这里");
+            boolean management=scene.equals("plugins_installed");
+            visible(R.id.pluginMarketCard,!management);visible(R.id.pluginWebsiteSection,!management);visible(R.id.pluginLinkSection,!management);visible(R.id.pluginLocalTitle,!management);visible(R.id.pluginLocalCard,!management);visible(R.id.installedControls,management);
+            text(R.id.pluginLinkHint,"支持 npm、GitHub 和已构建压缩包");text(R.id.statusText,"请选择插件来源，解析后核对实际信息。");text(R.id.pluginCount,"共 12 个插件");
+            if(management) { visible(R.id.pluginEmpty,true);text(R.id.pluginEmpty,"布局检查样例：插件列表会显示在这里"); }
         } else if (scene.equals("fragment_workspace")) {
             text(R.id.workspace_backup_status,"最近成功备份：今天 14:26\n全量备份 · 2.1 MiB");
         } else if (scene.equals("fragment_config")) {

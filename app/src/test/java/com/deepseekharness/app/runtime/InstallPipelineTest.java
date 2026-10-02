@@ -35,12 +35,12 @@ public class InstallPipelineTest {
                 assertFalse(cancellable); patches++; failures.removeAll(Set.of("dns", "session", "settings")); return 0;
             }
             assertTrue(cancellable);
-            if (earlyExit) { output.accept("DeepSeekHarness_CHECK_BEGIN:curl"); return 23; }
-            Matcher matcher = Pattern.compile("DeepSeekHarness_CHECK_BEGIN:([a-z]+)").matcher(script);
+            if (earlyExit) { output.accept("DSHA_CHECK_BEGIN:curl"); return 23; }
+            Matcher matcher = Pattern.compile("DSHA_CHECK_BEGIN:([a-z]+)").matcher(script);
             while (matcher.find()) {
-                String key = matcher.group(1); output.accept("DeepSeekHarness_CHECK_BEGIN:" + key);
+                String key = matcher.group(1); output.accept("DSHA_CHECK_BEGIN:" + key);
                 output.accept("版本或诊断输出");
-                if (!missingResult) output.accept("DeepSeekHarness_CHECK_RESULT:" + key + ":" + (failures.contains(key) ? 1 : 0));
+                if (!missingResult) output.accept("DSHA_CHECK_RESULT:" + key + ":" + (failures.contains(key) ? 1 : 0));
             }
             return 0;
         }

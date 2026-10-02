@@ -63,7 +63,7 @@ public final class WebInstrumentation extends Instrumentation {
         Bundle result=new Bundle();String type=arguments.getString("engine","gecko").equals("standard")?"com.deepseekharness.app.ui.WebPreviewActivity":"com.deepseekharness.app.ui.GeckoPreviewActivity";
         android.content.SharedPreferences prefs=getTargetContext().getSharedPreferences(Constants.PREFS,0);
         try {
-            shell("am start -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+            shell("am start -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
             server=new Fixture();
             page=open(type);
             command("seed","seeded");
@@ -146,10 +146,33 @@ public final class WebInstrumentation extends Instrumentation {
             check(chooser.getHits()>0,"未经过浏览器原生文件选择回调");
             check(WebUploads.fallback(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true))
                     .getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE,false),"备用选择器丢失多选请求");
-            try { WebUploads.copy(getTargetContext(),Collections.nCopies(21,uri));throw new AssertionError("超过 20 个上传文件未拒绝"); }catch(IOException expected){}
-            try { WebUploads.copy(getTargetContext(),List.of(Uri.parse("file:///invalid/private")));throw new AssertionError("非授权本地路径未拒绝"); }catch(IOException expected){}
+            try(WebUploads.Session uploads=new WebUploads.Session(getTargetContext().getCacheDir())){
+                try { uploads.copy(getTargetContext(),Collections.nCopies(21,uri));throw new AssertionError("超过 20 个上传文件未拒绝"); }catch(IOException expected){}
+                try { uploads.copy(getTargetContext(),List.of(Uri.parse("file:///invalid/private")));throw new AssertionError("非授权本地路径未拒绝"); }catch(IOException expected){}
+            }
+            verifyUploadSessionBound(uri);
             phase("文件上传通过：真实内核选择回调、内容 URI 复制、PNG 字节回读、多选上限与路径限制");
         } finally {removeMonitor(chooser);file.delete();}
+    }
+    private void verifyUploadSessionBound(Uri uri)throws Exception{
+        File parent=new File(getTargetContext().getCacheDir(),"web-uploads");
+        Set<String> before=new HashSet<>();File[] existing=parent.listFiles();if(existing!=null)for(File entry:existing)before.add(entry.getName());
+        try(WebUploads.Session uploads=new WebUploads.Session(getTargetContext().getCacheDir())){
+            for(int batchIndex=0;batchIndex<2;batchIndex++){
+                try(WebUploads.Batch batch=uploads.copy(getTargetContext(),Collections.nCopies(20,uri))){
+                    check(batch.files().size()==20,"二十项会话批次未完整复制");
+                    check(batch.files().get(0).length()>0,"会话缓存文件为空");
+                    check(batch.commit(),"当前页面会话批次应可提交");
+                }
+            }
+            try{uploads.copy(getTargetContext(),List.of(uri));throw new AssertionError("第 41 个会话文件未拒绝");}
+            catch(IOException expected){}
+        }
+        until(()->{
+            File[] remaining=parent.listFiles();if(remaining==null)return true;
+            for(File entry:remaining)if(!before.contains(entry.getName()))return false;
+            return true;
+        },5000,"页面会话关闭后上传缓存未收敛");
     }
     private void testDownloads() throws Exception {
         runOnMainSync(()->downloader=new WebDownloadModel((Application)getTargetContext().getApplicationContext()));
@@ -170,7 +193,7 @@ public final class WebInstrumentation extends Instrumentation {
         Bundle state=new Bundle();runOnMainSync(()->downloader.saveState(state));
         runOnMainSync(()->{downloader=new WebDownloadModel((Application)getTargetContext().getApplicationContext());downloader.restoreState(state);});
         check(downloader.canRetrySave(),"重建下载模型丢失完整缓存");
-        runOnMainSync(()->downloader.save(Uri.parse("content://deepseekharness-invalid-owned-test/not-writable")));
+        runOnMainSync(()->downloader.save(Uri.parse("content://dsha-invalid-owned-test/not-writable")));
         until(()->!downloader.isBusy(),5000,"失败写入未结束");
         check(downloader.canRetrySave(),"写入失败丢失了可重试文件");
         File destination=new File(new File(getTargetContext().getCacheDir(),"updates"),"web-owned-save-"+UUID.randomUUID()+".zip");
@@ -184,13 +207,13 @@ public final class WebInstrumentation extends Instrumentation {
         phase("保存恢复通过：下载模型重建、输出位置失败后保留缓存、更换位置与最终摘要校验");
     }
     private final class Fixture implements AutoCloseable {
-        static final byte[] PAYLOAD="PK\u0003\u0004DEEPSEEK_HARNESS-independent-export-123456789".getBytes(StandardCharsets.UTF_8);
+        static final byte[] PAYLOAD="PK\u0003\u0004DSHA-independent-export-123456789".getBytes(StandardCharsets.UTF_8);
         final ServerSocket socket=new ServerSocket(0,16,InetAddress.getByName("127.0.0.1"));
         final String base="http://127.0.0.1:"+socket.getLocalPort()+"/";
         final Map<String,String> reports=new ConcurrentHashMap<>();
         final ExecutorService workers=Executors.newCachedThreadPool();
         volatile String command="";volatile boolean closed;
-        final String name="DEEPSEEK_HARNESS-web-check-"+UUID.randomUUID()+".zip";
+        final String name="DSHA-web-check-"+UUID.randomUUID()+".zip";
         Fixture() throws IOException {workers.submit(()->{while(!closed)try{Socket accepted=socket.accept();workers.submit(()->handle(accepted));}catch(IOException e){if(!closed)throw new RuntimeException(e);}});}
         private void handle(Socket client){
             try(client){

@@ -30,7 +30,7 @@ final class PluginTask implements AutoCloseable {
     }
     boolean requested() { return requested; }
     synchronized void approve(String digest)throws IOException{
-        check();if(!digest.matches("[a-f0-9]{64}")||!com.deepseekharness.app.BackupManager.isDataTaskOwner())throw new IOException("PLUGIN_APPROVAL_REQUIRES_MAINTENANCE");
+        check();if(!digest.matches("[a-f0-9]{64}")||!com.deepseekharness.app.core.MaintenanceCoordinator.isOwner())throw new IOException("PLUGIN_APPROVAL_REQUIRES_MAINTENANCE");
         if(!approval.createNewFile())throw new IOException("PLUGIN_APPROVAL_EXISTS");
         try(java.io.FileOutputStream out=new java.io.FileOutputStream(approval)){out.write(digest.getBytes(StandardCharsets.US_ASCII));out.getFD().sync();}
     }

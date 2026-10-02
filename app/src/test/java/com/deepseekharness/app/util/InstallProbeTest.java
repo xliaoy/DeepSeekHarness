@@ -17,20 +17,20 @@ public class InstallProbeTest {
     @Test public void successfulLookingOutputIsNotSuccessfulExitCode() {
         InstallProbe.Results result = new InstallProbe.Results(InstallProbe.checks(3));
         assertFalse(result.accept("v24.0.0")); assertFalse(result.ok(3));
-        result.accept("DeepSeekHarness_CHECK_RESULT:node:127"); assertFalse(result.ok(3));
+        result.accept("DSHA_CHECK_RESULT:node:127"); assertFalse(result.ok(3));
         assertTrue(result.detail(3).contains("127"));
     }
     @Test public void missingDuplicateAndUnknownResultsFailClosed() {
         InstallProbe.Results result = new InstallProbe.Results(InstallProbe.checks(2));
-        assertFalse(result.accept("DeepSeekHarness_CHECK_RESULT:evil:0"));
-        result.accept("DeepSeekHarness_CHECK_RESULT:curl:0"); result.accept("DeepSeekHarness_CHECK_RESULT:git:0"); assertFalse(result.ok(2));
-        result.accept("DeepSeekHarness_CHECK_RESULT:python:0"); assertTrue(result.ok(2));
-        result.accept("DeepSeekHarness_CHECK_RESULT:python:0"); assertFalse(result.ok(2));
+        assertFalse(result.accept("DSHA_CHECK_RESULT:evil:0"));
+        result.accept("DSHA_CHECK_RESULT:curl:0"); result.accept("DSHA_CHECK_RESULT:git:0"); assertFalse(result.ok(2));
+        result.accept("DSHA_CHECK_RESULT:python:0"); assertTrue(result.ok(2));
+        result.accept("DSHA_CHECK_RESULT:python:0"); assertFalse(result.ok(2));
     }
     @Test public void invalidExitStatusCannotBecomeSuccess() {
         for (String code : new String[]{"bogus", "-1", "256", "0:0"}) {
             InstallProbe.Results result = new InstallProbe.Results(InstallProbe.checks(3));
-            result.accept("DeepSeekHarness_CHECK_RESULT:node:" + code); assertFalse(result.ok(3));
+            result.accept("DSHA_CHECK_RESULT:node:" + code); assertFalse(result.ok(3));
         }
     }
     @Test public void readOnlyProbePreservesExitStatusWithoutHeadOrRepairCommands() {

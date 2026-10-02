@@ -13,7 +13,7 @@ public class L2sSnapshotTest {
     @Test public void nestedHistoricalAttachmentLinkContainsRealBytes()throws Exception{
         File root=temp.newFolder(),data=new File(root,"root/.dsh/attachments"),payload=new File(root,".l2s/image");Files.createDirectories(data.toPath());Files.createDirectories(payload.getParentFile().toPath());
         byte[] expected={0,1,2,3,(byte)255};Files.write(payload.toPath(),expected);File link=new File(data,"image.png");Files.writeString(link.toPath(),"placeholder");
-        var fs=new GuestDataResolverTest.LinkFs();fs.links.put(link.getPath(),"/data/user/10/com.deepseek.harness/files/linux/ubuntu/.l2s/image");
+        var fs=new GuestDataResolverTest.LinkFs();fs.links.put(link.getPath(),"/data/user/10/com.dsh.client/files/linux/ubuntu/.l2s/image");
         var resolver=new GuestDataResolver(fs,root,null,List.of());var source=new FileBackupSource(fs,"attachments","sessions",data,false,null,resolver);
         File task=temp.newFolder(),archive=new File(task,"snapshot");HostSnapshot.create(fs,List.of(source),task,archive,BackupArchiveTest.summary(),false,new BackupControl(null));
         ByteArrayOutputStream restored=new ByteArrayOutputStream();try(InputStream in=new FileInputStream(archive)){

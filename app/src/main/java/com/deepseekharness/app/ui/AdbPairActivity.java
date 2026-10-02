@@ -274,7 +274,7 @@ public class AdbPairActivity extends androidx.appcompat.app.AppCompatActivity {
         private String perform(boolean verify, String value, String pp, String cp, String selectedHost) throws Exception {
             if (cleared || Thread.currentThread().isInterrupted()) return com.deepseekharness.app.util.UiText.text("ADB 操作已取消");
             try (com.deepseekharness.app.core.RuntimeTasks ignored = com.deepseekharness.app.core.RuntimeTasks.begin()) {
-                ProotBootstrap proot = new HarnessController(getApplication()).proot();
+                ProotBootstrap proot = HarnessController.get(getApplication()).proot();
                 if (!proot.isEnvironmentReady()) throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("环境未就绪，请先完成环境安装"));
                 String prep = AdbBridge.ensureReady(getApplication(), proot, this::message);
                 if (AdbResult.marker(prep, "ENVIRONMENT_BUSY")) throw new AdbEnvironmentTask.Busy(prep);

@@ -1,0 +1,344 @@
+{
+  "schema": 1,
+  "purpose": "Signed host-managed runtime inputs; the installer, descriptor and Gradle consume this same contract. User data and recovery runtime are outside this contract.",
+  "installs": [
+    {
+      "asset": "ca-certificates.crt",
+      "target": "usr/local/share/deepseekharness/ca-certificates.crt",
+      "executable": false
+    },
+    {
+      "asset": "dns-compat.cjs",
+      "target": "usr/local/share/deepseekharness/dns-compat.cjs",
+      "executable": false
+    },
+    {
+      "asset": "deepseekharness-builtin.txt",
+      "target": "root/deepseekharness-builtin.txt",
+      "executable": false
+    },
+    {
+      "asset": "plugin-manager.py",
+      "target": "root/.dsh/plugin-manager.py",
+      "executable": false
+    },
+    {
+      "asset": "plugin-network.py",
+      "target": "root/.dsh/plugin-network.py",
+      "executable": false
+    },
+    {
+      "asset": "plugin-lifecycle.py",
+      "target": "root/.dsh/plugin-lifecycle.py",
+      "executable": false
+    },
+    {
+      "asset": "plugin-dependencies.py",
+      "target": "root/.dsh/plugin-dependencies.py",
+      "executable": false
+    },
+    {
+      "asset": "plugin-transactions.py",
+      "target": "root/.dsh/plugin-transactions.py",
+      "executable": false
+    },
+    {
+      "asset": "backup-plugin-graph.py",
+      "target": "root/.dsh/backup-plugin-graph.py",
+      "executable": false
+    },
+    {
+      "asset": "rc1-migration.py",
+      "target": "root/.dsh/rc1-migration.py",
+      "executable": false
+    },
+    {
+      "asset": "rc1-settings-migration.cjs",
+      "target": "root/.dsh/rc1-settings-migration.cjs",
+      "executable": false
+    },
+    {
+      "asset": "plugin-semver.cjs",
+      "target": "root/.dsh/plugin-semver.cjs",
+      "executable": false
+    },
+    {
+      "asset": "register-builtin-plugins.py",
+      "target": "root/.dsh/register-builtin-plugins.py",
+      "executable": false
+    },
+    {
+      "asset": "startup-observer.cjs",
+      "target": "root/.dsh/startup-observer.cjs",
+      "executable": false
+    },
+    {
+      "asset": "startup-recovery.py",
+      "target": "root/.dsh/startup-recovery.py",
+      "executable": false
+    },
+    {
+      "asset": "startup-checkpoints.py",
+      "target": "root/.dsh/startup-checkpoints.py",
+      "executable": false
+    },
+    {
+      "asset": "device-shell-policy.py",
+      "target": "root/.dsh/device-shell-policy.py",
+      "executable": false
+    },
+    {
+      "asset": "adb-shell.py",
+      "target": "root/.dsh/adb-shell.py",
+      "executable": false
+    },
+    {
+      "asset": "deepseekharness-device-shell.sh",
+      "target": "root/dsh-bin/adb-shell",
+      "executable": true
+    },
+    {
+      "asset": "app-integration/package.json",
+      "target": "root/deepseekharness-app-integration/package.json",
+      "executable": false
+    },
+    {
+      "asset": "app-integration/cordis.patch.yml",
+      "target": "root/deepseekharness-app-integration/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "app-integration/index.js",
+      "target": "root/deepseekharness-app-integration/index.js",
+      "executable": false
+    },
+    {
+      "asset": "app-integration/activity.js",
+      "target": "root/deepseekharness-app-integration/activity.js",
+      "executable": false
+    },
+    {
+      "asset": "app-integration/runtime-plugins.js",
+      "target": "root/deepseekharness-app-integration/runtime-plugins.js",
+      "executable": false
+    },
+    {
+      "asset": "app-integration/client.js",
+      "target": "root/deepseekharness-app-integration/client.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-device-shell-guide/package.json",
+      "target": "root/deepseekharness-device-shell-guide/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-device-shell-guide/cordis.patch.yml",
+      "target": "root/deepseekharness-device-shell-guide/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-device-shell-guide/lib/index.js",
+      "target": "root/deepseekharness-device-shell-guide/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-task-notifier/package.json",
+      "target": "root/deepseekharness-task-notifier/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-task-notifier/cordis.patch.yml",
+      "target": "root/deepseekharness-task-notifier/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-task-notifier/lib/index.js",
+      "target": "root/deepseekharness-task-notifier/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-status-overlay/package.json",
+      "target": "root/deepseekharness-status-overlay/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-status-overlay/cordis.patch.yml",
+      "target": "root/deepseekharness-status-overlay/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-status-overlay/lib/index.js",
+      "target": "root/deepseekharness-status-overlay/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/package.json",
+      "target": "root/deepseekharness-web-mobile/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/cordis.patch.yml",
+      "target": "root/deepseekharness-web-mobile/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/lib/index.js",
+      "target": "root/deepseekharness-web-mobile/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/lib/client.js",
+      "target": "root/deepseekharness-web-mobile/lib/client.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/lib/compress.js",
+      "target": "root/deepseekharness-web-mobile/lib/compress.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/lib/delete-session.js",
+      "target": "root/deepseekharness-web-mobile/lib/delete-session.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-web-mobile/LICENSE",
+      "target": "root/deepseekharness-web-mobile/LICENSE",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-computer-use-android/package.json",
+      "target": "root/deepseekharness-computer-use-android/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-computer-use-android/cordis.patch.yml",
+      "target": "root/deepseekharness-computer-use-android/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-computer-use-android/lib/index.js",
+      "target": "root/deepseekharness-computer-use-android/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-computer-use-android/lib/server.cjs",
+      "target": "root/deepseekharness-computer-use-android/lib/server.cjs",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-auto-review/package.json",
+      "target": "root/deepseekharness-auto-review/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-auto-review/cordis.patch.yml",
+      "target": "root/deepseekharness-auto-review/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-auto-review/lib/index.js",
+      "target": "root/deepseekharness-auto-review/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-tool-vscreen/package.json",
+      "target": "root/deepseekharness-tool-vscreen/package.json",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-tool-vscreen/cordis.patch.yml",
+      "target": "root/deepseekharness-tool-vscreen/cordis.patch.yml",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-tool-vscreen/lib/index.js",
+      "target": "root/deepseekharness-tool-vscreen/lib/index.js",
+      "executable": false
+    },
+    {
+      "asset": "builtin-plugins/dsh-tool-vscreen/lib/server.cjs",
+      "target": "root/deepseekharness-tool-vscreen/lib/server.cjs",
+      "executable": false
+    },
+    {
+      "asset": "deepseekharness-plugin.sh",
+      "target": "root/dsh-bin/deepseekharness-plugin",
+      "executable": true
+    },
+    {
+      "asset": "install-ubuntu-tools.sh",
+      "target": "root/dsh-bin/install-ubuntu-tools",
+      "executable": true
+    },
+    {
+      "asset": "deepseekharness-runtime-env.sh",
+      "target": "etc/profile.d/deepseekharness-runtime-env.sh",
+      "executable": false
+    }
+  ],
+  "assetFiles": [
+    "agent-preset-patch.json",
+    "client-combo-patch.json",
+    "composer-enter-patch.json",
+    "conversation-materialized-patch.json",
+    "deepseek-messages-compat-patch.json",
+    "dsh-runtime.bin",
+    "deepseekharness-deepseek-messages-compat.js",
+    "glibc-python.tar.gz",
+    "language-patch.json",
+    "lexical-claim-patch.json",
+    "models-navigation-patch.json",
+    "office-fonts-patch.json",
+    "offline-rootfs.bin",
+    "offline-rootfs.version",
+    "pdf-compat-patch.json",
+    "persona-compat-patch.json",
+    "plugin-manager-navigation-patch.json",
+    "plugin-manager-policy-patch.json",
+    "pnpm-runtime.bin",
+    "profile-settings-review.js",
+    "rc1-settings-migration-patch.json",
+    "runtime-trial-page.js",
+    "runtime-trial-plugin.js",
+    "session-interaction-patch.json",
+    "subagent-navigation-patch.json",
+    "ubuntu-tools.bin"
+  ],
+  "assetTrees": [
+    "web-integration",
+    "app-integration",
+    "client-combo-cache"
+  ],
+  "launcherTrees": [
+    "app/src/main/jniLibs",
+    "app/src/low/jniLibs",
+    "app/src/main/java/com/deepseekharness/app/runtime"
+  ],
+  "launcherSources": [
+    "util/IsolatedCommand.java",
+    "util/PluginDownloadSource.java",
+    "backup/RuntimeTrialRecords.java",
+    "util/WebProcSel.java",
+    "util/WebPidIdentity.java",
+    "util/ManagedRuntimeLayout.java",
+    "util/ManagedAssetVersion.java",
+    "util/ManagedInstallPath.java",
+    "util/MaintenanceGate.java",
+    "util/RuntimeWorkPort.java",
+    "util/GuestCommandOutcome.java",
+    "backup/HostMaintenancePending.java",
+    "core/RuntimeTasks.java",
+    "core/MaintenanceCoordinator.java",
+    "core/ConfigStore.java",
+    "core/HarnessController.java",
+    "core/TerminalSessionOwner.java",
+    "core/SimpleTerminalBackend.java",
+    "util/TerminalSession.java",
+    "util/TerminalReady.java",
+    "util/TerminalTabs.java",
+    "DeepSeekHarnessApp.java",
+    "PtySession.java"
+  ]
+}

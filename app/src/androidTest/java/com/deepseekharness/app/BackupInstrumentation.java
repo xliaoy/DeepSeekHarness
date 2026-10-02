@@ -21,7 +21,7 @@ import java.util.List;
 
 /** 真实容器和 MediaStore 往返；所有恢复目标、偏好和输入均为本次独立样本。 */
 public final class BackupInstrumentation extends Instrumentation {
-    private static final String GUEST = "/root/.deepseekharness-opt-java-check/rootfs/root";
+    private static final String GUEST = "/root/.dsha-opt-java-check/rootfs/root";
     private final List<Uri> exported = new ArrayList<>();
     private boolean realSnapshot;
     @Override public void onCreate(Bundle arguments) {
@@ -48,7 +48,7 @@ public final class BackupInstrumentation extends Instrumentation {
             }
         };
         ProotBootstrap runtime = new ProotBootstrap(actual);
-        File rootfs = new File(runtime.getRootfsDir(), "root/.deepseekharness-opt-java-check/rootfs");
+        File rootfs = new File(runtime.getRootfsDir(), "root/.dsha-opt-java-check/rootfs");
         File root = new File(rootfs, "root");
         ConfigStore config = new ConfigStore(isolated);
         ProotBootstrap fixture = new ProotBootstrap(actual) {
@@ -125,7 +125,7 @@ public final class BackupInstrumentation extends Instrumentation {
             for (Uri uri : exported) try { actual.getContentResolver().delete(uri, null, null); } catch (Exception ignored) { }
             // 删除严格限定在本轮独立目录，既不跟随链接，也不接触用户 .dsh。
             if (!realSnapshot) {
-                runtime.execAndReadWithProot("python3 -c 'import shutil; shutil.rmtree(\"/root/.deepseekharness-opt-java-check\", ignore_errors=True)'", 60_000);
+                runtime.execAndReadWithProot("python3 -c 'import shutil; shutil.rmtree(\"/root/.dsha-opt-java-check\", ignore_errors=True)'", 60_000);
                 isolated.getSharedPreferences("deepseekharness", Context.MODE_PRIVATE).edit().clear().commit();
             }
             finish("PASS".equals(result.getString("result")) ? -1 : 0, result);

@@ -9,8 +9,13 @@ import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import com.deepseekharness.app.util.ShellQuote;
+import com.deepseekharness.app.util.OneShotLaunchAuthority;
 
 /** App 持有认证连接和心跳；动作失败绝不换通道重放。 */
 public final class VirtualScreenManager {
@@ -20,7 +25,14 @@ public final class VirtualScreenManager {
     private static volatile Context context;
     private static volatile String token="",channel="",generation="",lastError="";
     private static volatile int port;
+    private static final AtomicLong LIFECYCLE_EPOCH = new AtomicLong();
+    private static volatile long activeEpoch = -1;
+    static volatile LongSupplier clock = android.os.SystemClock::elapsedRealtime;
+    private static volatile boolean starting;
     private static ScheduledFuture<?> heartbeat;
+    private static final long ADB_LAUNCH_TTL_MS=30_000;
+    private static final OneShotLaunchAuthority ADB_LAUNCH=new OneShotLaunchAuthority();
+    private static final Pattern STARTED=Pattern.compile("(?m)^DeepSeekHarness_VSCREEN_STARTED ([a-f0-9]{48})$");
     private VirtualScreenManager() {}
     public static boolean supported(Context c){return !BuildConfig.LOW_ANDROID && android.os.Build.VERSION.SDK_INT>=30;}
     public static String channel(){return channel;}
@@ -32,37 +44,62 @@ public final class VirtualScreenManager {
         if(BuildConfig.LOW_ANDROID)return failure("VSCREEN_UNSUPPORTED_LOW");
         if(!supported(ctx))return failure("VSCREEN_API_30_REQUIRED");
         if(!"portrait".equals(orientation)&&!"landscape".equals(orientation))return failure("INVALID_ORIENTATION");
+        final Context app=ctx.getApplicationContext();final int w="landscape".equals(orientation)?1792:1008,h="landscape".equals(orientation)?1008:1792;
+        final VirtualScreenChannel selected;final long epoch;final int selectedPort;final String command;
         synchronized(LOCK){
-            context=ctx.getApplicationContext();
-            int w="landscape".equals(orientation)?1792:1008,h="landscape".equals(orientation)?1008:1792;
+            context=app;
+            if(starting)return failure("VSCREEN_START_IN_PROGRESS");
             // 已有会话只改显示尺寸；不能以探测失败触发隐式重新启动。
-            if(!token.isEmpty()){JSONObject value=remember(request("/vscreen/create","width="+w+"&height="+h));if(value.optBoolean("ok"))VirtualScreenForeground.present();return value;}
-            VirtualScreenChannel selected=VirtualScreenChannels.choose(context);
+            if(!token.isEmpty()){
+                if(activeEpoch!=LIFECYCLE_EPOCH.get())return failure("VSCREEN_REVOKED");
+                JSONObject value=remember(request("/vscreen/create","width="+w+"&height="+h));if(value.optBoolean("ok"))VirtualScreenForeground.present();return value;
+            }
+            selected=VirtualScreenChannels.choose(context);
             if(selected==null)return failure("DEVICE_CHANNEL_UNAVAILABLE");
-            token=randomToken();port=8800+RANDOM.nextInt(100);channel=selected.id();
-            try{
-                String command="/system/bin/app_process "+ShellQuote.arg("-Djava.class.path="+context.getApplicationInfo().sourceDir)
-                        +" /system/bin com.deepseekharness.app.vscreen.VirtualScreenCore --launch --port "+port+" --token "+token;
-                String result=selected.start(context,command);
-                if(result==null||!result.contains("[EXIT=0]")||!result.contains("DeepSeekHarness_VSCREEN_STARTED")){
-                    // 尝试清理可能已经启动的 core；不再执行 start。
-                    stopLocked();return failure("VSCREEN_START_RESULT_UNKNOWN");
-                }
-                JSONObject created=remember(request("/vscreen/create","width="+w+"&height="+h));
-                if(!created.optBoolean("ok")){stopLocked();return created;}
-                heartbeat=WORKER.scheduleWithFixedDelay(()->{
-                    synchronized(LOCK){
-                        if(token.isEmpty())return;
-                        VirtualScreenChannel current=VirtualScreenChannels.find(channel);
-                        if(current==null||!current.available(context)){stopLocked();return;}
-                        JSONObject ping=request("/vscreen/ping","");
-                        if(!ping.optBoolean("ok"))stopLocked();
-                    }
-                },10,10,TimeUnit.SECONDS);
-                VirtualScreenForeground.present();
-                return created;
-            }catch(Throwable e){stopLocked();return failure("VSCREEN_START_"+e.getClass().getSimpleName());}
+            selectedPort=8800+RANDOM.nextInt(100);port=selectedPort;channel=selected.id();generation="";starting=true;epoch=LIFECYCLE_EPOCH.incrementAndGet();
+            command="/system/bin/app_process "+ShellQuote.arg("-Djava.class.path="+context.getApplicationInfo().sourceDir)
+                    +" /system/bin com.deepseekharness.app.vscreen.VirtualScreenCore --launch --port "+selectedPort;
         }
+        String coreToken="";
+        try{
+            if("adb".equals(selected.id()))reserveAdbLaunch(command,epoch);
+            String result=selected.start(app,command);
+            Matcher match=result==null?null:STARTED.matcher(result);
+            if(result==null||!result.contains("[EXIT=0]")||match==null||!match.find()){
+                failStart(epoch);return failure("VSCREEN_START_RESULT_UNKNOWN");
+            }
+            coreToken=match.group(1);
+            boolean cancelled;
+            synchronized(LOCK){
+                cancelled=LIFECYCLE_EPOCH.get()!=epoch||!starting;
+                if(!cancelled){token=coreToken;activeEpoch=epoch;}
+            }
+            if(cancelled){requestAt(selectedPort,coreToken,"/vscreen/close","");return failure("VSCREEN_START_CANCELLED");}
+            JSONObject created=requestAt(selectedPort,coreToken,"/vscreen/create","width="+w+"&height="+h);
+            boolean stale;
+            synchronized(LOCK){
+                stale=LIFECYCLE_EPOCH.get()!=epoch||!coreToken.equals(token);
+                if(!stale){
+                    if(!created.optBoolean("ok")){stopLocked();return remember(created);}
+                    starting=false;
+                    remember(created);
+                    heartbeat=WORKER.scheduleWithFixedDelay(()->{
+                        synchronized(LOCK){
+                            if(LIFECYCLE_EPOCH.get()!=epoch||token.isEmpty())return;
+                            VirtualScreenChannel current=VirtualScreenChannels.find(channel);
+                            if(current==null||!current.available(context)){stopLocked();return;}
+                            JSONObject ping=request("/vscreen/ping","");
+                            if(!ping.optBoolean("ok"))stopLocked();
+                        }
+                    },10,10,TimeUnit.SECONDS);
+                }
+            }
+            if(stale){requestAt(selectedPort,coreToken,"/vscreen/close","");return failure("VSCREEN_START_CANCELLED");}
+            VirtualScreenForeground.present();return created;
+        }catch(Throwable error){
+            if(!coreToken.isEmpty())requestAt(selectedPort,coreToken,"/vscreen/close","");
+            failStart(epoch);return failure("VSCREEN_START_"+error.getClass().getSimpleName());
+        }finally{cancelAdbLaunch(epoch);}
     }
     public static JSONObject status(Context c){synchronized(LOCK){return remember(request("/vscreen/status",""));}}
     public static JSONObject preview(Context c){synchronized(LOCK){return remember(request("/vscreen/preview",""));}}
@@ -98,17 +135,50 @@ public final class VirtualScreenManager {
         }
     }
     public static void stop(Context c){synchronized(LOCK){stopLocked();}}
-    public static void revoke(){WORKER.execute(()->{synchronized(LOCK){stopLocked();}});}
+    public static void revoke(){
+        // The worker may be inside a long network call. Fence and cancel before returning.
+        long previous=LIFECYCLE_EPOCH.getAndIncrement();
+        ADB_LAUNCH.cancel(previous);
+        long revokedEpoch=previous+1;
+        WORKER.execute(()->{synchronized(LOCK){
+            if(LIFECYCLE_EPOCH.get()==revokedEpoch)stopLocked();
+        }});
+    }
     private static void stopLocked(){
+        long stopped=LIFECYCLE_EPOCH.getAndIncrement();starting=false;cancelAdbLaunch(stopped);
         if(heartbeat!=null){heartbeat.cancel(false);heartbeat=null;}
-        if(!token.isEmpty())request("/vscreen/close","");
-        token="";channel="";generation="";
+        String oldToken=token;int oldPort=port;
+        if(!oldToken.isEmpty())requestAt(oldPort,oldToken,"/vscreen/close","");
+        token="";channel="";generation="";port=0;activeEpoch=-1;
         VirtualScreenAccessibility.clear();
         VirtualScreenForeground.stopped();
         new android.os.Handler(android.os.Looper.getMainLooper()).post(VirtualScreenOverlayController::hide);
     }
+
+    /** One-shot ADB start authority exists only while this native manager launch is pending. */
+    private static void reserveAdbLaunch(String command,long epoch){
+        if(!ADB_LAUNCH.issue(randomToken(),command,epoch,clock.getAsLong(),ADB_LAUNCH_TTL_MS))
+            throw new IllegalStateException("VSCREEN_ADB_LAUNCH_BUSY");
+    }
+    public static String adbLaunchTicketFor(String command){
+        return ADB_LAUNCH.ticketFor(command,LIFECYCLE_EPOCH.get(),clock.getAsLong());
+    }
+    public static boolean authorizeAdbLaunchPlan(String ticket,String command){
+        return ADB_LAUNCH.authorize(ticket,command,LIFECYCLE_EPOCH.get(),clock.getAsLong());
+    }
+    public static boolean commitAdbLaunch(String ticket){
+        return ADB_LAUNCH.commit(ticket,LIFECYCLE_EPOCH.get(),clock.getAsLong());
+    }
+    public static void cancelAdbLaunch(long epoch){
+        ADB_LAUNCH.cancel(epoch);
+    }
+    private static void failStart(long epoch){
+        synchronized(LOCK){if(LIFECYCLE_EPOCH.get()==epoch&&starting){starting=false;token="";channel="";generation="";port=0;activeEpoch=-1;}}
+    }
+
     public static String bridge(Context c,String route,String query){
-        String name=route.substring(route.lastIndexOf('/')+1);
+        String name=com.deepseekharness.app.util.VirtualScreenRoutes.operation(route);
+        if(name.isEmpty())return failure("UNKNOWN_ROUTE").toString();
         String gen=value(query,"generation","");long seq;
         try{seq=Long.parseLong(value(query,"frameSeq","-1"));}catch(NumberFormatException e){return failure("INVALID_FRAME").toString();}
         JSONObject result;
@@ -140,10 +210,14 @@ public final class VirtualScreenManager {
     }
     private static JSONObject request(String route,String query){
         if(token.isEmpty())return failure("VSCREEN_NOT_RUNNING");
+        return activeEpoch==LIFECYCLE_EPOCH.get()?requestAt(port,token,route,query):failure("VSCREEN_REVOKED");
+    }
+    private static JSONObject requestAt(int requestPort,String requestToken,String route,String query){
+        if(requestToken==null||requestToken.isEmpty()||requestPort<1)return failure("VSCREEN_NOT_RUNNING");
         HttpURLConnection c=null;
         try{
-            c=(HttpURLConnection)new java.net.URL("http://127.0.0.1:"+port+route+(query.isEmpty()?"":"?"+query)).openConnection();
-            c.setRequestProperty("Authorization","Bearer "+token);c.setConnectTimeout(2000);c.setReadTimeout(12000);
+            c=(HttpURLConnection)new java.net.URL("http://127.0.0.1:"+requestPort+route+(query.isEmpty()?"":"?"+query)).openConnection();
+            c.setRequestProperty("Authorization","Bearer "+requestToken);c.setConnectTimeout(2000);c.setReadTimeout(12000);
             int code=c.getResponseCode();java.io.InputStream stream=code>=400?c.getErrorStream():c.getInputStream();
             if(stream==null)return failure("VSCREEN_HTTP_"+code);
             java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();

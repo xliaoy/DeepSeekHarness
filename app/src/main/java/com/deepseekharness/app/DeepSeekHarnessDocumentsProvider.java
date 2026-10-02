@@ -31,6 +31,7 @@ public class DeepSeekHarnessDocumentsProvider extends DocumentsProvider {
     private static final String[] DOCUMENT_COLUMNS = {"document_id", "mime_type", "_display_name", "last_modified", "flags", "_size"};
     private DocumentPaths paths;
     private com.deepseekharness.app.backup.UserDataLayout dataLayout;
+    private final com.deepseekharness.app.backup.AndroidBackupFileSystem mutations = new com.deepseekharness.app.backup.AndroidBackupFileSystem();
     private String authority;
     // 测试子类只替换目录，生产入口不接受任意宿主路径。
     protected File documentBase() { return getContext().getFilesDir(); }
@@ -184,13 +185,24 @@ public class DeepSeekHarnessDocumentsProvider extends DocumentsProvider {
             for (int suffix = 0; suffix < 1000; suffix++) {
                 String candidate = suffix == 0 ? name : uniqueName(name, suffix);
                 String id = paths.child(parent, candidate); File file = resolve(id, false);
-                if (link(file) != null || file.exists()) continue;
-                boolean made = DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType) ? file.mkdir() : file.createNewFile();
-                if (made) { changed(id); return id; }
-                if (!file.exists()) throw new IOException(com.deepseekharness.app.util.UiText.text("无法创建文件，请检查可用空间"));
+                try {
+                    // Resolve validates the logical document; the actual operation must not
+                    // follow a parent replaced after that check. Reuse the host's pinned,
+                    // NOFOLLOW descriptor walk and exclusive creation.
+                    if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType)) mutations.directory(file);
+                    else try (java.io.OutputStream output = mutations.create(file)) { }
+                    changed(id); return id;
+                } catch (IOException error) {
+                    if (!alreadyExists(error)) throw error;
+                }
             }
             throw new IOException(com.deepseekharness.app.util.UiText.text("同名文件过多，请更换名称"));
         } catch (IOException error) { throw failure(error); }
+    }
+    private static boolean alreadyExists(IOException error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause())
+            if (cause instanceof ErrnoException && ((ErrnoException) cause).errno == OsConstants.EEXIST) return true;
+        return false;
     }
     private static String uniqueName(String name, int suffix) {
         int dot = name.lastIndexOf('.');
@@ -203,7 +215,7 @@ public class DeepSeekHarnessDocumentsProvider extends DocumentsProvider {
             File source = resolve(id, false), target = resolve(next, false);
             if (target.exists() || link(target) != null) throw new IOException(com.deepseekharness.app.util.UiText.text("已存在同名文件"));
             List<String> oldIds = descendants(id);
-            if (!source.renameTo(target)) throw new IOException(com.deepseekharness.app.util.UiText.text("重命名失败，原文件已保留"));
+            mutations.move(source, target);
             for (String old : oldIds) if (!old.equals(id)) revokeDocumentPermission(old);
             changed(id); changed(next); return next;
         } catch (IOException error) { throw failure(error); }
@@ -214,7 +226,7 @@ public class DeepSeekHarnessDocumentsProvider extends DocumentsProvider {
             List<String> ids = descendants(id);
             for (int i = ids.size() - 1; i >= 0; i--) {
                 String child = ids.get(i); File file = resolve(child, false);
-                if (!file.delete()) throw new IOException(com.deepseekharness.app.util.UiText.text("删除未完成，请刷新后重试：") + child);
+                mutations.delete(file);
                 revokeDocumentPermission(child);
             }
             changed(id);

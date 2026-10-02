@@ -19,7 +19,7 @@ public final class DeviceCapabilityAudit extends Instrumentation {
         try {
             if (arguments.getString("mode", "probe").startsWith("shizuku")) {
                 for(String command:new String[]{"input keyevent 224","wm dismiss-keyguard",
-                        "am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity --ez limited_entry true"}) {
+                        "am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity --ez limited_entry true"}) {
                     try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand(command);
                         java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)){while(in.read()!=-1){}}
                 }
@@ -27,7 +27,7 @@ public final class DeviceCapabilityAudit extends Instrumentation {
             long binderDeadline = android.os.SystemClock.elapsedRealtime() + 5000;
             while (ShizukuShell.isInstalled(app) && !ShizukuShell.isAvailable()
                     && android.os.SystemClock.elapsedRealtime() < binderDeadline) Thread.sleep(40);
-            android.content.pm.ProviderInfo provider = app.getPackageManager().resolveContentProvider("com.deepseek.harness.shizuku", 0);
+            android.content.pm.ProviderInfo provider = app.getPackageManager().resolveContentProvider("com.dsh.client.shizuku", 0);
             if (provider == null || !provider.name.equals("rikka.shizuku.ShizukuProvider")) throw new AssertionError("Shizuku Provider 没有正确注册");
             result.putString("provider", provider.name);
             result.putString("shizuku", ShizukuShell.userStatus(app));
@@ -57,7 +57,7 @@ public final class DeviceCapabilityAudit extends Instrumentation {
                 prefs.edit().putBoolean(Constants.KEY_ALLOW_ROOT_SHELL, true).commit();
                 String output = RootShell.exec(app, "id", -1); result.putString("root_id", output);
                 if (DeviceCommandResult.exitCode(output) != 0 || !output.contains("uid=0("))
-                    throw new AssertionError("DEEPSEEK_HARNESS 的直接 root 通道没有获得 uid=0");
+                    throw new AssertionError("DSHA 的直接 root 通道没有获得 uid=0");
                 String denied = RootShell.exec(app, "setenforce 0", -1);
                 if (DeviceCommandResult.exitCode(denied) != 126) throw new AssertionError("危险命令未在 su 前拒绝");
                 result.putString("root_policy", "PASS");
@@ -89,7 +89,7 @@ public final class DeviceCapabilityAudit extends Instrumentation {
                     Bundle status=new Bundle();status.putString("stream","等待 Shizuku 授权窗口确认\n");sendStatus(0,status);
                     if(!answered.await(60,java.util.concurrent.TimeUnit.SECONDS))throw new AssertionError("授权窗口尚未确认");
                 }
-                if (!ShizukuShell.hasPermission()) throw new AssertionError("请先在 Shizuku 授权 DEEPSEEK_HARNESS");
+                if (!ShizukuShell.hasPermission()) throw new AssertionError("请先在 Shizuku 授权 DSHA");
                 String output = ShizukuShell.exec("id"); result.putString("shizuku_id", output);
                 if (DeviceCommandResult.exitCode(output) != 0 || (!output.contains("uid=0(") && !output.contains("uid=2000(")))
                     throw new AssertionError("Shizuku UserService 没有返回特权身份");

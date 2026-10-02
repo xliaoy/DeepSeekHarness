@@ -8,7 +8,6 @@ import com.deepseekharness.app.util.SensitiveData;
 import com.deepseekharness.app.util.AdbResult;
 import com.deepseekharness.app.util.ShellQuote;
 import com.deepseekharness.app.core.ConfigStore;
-import com.deepseekharness.app.BackupManager;
 import com.deepseekharness.app.util.AdbEnvironmentTask;
 import com.deepseekharness.app.util.EnvironmentTaskGate;
 import com.deepseekharness.app.util.InstallProcess;
@@ -31,8 +30,9 @@ public final class AdbBridge {
 
     private static final String[] SCRIPTS = {"adb-pair.py", "adb-shell.py", "adb-setup.sh", "device-shell-policy.py"};
     /** assets 脚本版本：每次改脚本 +1，旧 APK 的残留脚本会因版本不符被强制重注入。
-     *  16：原生默认拒绝策略、现场路径核验与全量应用分组；取消内部标志绕过。 */
-    private static final String SCRIPT_VERSION = "17";
+     *  16：原生默认拒绝、现场路径核验与全量应用分组；17：typed VScreen one-shot；
+     *  18：票据改走封闭 stdin 管道，ADB 执行前消费且未知结果不重放。 */
+    private static final String SCRIPT_VERSION = "19";
     private static final Object SETTINGS_LOCK = new Object();
     private static final java.util.concurrent.atomic.AtomicBoolean PAIRING = new java.util.concurrent.atomic.AtomicBoolean();
 
@@ -46,7 +46,7 @@ public final class AdbBridge {
                                           EnvironmentTaskGate.Operation<T> operation) throws Exception {
         Context app = ctx.getApplicationContext();
         return AdbEnvironmentTask.run(kind,
-                () -> BackupManager.hasPendingMaintenance(app.getFilesDir()) || BackupManager.isRestoring(), operation);
+                () -> com.deepseekharness.app.backup.HostMaintenancePending.blocked(app.getFilesDir()) || com.deepseekharness.app.util.MaintenanceGate.shared().isExclusive(), operation);
     }
 
     private static String environmentResult(ProotBootstrap proot, String kind,
@@ -54,7 +54,7 @@ public final class AdbBridge {
         try {
             File files = proot.getRootfsDir().getParentFile().getParentFile();
             return AdbEnvironmentTask.run(kind,
-                    () -> BackupManager.hasPendingMaintenance(files) || BackupManager.isRestoring(), operation);
+                    () -> com.deepseekharness.app.backup.HostMaintenancePending.blocked(files) || com.deepseekharness.app.util.MaintenanceGate.shared().isExclusive(), operation);
         } catch (AdbEnvironmentTask.Busy e) {
             return "ENVIRONMENT_BUSY: " + e.getMessage();
         } catch (Exception e) {
@@ -65,16 +65,30 @@ public final class AdbBridge {
 
     /** 调用方已经持有环境凭据；包括超时回收在内，进程确实退出后才结束操作。 */
     private static String execOwned(ProotBootstrap proot, String command, long timeoutMs) {
+        return execOwned(proot, command, timeoutMs, null);
+    }
+
+    /** A bounded, one-use input pipe; currently reserved for the 48-byte native VScreen lease. */
+    private static String execOwned(ProotBootstrap proot, String command, long timeoutMs, byte[] pipedInput) {
         if (!EnvironmentTaskGate.ownsCurrentThread()) throw new IllegalStateException(com.deepseekharness.app.util.UiText.text("ADB 命令缺少环境任务凭据"));
         if (Thread.currentThread().isInterrupted()) return com.deepseekharness.app.util.UiText.text("ADB_CANCELLED: 操作已取消，未启动命令");
+        if (pipedInput != null && pipedInput.length != 48)
+            return "[POLICY_BLOCKED] Invalid native virtual-screen ticket length\n[EXIT=126]";
         StringBuilder output = new StringBuilder();
+        Process process = null;
         try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin()) {
-            int exit = InstallProcess.read(proot.execRootfsForInstall(command), timeoutMs, true,
+            process = pipedInput == null ? proot.execRootfsForInstall(command)
+                    : proot.execRootfsForInstallWithPipedInput(command);
+            if (pipedInput != null) {
+                try (java.io.OutputStream input = process.getOutputStream()) { input.write(pipedInput); }
+            }
+            int exit = InstallProcess.read(process, timeoutMs, true,
                     () -> Thread.currentThread().isInterrupted(), line -> {
                         if (output.length() < 131072) output.append(line).append('\n');
                     }, Compat::destroy);
             if (exit != 0) output.append("[ADB_PROCESS_EXIT=").append(exit).append("]\n");
         } catch (Exception error) {
+            if (process != null && Compat.isAlive(process)) Compat.destroy(process);
             InstallProcess.CleanupFailure cleanup = InstallProcess.cleanupFailure(error);
             if (cleanup != null) {
                 android.util.Log.w("DeepSeekHarness-ADB", com.deepseekharness.app.util.UiText.text("ADB 进程仍在回收，继续保留环境任务凭据"));
@@ -90,12 +104,13 @@ public final class AdbBridge {
         return execOwned(proot, command, 60_000);
     }
 
-    /** 只供 VirtualScreenManager 使用的受管 app_process 启动入口。 */
-    public static String executeVirtualScreen(Context ctx, String command) {
+    /** 只供 VirtualScreenManager 使用的受管 app_process 启动入口；票据只经 stdin 传递。 */
+    public static String executeVirtualScreen(Context ctx, String command, String ticket) {
+        if(ticket==null||!ticket.matches("[a-f0-9]{48}"))return "[POLICY_BLOCKED] Invalid native virtual-screen ticket\n[EXIT=126]";
         ProotBootstrap proot = com.deepseekharness.app.core.HarnessController.get(ctx).proot();
         return environmentResult(proot, com.deepseekharness.app.util.UiText.text("启动虚拟屏核心"),
-                () -> execOwned(proot, "python3 /root/.dsh/adb-shell.py --timeout 20 --connect-timeout 20 -- "
-                        + ShellQuote.arg(command), 60_000));
+                () -> execOwned(proot, "python3 /root/.dsh/adb-shell.py --vscreen-launch --timeout 20 --connect-timeout 20 -- "
+                        + ShellQuote.arg(command), 60_000, ticket.getBytes(StandardCharsets.US_ASCII)));
     }
 
     public static boolean injected(ProotBootstrap proot) {
@@ -140,12 +155,13 @@ public final class AdbBridge {
     }
 
     public static String ensureReady(Context ctx, ProotBootstrap proot, java.util.function.Consumer<String> progress) {
-        return environmentResult(proot, com.deepseekharness.app.util.UiText.text("准备 ADB 环境"), () -> ensureReadyOwned(ctx, proot, progress));
+        try (var bridge = com.deepseekharness.app.HttpShellService.acquire(ctx)) {
+            return environmentResult(proot, com.deepseekharness.app.util.UiText.text("准备 ADB 环境"), () -> ensureReadyOwned(ctx, proot, progress));
+        }
     }
 
     private static String ensureReadyOwned(Context ctx, ProotBootstrap proot, java.util.function.Consumer<String> progress) {
         if (Thread.currentThread().isInterrupted()) return com.deepseekharness.app.util.UiText.text("ADB_CANCELLED: 环境准备已取消");
-        new com.deepseekharness.app.HttpShellService(ctx).start();
         StringBuilder sb = new StringBuilder();
         progress.accept(com.deepseekharness.app.util.UiText.text("正在同步 ADB 授权设置…"));
         String settings = applySettings(ctx, proot);
@@ -346,7 +362,7 @@ public final class AdbBridge {
      *  之后开机广播可自动开启无线调试（保活依赖）。 */
     private static String grantSecureSettings(ProotBootstrap proot) {
         try {
-            String pkg = "com.deepseek.harness";
+            String pkg = "com.dsh.client";
             String r = execOwned(proot, "python3 /root/.dsh/adb-pair.py --grant-keepalive 2>&1", 45_000);
             android.util.Log.i("DeepSeekHarness-ADB", com.deepseekharness.app.util.UiText.text("WRITE_SECURE_SETTINGS 授权结果: ") + SensitiveData.redact(r));
             return r != null && r.trim().endsWith("[EXIT=0]") ? com.deepseekharness.app.util.UiText.text("KEEPALIVE_OK: 已允许自动恢复无线调试")

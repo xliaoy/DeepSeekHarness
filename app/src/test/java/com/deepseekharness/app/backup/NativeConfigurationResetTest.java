@@ -10,11 +10,12 @@ import static org.junit.Assert.*;
 public class NativeConfigurationResetTest {
     @Rule public TemporaryFolder temporary=new TemporaryFolder();
     static final JvmBackupFileSystem FS=new JvmBackupFileSystem();
-    static final String SETTINGS=UserDataLayout.LEGACY+"/settings.yaml",ENV="linux/ubuntu/root/project/.env";
+    static final String SETTINGS=UserDataLayout.LEGACY+"/settings.yaml",ENV="linux/ubuntu/root/project/.env",PROFILE=UserDataLayout.LEGACY+"/profiles/web/cordis.patch.yml";
     static void put(File root,String path,String text)throws Exception{File file=new File(root,path);Files.createDirectories(file.getParentFile().toPath());Files.writeString(file.toPath(),text);}
     static String read(File root,String path)throws Exception{return Files.readString(new File(root,path).toPath());}
     static void fixture(File root)throws Exception{
         put(root,SETTINGS,"model: original\n");put(root,ENV,"ORIGINAL=value\n");
+        put(root,PROFILE,"- id: llm\n  config: {model: user-profile-value}\n");
         put(root,"native-state.json","{\"credential\":\"device-local-reference\"}");
         put(root,UserDataLayout.LEGACY+"/sessions/keep","conversation bytes");put(root,"linux/ubuntu/root/project/keep","project bytes");
     }
@@ -23,16 +24,37 @@ public class NativeConfigurationResetTest {
         public void apply(Map<String,Object> values)throws IOException{FS.atomic(root,"native-state.json",BackupJson.write(values,4096));}
     };}
     static File reset(File root,HostDataTransaction.Fault fault)throws IOException{return NativeConfigurationReset.reset(FS,root,"/root/project","DEEPSEEK_API_KEY='test-only'\n".getBytes(java.nio.charset.StandardCharsets.UTF_8),settings(root),fault,new BackupControl(null));}
-    static File operation(File root)throws IOException{List<String> items=FS.list(new File(root,"host-backup-operations"));assertEquals(1,items.size());return new File(root,"host-backup-operations/"+items.get(0));}
+    static File operation(File root)throws IOException{
+        File operations=HostOperationArchive.root(root);List<String> ids=new ArrayList<>(HostOperationArchive.activeEntries(FS,operations));
+        File completed=HostOperationArchive.completedRoot(root);if(FS.stat(completed).type.equals("DIRECTORY"))ids.addAll(FS.list(completed));
+        assertEquals(1,ids.size());return HostOperationArchive.locate(FS,operations,ids.get(0));
+    }
+    private static boolean contains(File directory,String secret)throws IOException{
+        if(FS.stat(directory).type.equals("DIRECTORY")){for(String child:FS.list(directory))if(contains(new File(directory,child),secret))return true;return false;}
+        if(!FS.stat(directory).type.equals("FILE"))return false;
+        try(InputStream in=FS.read(directory,FS.stat(directory))){return new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).contains(secret);}
+    }
     static void originals(File root)throws Exception{
         assertEquals("model: original\n",read(root,SETTINGS));assertEquals("ORIGINAL=value\n",read(root,ENV));
+        assertEquals("- id: llm\n  config: {model: user-profile-value}\n",read(root,PROFILE));
         assertEquals("conversation bytes",read(root,UserDataLayout.LEGACY+"/sessions/keep"));assertEquals("project bytes",read(root,"linux/ubuntu/root/project/keep"));
         assertEquals(Map.of("credential","device-local-reference"),settings(root).current());
+    }
+    @Test public void resetEnvironmentUsesOnlyAnAvailableCredentialRead()throws Exception{
+        assertEquals("DEEPSEEK_API_KEY='synthetic-key'\n",new String(NativeConfigurationReset.environment(com.deepseekharness.app.util.CredentialRead.available("synthetic-key")),java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals("# DEEPSEEK_API_KEY=\n",new String(NativeConfigurationReset.environment(com.deepseekharness.app.util.CredentialRead.missing()),java.nio.charset.StandardCharsets.UTF_8));
+        for(var reason:List.of(com.deepseekharness.app.util.CredentialRead.Reason.KEY_MISSING,com.deepseekharness.app.util.CredentialRead.Reason.DEVICE_LOCKED))
+            assertThrows(IOException.class,()->NativeConfigurationReset.environment(com.deepseekharness.app.util.CredentialRead.failed(reason)));
     }
     @Test public void resetUsesActualWorkspaceAndRetainsOriginalsWithoutGuest()throws Exception{
         File root=temporary.newFolder();fixture(root);File operation=reset(root,null);
         assertEquals("{}\n",read(root,SETTINGS));assertEquals("DEEPSEEK_API_KEY='test-only'\n",read(root,ENV));
+        assertEquals("- id: llm\n  config: {model: user-profile-value}\n",read(root,PROFILE));
+        Map<String,Object> plan=BackupJson.read(FS.small(new File(operation,"plan.json"),BackupLimits.MANIFEST),BackupLimits.MANIFEST);
+        @SuppressWarnings("unchecked") List<Map<String,Object>> roots=(List<Map<String,Object>>)plan.get("roots");
+        assertEquals(Set.of("settings","environment"),roots.stream().map(row->(String)row.get("root")).collect(java.util.stream.Collectors.toSet()));
         assertEquals("ORIGINAL=value\n",read(operation,"previous/environment"));assertEquals("model: original\n",read(operation,"previous/settings"));
+        assertFalse(new File(operation,"environment-input").exists());assertFalse(contains(operation,"test-only"));
         assertFalse(new File(root,"linux/ubuntu/root/root/project").exists());assertFalse(new File(root,"linux/ubuntu/bin/bash").exists());
         assertEquals("conversation bytes",read(root,UserDataLayout.LEGACY+"/sessions/keep"));assertEquals(Map.of("credential","device-local-reference"),settings(root).current());
         put(root,SETTINGS,"later setting");put(root,ENV,"later environment");NativeConfigurationReset.recover(FS,root,operation,settings(root),null);
@@ -46,7 +68,7 @@ public class NativeConfigurationResetTest {
         for(String phase:List.of("old-settings","new-settings","old-environment","new-environment","settings-write","validation-complete")){
             File root=temporary.newFolder();fixture(root);
             try{reset(root,name->{if(name.equals(phase))throw new IOException("injected");});fail(phase);}catch(IOException expected){assertEquals("injected",expected.getMessage());}
-            originals(root);assertTrue(HostPendingTransactions.pending(FS,root).isEmpty());
+            originals(root);assertFalse("plaintext remains after rollback at "+phase,contains(root,"test-only"));assertTrue(HostPendingTransactions.pending(FS,root).isEmpty());
         }
     }
     @Test public void invalidWorkspaceAndTamperedMappingCannotMoveFiles()throws Exception{
@@ -64,7 +86,7 @@ public class NativeConfigurationResetTest {
         for(String phase:List.of("old-settings","old-environment","new-environment","settings-write")){
             File root=temporary.newFolder();fixture(root);kill(root,phase,false);
             if(phase.equals("new-environment"))kill(root,"rollback-new-environment",true);
-            NativeConfigurationReset.recover(FS,root,operation(root),settings(root),null);originals(root);
+            NativeConfigurationReset.recover(FS,root,operation(root),settings(root),null);originals(root);assertFalse("plaintext remains after process death at "+phase,contains(operation(root),"test-only"));
             assertTrue(HostPendingTransactions.pending(FS,root).isEmpty());
         }
     }

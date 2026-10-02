@@ -76,6 +76,14 @@ public class ConfigStore {
         prefs.edit().putString("plugin_sort_order",mode.name()).apply();
     }
 
+    public com.deepseekharness.app.util.PluginDownloadSource getPluginDownloadSource() {
+        return com.deepseekharness.app.util.PluginDownloadSource.parse(text("plugin_download_source", "auto"));
+    }
+
+    public void setPluginDownloadSource(com.deepseekharness.app.util.PluginDownloadSource source) {
+        prefs.edit().putString("plugin_download_source", source.value).apply();
+    }
+
     // ================= 接入 =================
 
     public String getDnsMode() { return com.deepseekharness.app.util.ResolverConfig.mode(text("dns_mode", "auto")); }
@@ -104,14 +112,14 @@ public class ConfigStore {
 
     /** 加密失败时保留旧凭据，让界面能明确报告保存失败。 */
     public boolean saveApiKey(String value) {
-        String plain = value == null ? "" : value;
-        String encrypted = vault.encrypt(plain);
-        if (!plain.isEmpty() && encrypted.isEmpty()) return false;
-        if(!plain.isEmpty()){
-            var verified=vault.read(encrypted);
-            if(verified.state!=com.deepseekharness.app.util.CredentialRead.State.AVAILABLE||!plain.equals(verified.requireValue()))return false;
-        }
-        return prefs.edit().putString(Constants.KEY_API_KEY, encrypted).commit();
+        try {
+            String encrypted = prepareCredential(value);
+            return prefs.edit().putString(Constants.KEY_API_KEY, encrypted).commit();
+        } catch (java.io.IOException failed) { return false; }
+    }
+
+    private String prepareCredential(String value) throws java.io.IOException {
+        return com.deepseekharness.app.util.CredentialWrite.prepare(value, vault::encrypt, vault::read);
     }
 
     public String getPort() {
@@ -212,6 +220,20 @@ public class ConfigStore {
     public boolean isProotSeccompDisabled() { return flag("proot_disable_seccomp",false); }
     public void setProotSeccompDisabled(boolean value) { prefs.edit().putBoolean("proot_disable_seccomp",value).apply(); }
 
+    /** One SharedPreferences image for a complete native runtime invocation. */
+    public com.deepseekharness.app.runtime.RuntimeHostPorts.Settings runtimeSettingsSnapshot() {
+        return runtimeSettingsFrom(prefs.getAll());
+    }
+    static com.deepseekharness.app.runtime.RuntimeHostPorts.Settings runtimeSettingsFrom(java.util.Map<String, ?> values) {
+        return new com.deepseekharness.app.runtime.RuntimeHostPorts.Settings(
+                com.deepseekharness.app.util.ResolverConfig.mode(
+                        com.deepseekharness.app.util.PreferenceValue.text(values.get("dns_mode"), "auto")),
+                "proroot".equals(com.deepseekharness.app.util.PreferenceValue.text(
+                        values.get(Constants.KEY_CONTAINER_RUNTIME), "proot")),
+                com.deepseekharness.app.util.PreferenceValue.flag(values.get("proroot_static_loader"), true),
+                com.deepseekharness.app.util.PreferenceValue.flag(values.get("proot_disable_seccomp"), false));
+    }
+
     public boolean isLanMode() {
         return flag(Constants.KEY_LAN_MODE, false);
     }
@@ -302,8 +324,7 @@ public class ConfigStore {
         if (data.has("checkUpdate")) edit.putBoolean(Constants.KEY_CHECK_UPDATE, data.optBoolean("checkUpdate", true));
         if (data.has("apiKey")) {
             String plain = data.optString("apiKey");
-            String encrypted = vault.encrypt(plain);
-            if (!plain.isEmpty() && encrypted.isEmpty()) throw new java.io.IOException(com.deepseekharness.app.util.UiText.text("API Key 加密失败，未写入恢复配置"));
+            String encrypted = prepareCredential(plain);
             edit.putString(Constants.KEY_API_KEY, encrypted);
         }
         if (data.has("ecoMode")) edit.putBoolean("runtime_eco_mode", data.optBoolean("ecoMode"));
@@ -338,8 +359,7 @@ public class ConfigStore {
         if(data.has("uiTheme"))next.put("ui_theme",com.deepseekharness.app.util.UiThemePreference.normalize(data.optString("uiTheme")));
         if(data.has("uiLanguage"))next.put("ui_language",com.deepseekharness.app.util.UiLanguagePreference.normalize(data.optString("uiLanguage")));
         if(includeKey&&data.has("apiKey")&&!data.optString("apiKey").isEmpty()){
-            String plain=data.optString("apiKey");if(plain.length()>16384)throw new java.io.IOException("CREDENTIAL_LIMIT");String cipher=vault.encrypt(plain);
-            if(cipher.isEmpty())throw new java.io.IOException("CREDENTIAL_ENCRYPTION_FAILED");next.put(Constants.KEY_API_KEY,cipher);
+            String cipher=prepareCredential(data.optString("apiKey"));next.put(Constants.KEY_API_KEY,cipher);
         }return next;
     }
     /** 事务只提交事先校验/加密的白名单状态，不能从归档键名写设备授权。 */
@@ -400,10 +420,8 @@ public class ConfigStore {
     public String getLastBackupName() { return text("backup_last_name", ""); }
     public String getLastBackupError() { return text("backup_last_error", ""); }
     public long getLastBackupSuccess() { return longValue("backup_last_success", 0); }
-
-    // ===== 软件源（npm / APT / pip）—— DeepSeekHarness 定制 =====
     // 由「配置 → 镜像与源」（ui/SourceSettingsActivity）读写；
-    // core/DshUpdater 的 dsh 在线更新源跟随这里的 npm 设置。
+    // 运行时在线更新源跟随这里的 npm 设置。
     private static final String KEY_NPM_SOURCE = "source_npm";
     private static final String KEY_APT_SOURCE = "source_apt";
     private static final String KEY_PIP_SOURCE = "source_pip";
@@ -431,6 +449,7 @@ public class ConfigStore {
     public void setPipSource(String value) {
         prefs.edit().putString(KEY_PIP_SOURCE, value == null ? "" : value).apply();
     }
+
 
     private String text(String key, String fallback) { return PreferenceValue.text(prefs.getAll().get(key), fallback); }
     private boolean flag(String key, boolean fallback) { return PreferenceValue.flag(prefs.getAll().get(key), fallback); }

@@ -43,7 +43,7 @@ public final class Rc13Instrumentation extends Instrumentation {
             Bundle progress=new Bundle();progress.putString("phase","开始真机验收");sendStatus(1,progress);
             if ("diagnostics".equals(args.getString("scenario"))) {
                 // MIUI 限制后台直接打开页面，先通过测试框架的 Shell 通道显示主界面。
-                try(android.os.ParcelFileDescriptor command=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+                try(android.os.ParcelFileDescriptor command=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
                     java.io.InputStream input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) { while(input.read()!=-1) { } }
                 activity=startActivitySync(new Intent(getTargetContext(),DiagnosticActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 progress.putString("phase","诊断页面已打开");sendStatus(1,progress);
@@ -70,9 +70,9 @@ public final class Rc13Instrumentation extends Instrumentation {
                 result.putString("repair","PASS: 随包证书、npm、pnpm、Python 修复并可启动");
             } else if ("plugins".equals(args.getString("scenario"))) {
                 check("true".equals(args.getString("ownedPlugin")),"仅允许操作本次验收添加的插件");
-                try(android.os.ParcelFileDescriptor command=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+                try(android.os.ParcelFileDescriptor command=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
                     java.io.InputStream input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) {while(input.read()!=-1) { }}
-                activity=startActivitySync(new Intent(getTargetContext(),MainActivity.class).setAction("deepseekharness.test."+System.nanoTime()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                activity=startActivitySync(new Intent(getTargetContext(),MainActivity.class).setAction("dsha.test."+System.nanoTime()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 MainActivity page=(MainActivity)activity;
                 PluginRepository repository=new androidx.lifecycle.ViewModelProvider(page).get(PluginRepository.class);
                 String name="dsh-subagent-model-picker";
@@ -118,7 +118,7 @@ public final class Rc13Instrumentation extends Instrumentation {
                 runOnMainSync(()->{
                     ((com.google.android.material.bottomnavigation.BottomNavigationView)page.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_plugins);
                     page.getSupportFragmentManager().executePendingTransactions();
-                    // 无商城版已移除 市场/已装 分段控件：插件页默认展示插件列表，无需先切到“已装”。
+                    page.findViewById(R.id.btnInstalled).performClick();
                     ((EditText)page.findViewById(R.id.pluginSearch)).setText(name);
                 });
                 waitForIdleSync();
@@ -129,9 +129,9 @@ public final class Rc13Instrumentation extends Instrumentation {
                 result.putString("plugins","PASS: npm 更新、确认边界、回退、失效预览刷新、错误包保留现状、安全模式恢复");
             } else if ("webview-cleanup".equals(args.getString("scenario"))) {
                 check("true".equals(args.getString("ownedPlugin")),"必须明确本次验收插件归属");
-                try(android.os.ParcelFileDescriptor command=getUiAutomation().executeShellCommand("am start -W -n com.deepseek.harness/com.deepseekharness.app.ui.MainActivity");
+                try(android.os.ParcelFileDescriptor command=getUiAutomation().executeShellCommand("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
                     java.io.InputStream input=new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) {while(input.read()!=-1) { }}
-                MainActivity page=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).setAction("deepseekharness.test."+System.nanoTime()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                MainActivity page=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).setAction("dsha.test."+System.nanoTime()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 activity=page;
                 PluginRepository repository=new androidx.lifecycle.ViewModelProvider(page).get(PluginRepository.class);
                 runOnMainSync(repository::refresh);until(()->!repository.state().getValue().busy,"读取插件超时");
@@ -183,9 +183,9 @@ public final class Rc13Instrumentation extends Instrumentation {
                 File directory=new File(args.getString("fixtures"));
                 File valid=new File(directory,"valid.apk");
                 String hash=hex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(valid.toPath())));
-                String url=args.getString("url","https://deepseekharness-test.invalid/unused-test.apk");
+                String url=args.getString("url","https://dsha.cc/unused-test.apk");
                 UpdatePolicy.Release release=new UpdatePolicy.Release(114,"1.2.0-validation",UpdatePolicy.PREVIEW,
-                        BuildConfig.LOW_ANDROID?"low":"standard",BuildConfig.LOW_ANDROID?23:30,"arm64-v8a",url,hash,valid.length(),"验收用测试包","https://deepseekharness-test.invalid/download/");
+                        BuildConfig.LOW_ANDROID?"low":"standard",BuildConfig.LOW_ANDROID?23:30,"arm64-v8a",url,hash,valid.length(),"验收用测试包","https://dsha.cc/download/");
                 Method validate=UpdateEngine.class.getDeclaredMethod("validatePackage",File.class,UpdatePolicy.Release.class);validate.setAccessible(true);
                 validate.invoke(updateEngine,valid,release);
                 for(String name:new String[]{"wrong-signature.apk","wrong-package.apk","wrong-flavor.apk"}){
