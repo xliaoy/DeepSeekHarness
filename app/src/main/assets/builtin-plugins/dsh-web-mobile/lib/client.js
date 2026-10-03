@@ -6429,7 +6429,9 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     min-height: 0;
   }
   [aria-modal="true"]:has(> :first-child > :last-child > button):not(:has([role="navigation"])):not(:has([class*="ZuhsRW"])):not([data-shortcut-modal="shortcuts"]) > :last-child > :last-child {
-    padding: 0 12px 24px;
+    /* DEEPSEEK_HARNESS：右侧内容区顶部留出间距（此前 padding-top 为 0，
+       内容标题贴顶；改为 14px 后标题明显下移，且高于左栏导航的 8px，读起来更稳）。 */
+    padding: 14px 12px 24px;
   }
   /* 0.1.6-alpha.2 宿主的插件管理页（dsh-client-ui-plugin-manager 渲染的
      section[data-plugin-panel]）。FAB 是全站恒定的左上角控件（用户明确
