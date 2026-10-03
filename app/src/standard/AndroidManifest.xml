@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Stellar（Shizuku 兼容分支）特权通道：免 ADB 激活后设备命令走 Stellar。
+         仅标准版引入 Stellar-API（low 无该依赖），故 provider 注册放 standard flavor，
+         low 版不会引用不存在的类。 -->
+    <application>
+        <provider
+            android:name="roro.stellar.StellarProvider"
+            android:authorities="${applicationId}.stellar"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+        <meta-data
+            android:name="roro.stellar.permissions"
+            android:value="stellar" />
+    </application>
+</manifest>
