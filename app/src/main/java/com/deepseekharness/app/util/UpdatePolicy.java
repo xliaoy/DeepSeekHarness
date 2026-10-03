@@ -97,4 +97,22 @@ public final class UpdatePolicy {
         }
         return 0;
     }
+
+    /**
+     * 把本机 {@code versionName} 换算到与 {@link #versionCodeFromTag} 同一体系
+     * （日期/语义数值）。返回 0 表示该 versionName 不可解析。
+     *
+     * <p>低版本变体用 versionNameSuffix 拼成 "20261002-rc2low"（无连字符），必须剥掉；
+     * 紧凑日期 + rc 后缀（20261002-rc2）由 versionCodeFromTag 的紧凑分支解析。
+     */
+    public static int comparableCode(String versionName) {
+        if (versionName == null) return 0;
+        String value = versionName.trim();
+        if (value.endsWith("low")) value = value.substring(0, value.length() - 3);
+        if (value.endsWith("-")) value = value.substring(0, value.length() - 1);
+        java.util.regex.Matcher compact = java.util.regex.Pattern
+                .compile("^(\\d{4})(\\d{2})(\\d{2})$").matcher(value);
+        if (compact.find()) return Integer.parseInt(value);
+        return versionCodeFromTag(value);
+    }
 }

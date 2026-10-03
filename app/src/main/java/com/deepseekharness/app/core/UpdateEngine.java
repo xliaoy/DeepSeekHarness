@@ -165,13 +165,13 @@ public final class UpdateEngine {
                 for (UpdatePolicy.Release r : options) {
                     if (requestedVersion.equals(r.version) && r.valid()
                             && (BuildConfig.LOW_ANDROID ? "low" : "standard").equals(r.flavor)
-                            && r.minSdk <= Build.VERSION.SDK_INT && r.versionCode > BuildConfig.VERSION_CODE
+                            && r.minSdk <= Build.VERSION.SDK_INT && r.versionCode > currentComparable()
                             && !(UpdatePolicy.STABLE.equals(requestedChannel) && !UpdatePolicy.STABLE.equals(r.channel))) { selected = r; break; }
                 }
                 if (selected == null) requestedVersion = null;
             }
             if (selected == null) {
-                selected = UpdatePolicy.select(options, BuildConfig.VERSION_CODE, BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT, requestedChannel);
+                selected = UpdatePolicy.select(options, currentComparable(), BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT, requestedChannel);
             }
             if (!requestedChannel.equals(candidateChannel) || candidate == null || selected == null
                     || candidate.versionCode != selected.versionCode || !candidate.version.equals(selected.version)
@@ -253,7 +253,7 @@ public final class UpdateEngine {
         String flavor = BuildConfig.LOW_ANDROID ? "low" : "standard";
         for (UpdatePolicy.Release r : available) {
             if (r.valid() && flavor.equals(r.flavor) && r.minSdk <= Build.VERSION.SDK_INT
-                    && r.versionCode > BuildConfig.VERSION_CODE
+                    && r.versionCode > currentComparable()
                     && !(UpdatePolicy.STABLE.equals(channel) && !UpdatePolicy.STABLE.equals(r.channel))) upgrades.add(r);
         }
         upgrades.sort((a, b) -> Integer.compare(b.versionCode, a.versionCode));
@@ -262,6 +262,13 @@ public final class UpdateEngine {
 
     /** 用户自选的 APK 版本；null 表示自动选择最新。 */
     public String requestedVersion() { return requestedVersion; }
+
+    /** GitHub 链路的当前版本基准：由 versionName 推出与 tag 同体系的日期/语义数值
+     *  （如 20261002-rc2 → 20261002）。不能用 BuildConfig.VERSION_CODE（小计数器），
+     *  否则日期 tag（20261002）永远大于它 → 已是最新仍被提示更新。 */
+    private static int currentComparable() {
+        return UpdatePolicy.comparableCode(BuildConfig.VERSION_NAME);
+    }
 
     /** 自选 APK 版本。只允许升级：低于/等于当前版本码的候选不会进入列表，也不会被选中。 */
     public void selectVersion(String version) {
@@ -285,7 +292,7 @@ public final class UpdateEngine {
 
     /** 候选版本码是否低于当前已安装版本（回退，界面须明确提示；自选列表已过滤，正常情况下不会出现）。 */
     public boolean isDowngrade(UpdatePolicy.Release release) {
-        return release != null && release.versionCode < BuildConfig.VERSION_CODE;
+        return release != null && release.versionCode < currentComparable();
     }
     public void download() {
         if (!currentCandidate() || !candidate.valid() || !busy.compareAndSet(false, true)) return;
@@ -419,7 +426,7 @@ public final class UpdateEngine {
             candidateChannel = UpdatePolicy.restoreCheckedChannel(doc.has("checkedChannel"),
                     doc.optString("checkedChannel", ""), r.channel);
             // 未知来源仅保留设备兼容的候选和文件，currentCandidate 会阻止使用。
-            candidate = UpdatePolicy.select(java.util.Collections.singletonList(r), BuildConfig.VERSION_CODE,
+            candidate = UpdatePolicy.select(java.util.Collections.singletonList(r), currentComparable(),
                     BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT,
                     candidateChannel == null ? UpdatePolicy.PREVIEW : candidateChannel);
             if (candidate == null) return;
