@@ -5492,6 +5492,24 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
      menu (show-archived / only-archived). On narrow phones the sidebar column
      can crowd, so pin the header row and its icon buttons inside the column
      and never let them shrink away. */
+  /* DEEPSEEK_HARNESS（fork 定制，不可回退）：0.1.7-rc.2 侧边栏 portal 化后
+     [data-mobile-nav="frame"] 前缀可能落空，视图选项入口（含「已归档会话」开关：
+     show-archived / only-archived / hide-archived）会随之消失。这里用
+     aria-label 直接锚定那个按钮（不依赖框架前缀），强制它始终可见可点。 */
+  [data-mobile-nav="frame"] [class*="sidebarCol"] button[aria-label="视图选项"],
+  [data-mobile-nav="frame"] [class*="sidebarCol"] button[aria-label="View options"],
+  [data-mobile-nav="frame"] [class*="sidebarCol"] button[aria-label*="archived"],
+  [class*="sidebarCol"] button[aria-label="视图选项"],
+  [class*="sidebarCol"] button[aria-label="View options"] {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 0 0 auto !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+  }
   [data-mobile-nav="frame"] [data-pane="sidebar"] [class*="_sectionHeader"],
   [data-mobile-nav="frame"] [class*="sidebarCol"] [class*="_sectionHeader"] {
     min-height: 36px !important;
