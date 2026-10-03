@@ -446,6 +446,16 @@ public final class HttpShellService {
 
     private static boolean tokenMatch(String presented) {
         String token = authToken.isEmpty() ? ensureToken() : authToken;
+        // rootfs 内 .bridge_token 是 rootfs 中 agent 访问 3090 桥的共享凭据真相：
+        // App 更新 / 环境重建后文件可能已换新值（App 桥内存只在 start 时对账一次），
+        // 若仍比对旧内存值，agent 读文件新值、桥比旧值 → 永远 UNAUTHORIZED。
+        // 鉴权时以文件为准跟随（文件有效则同步内存再比对）。
+        java.io.File tf = tokenFileIfPossible();
+        String fromFile = tf == null ? null : readTokenFromFile(tf);
+        if (fromFile != null && !fromFile.isEmpty() && !fromFile.equals(token)) {
+            token = fromFile;
+            authToken = fromFile;
+        }
         return token != null && !token.isEmpty() && LanAuth.constantTimeEquals(token, presented);
     }
 

@@ -92,6 +92,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // 所有文件访问权限门禁：未授权不进入主界面（弹窗引导授权，拒绝「退出」即关闭应用）。
+        if (android.os.Build.VERSION.SDK_INT >= 30 && !android.os.Environment.isExternalStorageManager()) {
+            showStoragePermissionGate();
+            return;
+        }
+
         setContentView(R.layout.activity_main);
         buildDrawer();
         findViewById(R.id.btn_tasks).setContentDescription(com.deepseekharness.app.util.UiText.choose("后台任务","Background tasks"));
@@ -292,6 +298,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // 所有文件访问权限门禁复查：从系统设置页返回仍未授权 → 继续弹窗（只能去授权或退出）。
+        if (android.os.Build.VERSION.SDK_INT >= 30 && !android.os.Environment.isExternalStorageManager()) {
+            showStoragePermissionGate();
+        }
         if(!new ConfigStore(this).getUiLanguage().equals(com.deepseekharness.app.util.UiText.language()))LanguageController.apply(this);
         current = this;
         recoveryHandler.removeCallbacks(refreshRecovery);
@@ -310,6 +320,42 @@ public class MainActivity extends AppCompatActivity {
             com.deepseekharness.app.DeviceBridgeService.apply(this);
         }
         maybePromptExternalRestore();
+    }
+
+    /** 所有文件访问权限门禁：进入即弹窗，只有「去授权」与「退出」两个出路。 */
+    private boolean storagePermissionGateShown = false;
+    private void showStoragePermissionGate() {
+        if (storagePermissionGateShown || isFinishing() || isDestroyed()) return;
+        storagePermissionGateShown = true;
+        new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(this)
+                .setTitle(com.deepseekharness.app.util.UiText.text("需要文件访问权限"))
+                .setMessage(com.deepseekharness.app.util.UiText.text("DeepSeekHarness 需要「所有文件访问」权限来导出交付文件、恢复备份与读写公共存储。\n\n未授权将无法使用本应用。"))
+                .setCancelable(false)
+                .setPositiveButton(com.deepseekharness.app.util.UiText.text("去授权"), (dialog, which) -> {
+                    storagePermissionGateShown = false;
+                    openAllFilesAccessSettings();
+                })
+                .setNegativeButton(com.deepseekharness.app.util.UiText.text("退出"), (dialog, which) -> {
+                    storagePermissionGateShown = false;
+                    finishAffinity();
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                })
+                .show();
+    }
+
+    private void openAllFilesAccessSettings() {
+        try {
+            startActivity(new android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    android.net.Uri.parse("package:" + getPackageName())));
+        } catch (Exception ignored) {
+            try {
+                startActivity(new android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+            } catch (Exception error) {
+                android.widget.Toast.makeText(this,
+                        com.deepseekharness.app.util.UiText.text("无法打开授权页面，请在系统设置 → 应用 → 特殊权限中开启「所有文件访问」"),
+                        android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     /**
