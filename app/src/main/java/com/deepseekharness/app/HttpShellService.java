@@ -1394,7 +1394,7 @@ public final class HttpShellService {
             if (src.isEmpty()) return "NO_PATH";
             // 与 appExport 相同的安全校验：凭据/运行时内部状态不可放行。
             if (com.deepseekharness.app.util.BridgePathPolicy.denied(src))
-                return "FORBIDDEN: " + com.deepseekharness.app.util.BridgePathPolicy.reason();
+                return "FORBIDDEN: " + com.deepseekharness.app.util.BridgePathPolicy.reason() + "（路径: " + SensitiveData.redact(src) + "）";
             String name = getParam(q, "name", "");
             java.io.File f = new java.io.File(src);
             if (!f.isFile()) {

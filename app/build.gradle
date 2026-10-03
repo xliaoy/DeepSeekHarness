@@ -15,7 +15,7 @@ android {
         applicationId "com.deepseek.harness"
         minSdk 30
         targetSdk 37
-        versionCode 171
+        versionCode 172
         versionName "20261002-rc2"
         testInstrumentationRunner project.findProperty('deepseekharness.testRunner') ?: "androidx.test.runner.AndroidJUnitRunner"
         ndk {
