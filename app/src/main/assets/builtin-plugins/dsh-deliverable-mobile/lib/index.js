@@ -39,55 +39,46 @@ function bridgeToken() {
 }
 
 /**
- * 把一个容器内绝对路径经 App 桥导出并唤起「打开方式」选择器。
+ * 把一个容器内绝对路径经 App 桥以「分享」方式交给手机上的其它应用
+ * （用户明确要求走分享面板：复制到 /sdcard/Download/DeepSeekHarness 后调
+ *  /app/share，App 弹 ACTION_SEND 分享面板，可选 MT/WPS/文件管理器接收打开）。
+ *
+ * 若 /sdcard 复制失败（存储不可写），退回容器 /tmp 复制 + /app/openfile 打开方式。
  * @returns {Promise<string>} App 桥的 OK 说明文字（成功）。
  */
 async function openViaBridge(path, desiredName) {
   const token = bridgeToken();
   if (!token) throw new Error('bridge token 不可读（App 桥未就绪）');
   const name = desiredName && /^[\w.\- ]+$/.test(desiredName) ? desiredName : path.split('/').pop() || 'deliverable.bin';
-  const url = `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(token)}&path=${encodeURIComponent(path)}&name=${encodeURIComponent(name)}`;
-  const response = await fetch(url, { signal: AbortSignal.timeout(90000) });
-  const text = await response.text();
-  const out = text.trim();
-  // 成功响应形如 "OK: 已唤起打开方式选择器：<name>"；其余都是失败码。
-  if (!out.startsWith('OK')) {
-    let lastError = out.slice(0, 200);
-    // FORBIDDEN：交付文件是用户产物，可能是工作区落在桥的敏感路径策略里
-    // （如 /root/.dsh 前缀）被误伤。依次尝试两条兜底链，导出的是普通文件副本，
-    // 凭据导出防护不降级，用后即删：
-    //   1) 复制到容器 /tmp → /app/openfile 重试（/tmp 不命中敏感路径策略）
-    //   2) 复制到 /sdcard/Download/DeepSeekHarness → /app/share 分享（分享面板，
-    //      同样可选择应用接收/打开；/app/share 只允许 /sdcard 下文件）
-    if (out.startsWith('FORBIDDEN')) {
-      const copied = await copyToTmp(path, name);
-      if (copied !== null) {
-        const retryUrl = `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(token)}&path=${encodeURIComponent(copied)}&name=${encodeURIComponent(name)}`;
-        try {
-          const retry = await fetch(retryUrl, { signal: AbortSignal.timeout(90000) });
-          const retryText = (await retry.text()).trim();
-          if (retryText.startsWith('OK')) return retryText;
-          lastError = retryText.slice(0, 200);
-        } finally {
-          try { await import('node:fs/promises').then((fs) => fs.unlink(copied)); } catch { /* 清理失败无碍 */ }
-        }
-      }
-      const shared = await copyToShared(path, name);
-      if (shared !== null) {
-        const shareUrl = `${BRIDGE_BASE}/app/share?token=${encodeURIComponent(token)}&path=${encodeURIComponent(shared)}`;
-        try {
-          const share = await fetch(shareUrl, { signal: AbortSignal.timeout(90000) });
-          const shareText = (await share.text()).trim();
-          if (shareText.startsWith('OK')) return shareText;
-          lastError = shareText.slice(0, 200);
-        } finally {
-          try { await import('node:fs/promises').then((fs) => fs.unlink(shared)); } catch { /* 清理失败无碍 */ }
-        }
-      }
+
+  // 首选：分享。复制到 /sdcard（/app/share 只允许 /sdcard 下文件）→ 弹分享面板。
+  const shared = await copyToShared(path, name);
+  if (shared !== null) {
+    const shareUrl = `${BRIDGE_BASE}/app/share?token=${encodeURIComponent(token)}&path=${encodeURIComponent(shared)}`;
+    try {
+      const share = await fetch(shareUrl, { signal: AbortSignal.timeout(90000) });
+      const shareText = (await share.text()).trim();
+      if (shareText.startsWith('OK')) return shareText;
+      throw new Error(shareText.slice(0, 200) || '唤起失败');
+    } finally {
+      try { await import('node:fs/promises').then((fs) => fs.unlink(shared)); } catch { /* 清理失败无碍 */ }
     }
-    throw new Error(lastError || '唤起失败');
   }
-  return out;
+
+  // 兜底：容器 /tmp 复制 + /app/openfile 打开方式选择器。
+  const copied = await copyToTmp(path, name);
+  if (copied !== null) {
+    const openUrl = `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(token)}&path=${encodeURIComponent(copied)}&name=${encodeURIComponent(name)}`;
+    try {
+      const retry = await fetch(openUrl, { signal: AbortSignal.timeout(90000) });
+      const retryText = (await retry.text()).trim();
+      if (retryText.startsWith('OK')) return retryText;
+      throw new Error(retryText.slice(0, 200) || '唤起失败');
+    } finally {
+      try { await import('node:fs/promises').then((fs) => fs.unlink(copied)); } catch { /* 清理失败无碍 */ }
+    }
+  }
+  throw new Error('无法复制交付文件（/sdcard 与 /tmp 均失败），请检查存储空间');
 }
 
 /** 复制到容器 /tmp 的随机名，返回新路径；失败返回 null。 */
