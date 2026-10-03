@@ -20,9 +20,13 @@ const BRIDGE_BASE = 'http://127.0.0.1:3090';
 const TOKEN_FILE = '/root/.dsh/.bridge_token';
 const OPEN_ROUTE = '/api/deliverable.mobile-open';
 
+/** 只认十进制非负整数串，与官方 ui-deliverables 的 coordinate 同口径。
+ *  不能用 Number.isFinite 兜：Number(null) 和 Number('') 都是 0（有限），
+ *  缺参会被当成 seq=0/index=0 去读一个不相干的事件，而不是如实报 400。 */
+const NUMERIC = /^\d+$/;
+
 function coordinate(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
+  return value !== null && NUMERIC.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : undefined;
 }
 
 /** 读 token（读失败则返回空，路由会 503 提示）。 */
@@ -54,24 +58,31 @@ async function openViaBridge(path, desiredName) {
 /**
  * 从会话事件坐标解析交付文件的容器内绝对路径。
  * 镜像 ui-deliverables host 的 readTarget + workspaceFiles.stat 路径解析。
+ *
+ * ⚠ readEvent 返回的是读窗口 `{ session, target, events, startSeq, endSeq }`，
+ * 事件本体在 `.target` 下 —— 不是事件自身。
+ *
+ * 失败时返回 `{ reason }`（不抛异常），handleOpen 会把 reason 写进界面报错，
+ * 便于直接在手机上定位：target 类型不符 / files 长度 / stat 拿不到绝对路径等。
  */
 async function resolveDeliverablePath(ctx, request, id, seq, index) {
   const read = await ctx.sessionQuery.readEvent({ sessionId: id, seq, before: 0, after: 0 }, request.signal);
-  if (!read || typeof read !== 'object' || read.type !== 'deliverables/presented' || !read.data) return null;
-  const files = read.data.files;
-  const file = Array.isArray(files) ? files[index] : undefined;
-  if (!file || typeof file.path !== 'string' || !file.path) return null;
-  // 交付文件在 session 工作区内；优先用 workspaceFiles.stat 解析出绝对路径。
-  let absolute = file.path;
-  try {
-    const stat = await ctx.workspaceFiles.stat({
-      sessionId: id,
-      workspaceRoot: ctx.sandboxPolicy?.workspaceRoot,
-    }, file.path, request.signal);
-    if (stat && typeof stat.absolutePath === 'string' && stat.absolutePath) absolute = stat.absolutePath;
-  } catch {
-    // stat 不可用（workspaceFiles 未提供）时退回原始 path，App 桥仍能映射。
+  if (!read || typeof read !== 'object') return { reason: `readEvent 无返回（会话 ${id} seq ${seq}）` };
+  const target = read.target;
+  if (!target) return { reason: `seq ${seq} 处无事件（事件可能已被压缩或坐标失效）` };
+  if (target.type !== 'deliverables/presented' || !target.data) {
+    return { reason: `seq ${seq} 的事件类型为 ${target.type}，不是交付文件呈现事件` };
   }
+  const files = target.data.files;
+  const file = Array.isArray(files) ? files[index] : undefined;
+  if (!file || typeof file.path !== 'string' || !file.path) {
+    return { reason: `呈现事件 files 数组长度 ${Array.isArray(files) ? files.length : '非数组'}，索引 ${index} 无有效文件` };
+  }
+  // 工作区根与官方同序：先会话自己的 cwd，再退到沙箱策略的 workspaceRoot。
+  const workspaceRoot = read.session?.cwd ?? ctx.sandboxPolicy?.workspaceRoot;
+  const stat = await ctx.workspaceFiles.stat({ sessionId: id, workspaceRoot }, file.path, request.signal);
+  const absolute = stat && typeof stat.absolutePath === 'string' ? stat.absolutePath : '';
+  if (!absolute) return { reason: `文件 ${file.path} 无法解析出绝对路径（文件可能已被移动/删除）` };
   return { path: absolute, displayTitle: file.displayTitle };
 }
 
@@ -87,13 +98,19 @@ async function handleOpen(ctx, request) {
   }
   try {
     const resolved = await resolveDeliverablePath(ctx, request, id, seq, index);
-    if (resolved === null) {
-      return Response.json({ error: { code: 'not-found', message: '交付文件不存在或坐标已失效' } }, { status: 404 });
+    if (resolved === null || resolved.reason) {
+      const reason = resolved && resolved.reason ? resolved.reason : '交付文件不存在或坐标已失效';
+      return Response.json({ error: { code: 'not-found', message: '交付文件不存在或坐标已失效：' + reason } }, { status: 404 });
     }
     await openViaBridge(resolved.path, resolved.displayTitle);
     return Response.json({ ok: true, note: '已唤起打开方式选择器' });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // 坐标读不出来（会话已归档 / seq 不存在）与桥不可用是两回事，分开报：
+    // 前端会把 message 原样显示，含糊的文案等于没有信息。
+    if (/SESSION_QUERY|has no event at seq/i.test(message)) {
+      return Response.json({ error: { code: 'stale-coordinates', message: '坐标已失效：' + message } }, { status: 404 });
+    }
     const code = message.includes('token') ? 'bridge-unavailable' : 'open-failed';
     return Response.json({ error: { code, message } }, { status: 503 });
   }
