@@ -5,7 +5,7 @@
   "archives": [
     {
       "asset": "recovery-rootfs.bin",
-      "sha256": "8d443f1ea034369e9fec973be88c60c94b8333563479faafe23121e36d332e64",
+      "sha256": "48fc22bef6526521bb32d2e8b7a34e1afe91aae1f89202f11acf5fff430c19d2",
       "seed": "app/src/main/assets/offline-rootfs.bin"
     },
     {
