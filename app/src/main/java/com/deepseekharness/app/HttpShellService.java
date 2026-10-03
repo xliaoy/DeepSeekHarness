@@ -1338,15 +1338,32 @@ public final class HttpShellService {
             String file = getParam(q, "path", "");
             android.content.Intent send = new android.content.Intent(android.content.Intent.ACTION_SEND);
             if (!file.isEmpty()) {
+                // 敏感路径（凭据/运行时内部状态）不允许分享。
+                if (com.deepseekharness.app.util.BridgePathPolicy.denied(file))
+                    return "FORBIDDEN: " + com.deepseekharness.app.util.BridgePathPolicy.reason();
                 java.io.File f = new java.io.File(file);
-                if (!f.isFile()) return "NOT_FOUND: " + file;
-                // 只允许分享外部存储里的文件（App 私有目录需要 FileProvider 授权）
-                String canon = f.getCanonicalPath();
-                if (!canon.startsWith("/sdcard") && !canon.startsWith("/storage/emulated/0")) {
-                    return com.deepseekharness.app.util.UiText.text("FORBIDDEN: 只能分享 /sdcard 下的文件");
+                if (!f.isFile()) {
+                    // 允许 rootfs 内的 guest 路径（/root/... → 映射到 App 私有目录）
+                    try {
+                        HarnessController hc = HarnessController.get(ctx);
+                        java.io.File guess = new java.io.File(hc.getProot().getRootfsDir(),
+                                file.startsWith("/") ? file.substring(1) : file);
+                        if (guess.isFile()) f = guess;
+                    } catch (Throwable ignored) {
+                    }
                 }
+                if (!f.isFile()) return "NOT_FOUND: " + SensitiveData.redact(file);
+                if (f.length() > 64L * 1024 * 1024) return "TOO_LARGE: " + f.length();
+                // Android 7.0+ 禁止 file:// URI 暴露给其它应用（FileUriExposedException），
+                // 必须用 MediaStore content URI：导出到公共 Download/DeepSeekHarness 再分享。
+                com.deepseekharness.app.data.DownloadsExport.Result saved;
+                try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin("数据维护")) {
+                    saved = com.deepseekharness.app.data.DownloadsExport.write(ctx, f, f.getName());
+                }
+                if (saved == null || saved.uri == null)
+                    return com.deepseekharness.app.util.UiText.text("ERROR: 导出失败（存储权限或空间不足）");
                 send.setType("*/*");
-                send.putExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri.fromFile(f));
+                send.putExtra(android.content.Intent.EXTRA_STREAM, saved.uri);
                 send.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 if (!text.isEmpty()) send.putExtra(android.content.Intent.EXTRA_TEXT, text);
             } else {
