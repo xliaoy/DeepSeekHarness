@@ -445,16 +445,19 @@ public final class HttpShellService {
     }
 
     private static boolean tokenMatch(String presented) {
-        String token = authToken.isEmpty() ? ensureToken() : authToken;
         // rootfs 内 .bridge_token 是 rootfs 中 agent 访问 3090 桥的共享凭据真相：
-        // App 更新 / 环境重建后文件可能已换新值（App 桥内存只在 start 时对账一次），
-        // 若仍比对旧内存值，agent 读文件新值、桥比旧值 → 永远 UNAUTHORIZED。
-        // 鉴权时以文件为准跟随（文件有效则同步内存再比对）。
+        // App 更新 / 环境重建后文件可能已换新值（App 桥内存只在 start 时对账一次）。
+        // 只要文件存在且有效，就**一律以文件为准**（无条件同步内存再比对），
+        // 不依赖内存快照 —— 插件每次请求都读同一文件，两者必然一致。
         java.io.File tf = tokenFileIfPossible();
         String fromFile = tf == null ? null : readTokenFromFile(tf);
-        if (fromFile != null && !fromFile.isEmpty() && !fromFile.equals(token)) {
+        String token;
+        if (fromFile != null && !fromFile.isEmpty()) {
             token = fromFile;
             authToken = fromFile;
+        } else {
+            // 文件缺失/无效：以内存为准（正常应已被 ensureToken 在 start 时写好）。
+            token = authToken.isEmpty() ? ensureToken() : authToken;
         }
         return token != null && !token.isEmpty() && LanAuth.constantTimeEquals(token, presented);
     }

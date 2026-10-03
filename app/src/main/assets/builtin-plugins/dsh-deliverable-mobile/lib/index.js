@@ -54,6 +54,27 @@ function bridgeResult(text) {
 }
 
 /**
+ * 调 App 桥并处理 UNAUTHORIZED 自愈：
+ * App 桥可能因环境重建轮换了 token，此时重读 /root/.dsh/.bridge_token 换新 token 重试一次。
+ * @param {(token: string) => string} urlBuilder 由 token 构造完整 URL
+ */
+async function callBridge(urlBuilder, token) {
+  let current = token;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const res = await fetch(urlBuilder(current), { signal: AbortSignal.timeout(90000) });
+    const result = bridgeResult(await res.text());
+    if (!result.startsWith('UNAUTHORIZED')) return result;
+    const fresh = bridgeToken();
+    if (attempt === 0 && fresh && fresh !== current) {
+      current = fresh; // 桥已轮换 token，用新值重试一次
+      continue;
+    }
+    return result;
+  }
+  return '[UNAUTHORIZED]';
+}
+
+/**
  * 把一个容器内绝对路径经 App 桥以「分享」方式交给手机上的其它应用
  * （用户明确要求走分享面板：复制到 /sdcard/Download/DeepSeekHarness 后调
  *  /app/share，App 弹 ACTION_SEND 分享面板，可选 MT/WPS/文件管理器接收打开）。
@@ -87,12 +108,11 @@ async function openViaBridge(path, desiredName) {
   // 兜底：容器 /tmp 复制 + /app/openfile 打开方式选择器。
   const copied = await copyToTmp(path, safeName);
   if (copied !== null) {
-    const openUrl = `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(token)}&path=${encodeURIComponent(copied)}&name=${encodeURIComponent(originalName)}`;
     try {
-      const retry = await fetch(openUrl, { signal: AbortSignal.timeout(90000) });
-      const retryResult = bridgeResult(await retry.text());
-      if (retryResult.startsWith('OK')) return retryResult;
-      throw new Error(retryResult.slice(0, 200) || '唤起失败');
+      const openResult = await callBridge((tk) =>
+          `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(tk)}&path=${encodeURIComponent(copied)}&name=${encodeURIComponent(originalName)}`, token);
+      if (openResult.startsWith('OK')) return openResult;
+      throw new Error(openResult.slice(0, 200) || '唤起失败');
     } finally {
       try { await import('node:fs/promises').then((fs) => fs.unlink(copied)); } catch { /* 清理失败无碍 */ }
     }
