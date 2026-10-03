@@ -135,7 +135,65 @@ public final class DeviceGrantsFragment extends Fragment {
                     .setPositiveButton(com.deepseekharness.app.util.UiText.text("允许短信读取"), (dialog, which) -> saveSms(true)).setNegativeButton(com.deepseekharness.app.util.UiText.text("取消"), null).show();
         });
         updateSms();
+
+        // ===== Stellar（Shizuku 兼容分支）—— fork 定制回流 =====
+        // low 版由 low/java 的同名恒 false 空实现接管，界面上会一直显示「未运行」，
+        // 这是正确语义（low 不带 Stellar-API）。
+        final TextView stellarStatus = view.findViewById(R.id.device_stellar_status);
+        view.findViewById(R.id.device_stellar_auth).setOnClickListener(button -> {
+            com.deepseekharness.app.StellarShell.init(ctx);
+            if (!com.deepseekharness.app.StellarShell.isAvailable()) {
+                new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(ctx)
+                        .setTitle(com.deepseekharness.app.util.UiText.text("未检测到 Stellar 服务"))
+                        .setMessage(com.deepseekharness.app.util.UiText.text("请先安装 Stellar 管理器（https://github.com/roro2239/Stellar/releases），启动服务后回到这里授权。"))
+                        .setPositiveButton(com.deepseekharness.app.util.UiText.text("知道了"), null).show();
+                refreshStellarStatus(stellarStatus);
+                return;
+            }
+            if (!com.deepseekharness.app.StellarShell.hasPermission()) {
+                com.deepseekharness.app.StellarShell.requestPermission(() -> {
+                    toast(com.deepseekharness.app.util.UiText.text("Stellar 已授权"));
+                    if (getView() != null) refreshStellarStatus(getView().findViewById(R.id.device_stellar_status));
+                });
+            } else {
+                // 已授权：后台验证通道，只显示结果状态，不展示代码输出
+                final View page = getView();
+                button.setEnabled(false);
+                stellarStatus.setText(com.deepseekharness.app.util.UiText.text("正在验证 Stellar 通道…"));
+                new Thread(() -> {
+                    String r = com.deepseekharness.app.StellarShell.exec("id");
+                    main.post(() -> {
+                        if (!isAdded() || getView() != page) return;
+                        button.setEnabled(true);
+                        boolean ok = r != null && !r.startsWith("[STELLAR");
+                        toast(ok ? com.deepseekharness.app.util.UiText.text("Stellar 通道已验证")
+                                 : com.deepseekharness.app.util.UiText.text("验证失败，请重新授权"));
+                        refreshStellarStatus(stellarStatus);
+                    });
+                }, "stellar-probe").start();
+            }
+            refreshStellarStatus(stellarStatus);
+        });
+        refreshStellarStatus(stellarStatus);
         return view;
+    }
+
+    /** Stellar 四态状态行：未运行 / 未授权 / 已授权待连接 / 已激活。 */
+    private void refreshStellarStatus(TextView status) {
+        if (status == null) return;
+        try {
+            if (!com.deepseekharness.app.StellarShell.isAvailable()) {
+                status.setText(com.deepseekharness.app.util.UiText.text("Stellar 未运行。安装 Stellar 管理器并启动服务后，点「授权 Stellar」激活（激活后设备命令走 Stellar，免 ADB）。"));
+            } else if (!com.deepseekharness.app.StellarShell.hasPermission()) {
+                status.setText(com.deepseekharness.app.util.UiText.text("Stellar 服务已运行，尚未授权 → 点「授权 Stellar」弹出授权即可。"));
+            } else if (!com.deepseekharness.app.StellarShell.isReady()) {
+                status.setText(com.deepseekharness.app.util.UiText.text("Stellar 已授权，正在连接服务…（稍后自动就绪）"));
+            } else {
+                status.setText(com.deepseekharness.app.util.UiText.text("Stellar 已激活 ✓ 设备命令走 Stellar（shell 权限），无需 ADB 配对。"));
+            }
+        } catch (Throwable t) {
+            status.setText(com.deepseekharness.app.util.UiText.text("Stellar 状态读取失败：") + t.getClass().getSimpleName());
+        }
     }
     private void savePreference(String key, boolean enabled) {
         boolean success = requireContext().getSharedPreferences(Constants.PREFS, 0).edit().putBoolean(key, enabled).commit();

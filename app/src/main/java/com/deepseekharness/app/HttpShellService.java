@@ -601,6 +601,11 @@ public final class HttpShellService {
             if (plan.optString("kind").equals("DENY"))
                 return completedExecution("policy", plan.optString("reason") + "\n[EXIT=126]");
             boolean sms = "sms.read".equals(plan.optString("capability"));
+            // Stellar 通道（fork 定制）：Stellar 是 Shizuku 的深度定制分支，免 ADB 免配对，
+            // 激活后以 shell/root 身份执行，优先级最高 —— 用户显式装了 Stellar 就先用它。
+            if (!forceAdb && !forceRoot && !sms && com.deepseekharness.app.StellarShell.isReady()) {
+                return completedExecution("stellar", com.deepseekharness.app.StellarShell.exec(command));
+            }
             if (!forceAdb && RootShell.enabled(ctx) && RootShell.present()) {
                 int user = sms ? android.os.Process.myUid() / 100000 : -1;
                 return completedExecution("root", RootShell.exec(ctx, command, user));
@@ -609,7 +614,7 @@ public final class HttpShellService {
                 return completedExecution("shizuku", ShizukuShell.exec(command));
             }
             if (!DeviceBridgeService.isAdbEnabled(ctx))
-                return completedExecution("none", com.deepseekharness.app.util.UiText.text("[DEVICE_CHANNEL_UNAVAILABLE] 请在设置 → 设备能力授权中连接 root、Shizuku 或 ADB 通道\n[EXIT=124]"));
+                return completedExecution("none", com.deepseekharness.app.util.UiText.text("[DEVICE_CHANNEL_UNAVAILABLE] 请在设置 → 设备能力授权中连接 root、Shizuku、Stellar 或 ADB 通道\n[EXIT=124]"));
             plan.put("su", forceRoot);
             return new org.json.JSONObject().put("state", "adb").put("plan", plan).toString();
         } catch (Exception error) {

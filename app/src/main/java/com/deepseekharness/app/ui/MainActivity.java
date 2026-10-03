@@ -575,8 +575,6 @@ public class MainActivity extends AppCompatActivity {
                 com.deepseekharness.app.util.UiText.text("安装与修复运行环境"), () -> openChild(new InstallFragment())));
         body.addView(buildDrawerRow(R.drawable.ic_settings, com.deepseekharness.app.util.UiText.text("功能设置"),
                 com.deepseekharness.app.util.UiText.text("接口、行为与权限"), () -> openChild(new ConfigFragment())));
-        body.addView(buildDrawerRow(R.drawable.ic_settings, com.deepseekharness.app.util.UiText.text("设置"),
-                com.deepseekharness.app.util.UiText.text("外观、语言与通用选项"), this::openSettings));
         body.addView(buildDrawerRow(R.drawable.ic_backup, com.deepseekharness.app.util.UiText.text("备份还原"),
                 com.deepseekharness.app.util.UiText.text("备份恢复 · 文件共享"), () -> openChild(new WorkspaceFragment())));
         body.addView(buildDrawerRow(R.drawable.ic_plugin_scan, com.deepseekharness.app.util.UiText.text("权限配置"),
