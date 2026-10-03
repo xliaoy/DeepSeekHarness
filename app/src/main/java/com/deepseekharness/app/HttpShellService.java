@@ -1356,9 +1356,12 @@ public final class HttpShellService {
                 if (f.length() > 64L * 1024 * 1024) return "TOO_LARGE: " + f.length();
                 // Android 7.0+ 禁止 file:// URI 暴露给其它应用（FileUriExposedException），
                 // 必须用 MediaStore content URI：导出到公共 Download/DeepSeekHarness 再分享。
+                // 展示名用 name 参数（插件传原始文件名，保留中文），非法时退回临时文件名。
+                String name = getParam(q, "name", "");
+                if (name.isEmpty()) name = f.getName();
                 com.deepseekharness.app.data.DownloadsExport.Result saved;
                 try (com.deepseekharness.app.core.RuntimeTasks work = com.deepseekharness.app.core.RuntimeTasks.begin("数据维护")) {
-                    saved = com.deepseekharness.app.data.DownloadsExport.write(ctx, f, f.getName());
+                    saved = com.deepseekharness.app.data.DownloadsExport.write(ctx, f, name);
                 }
                 if (saved == null || saved.uri == null)
                     return com.deepseekharness.app.util.UiText.text("ERROR: 导出失败（存储权限或空间不足）");

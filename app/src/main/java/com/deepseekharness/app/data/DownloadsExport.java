@@ -39,7 +39,9 @@ public final class DownloadsExport {
     private static Result media(Context context, File source, String name, FileIntegrity.Result expected) throws Exception {
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-        values.put(MediaStore.MediaColumns.MIME_TYPE, name.endsWith(".txt") ? "text/plain" : name.endsWith(".zip") ? "application/zip" : "application/gzip");
+        // 按扩展名正确识别 MIME（png→image/png、md→text/markdown…），
+        // 不要一律标 gzip：接收方（微信/文件管理器）会按 gzip 处理并给文件名追加 .gz。
+        values.put(MediaStore.MediaColumns.MIME_TYPE, guessMime(name));
         values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/DeepSeekHarness/");
         values.put(MediaStore.MediaColumns.IS_PENDING, 1);
         Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
@@ -66,6 +68,16 @@ public final class DownloadsExport {
             if (!published) try { context.getContentResolver().delete(uri, null, null); } catch (Exception ignored) { }
         }
     }
+    /** 按文件名推断 MIME；无法推断时回退通用二进制。 */
+    private static String guessMime(String name) {
+        try {
+            String m = java.net.URLConnection.guessContentTypeFromName(name);
+            return m == null || m.isEmpty() ? "application/octet-stream" : m;
+        } catch (Throwable t) {
+            return "application/octet-stream";
+        }
+    }
+
     @SuppressWarnings("deprecation")
     private static Result direct(File source, String name, FileIntegrity.Result expected) throws Exception {
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "DeepSeekHarness");

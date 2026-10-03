@@ -39,6 +39,21 @@ function bridgeToken() {
 }
 
 /**
+ * App 桥统一返回 JSON：{"result":"..."}；兼容个别纯文本响应。
+ * 提取 result 字段用于成功判定与报错展示。
+ */
+function bridgeResult(text) {
+  const t = String(text || '').trim();
+  if (t.startsWith('{')) {
+    try {
+      const obj = JSON.parse(t);
+      if (typeof obj.result === 'string') return obj.result;
+    } catch { /* 非 JSON 走原样 */ }
+  }
+  return t;
+}
+
+/**
  * 把一个容器内绝对路径经 App 桥以「分享」方式交给手机上的其它应用
  * （用户明确要求走分享面板：复制到 /sdcard/Download/DeepSeekHarness 后调
  *  /app/share，App 弹 ACTION_SEND 分享面板，可选 MT/WPS/文件管理器接收打开）。
@@ -49,31 +64,35 @@ function bridgeToken() {
 async function openViaBridge(path, desiredName) {
   const token = bridgeToken();
   if (!token) throw new Error('bridge token 不可读（App 桥未就绪）');
-  const name = desiredName && /^[\w.\- ]+$/.test(desiredName) ? desiredName : path.split('/').pop() || 'deliverable.bin';
+  // 原始文件名（含中文等字符原样保留，URL 编码传给 App；App 侧再做文件名合法性校验）
+  const originalName = desiredName && String(desiredName).trim()
+      ? String(desiredName).trim() : (path.split('/').pop() || 'deliverable.bin');
+  // 临时副本用安全文件名（仅 ASCII），分享/打开的展示名由 App 用 name 参数决定。
+  const safeName = originalName.replace(/[^\w.\- ]/g, '_') || 'deliverable.bin';
 
   // 首选：分享。复制到 /sdcard（/app/share 只允许 /sdcard 下文件）→ 弹分享面板。
-  const shared = await copyToShared(path, name);
+  const shared = await copyToShared(path, safeName);
   if (shared !== null) {
-    const shareUrl = `${BRIDGE_BASE}/app/share?token=${encodeURIComponent(token)}&path=${encodeURIComponent(shared)}`;
+    const shareUrl = `${BRIDGE_BASE}/app/share?token=${encodeURIComponent(token)}&path=${encodeURIComponent(shared)}&name=${encodeURIComponent(originalName)}`;
     try {
       const share = await fetch(shareUrl, { signal: AbortSignal.timeout(90000) });
-      const shareText = (await share.text()).trim();
-      if (shareText.startsWith('OK')) return shareText;
-      throw new Error(shareText.slice(0, 200) || '唤起失败');
+      const shareResult = bridgeResult(await share.text());
+      if (shareResult.startsWith('OK')) return shareResult;
+      throw new Error(shareResult.slice(0, 200) || '唤起失败');
     } finally {
       try { await import('node:fs/promises').then((fs) => fs.unlink(shared)); } catch { /* 清理失败无碍 */ }
     }
   }
 
   // 兜底：容器 /tmp 复制 + /app/openfile 打开方式选择器。
-  const copied = await copyToTmp(path, name);
+  const copied = await copyToTmp(path, safeName);
   if (copied !== null) {
-    const openUrl = `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(token)}&path=${encodeURIComponent(copied)}&name=${encodeURIComponent(name)}`;
+    const openUrl = `${BRIDGE_BASE}/app/openfile?token=${encodeURIComponent(token)}&path=${encodeURIComponent(copied)}&name=${encodeURIComponent(originalName)}`;
     try {
       const retry = await fetch(openUrl, { signal: AbortSignal.timeout(90000) });
-      const retryText = (await retry.text()).trim();
-      if (retryText.startsWith('OK')) return retryText;
-      throw new Error(retryText.slice(0, 200) || '唤起失败');
+      const retryResult = bridgeResult(await retry.text());
+      if (retryResult.startsWith('OK')) return retryResult;
+      throw new Error(retryResult.slice(0, 200) || '唤起失败');
     } finally {
       try { await import('node:fs/promises').then((fs) => fs.unlink(copied)); } catch { /* 清理失败无碍 */ }
     }
