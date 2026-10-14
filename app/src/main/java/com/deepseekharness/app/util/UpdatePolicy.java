@@ -52,6 +52,33 @@ public final class UpdatePolicy {
         return best;
     }
 
+    /**
+     * GitHub Releases 链路的选版函数（与 {@link #select} 平行、互不干扰）。
+     *
+     * <p>为什么必须分开：自建清单那条链路用本机的小整数 {@code versionCode}（如 145），
+     * 而 GitHub 链路只能从 tag 推出【日期数值】（{@code 2026.09.25} → {@code 20260925}）。
+     * 两者量级不重叠，混用会让日期 tag【恒大于】VERSION_CODE ⇒ 每次检查都"发现新版本"
+     * （连当前版本自己也算），诱导用户反复下载同一个 APK。
+     *
+     * @param currentComparable 本机基准，必须由 {@link #comparableCode(versionName)} 从
+     *        {@code versionName} 换算，【不要】传 {@code BuildConfig.VERSION_CODE}。
+     */
+    public static Release selectFromReleases(List<Release> releases, int currentComparable,
+                                             String flavor, int sdk, String channel) {
+        if (!STABLE.equals(channel) && !PREVIEW.equals(channel)) throw new IllegalArgumentException(com.deepseekharness.app.util.UiText.text("未知更新通道"));
+        Release best = null;
+        for (Release r : releases) {
+            // 0 = tag 不可解析。必须显式跳过，不能当成"很旧的版本"——
+            // 否则一个无法解析的 tag 会静默压过合法候选，导致漏更新。
+            if (r.versionCode == 0) continue;
+            if (!r.valid() || !flavor.equals(r.flavor) || r.minSdk > sdk || r.versionCode <= currentComparable) continue;
+            if (STABLE.equals(channel) && !STABLE.equals(r.channel)) continue;
+            if (best == null || r.versionCode > best.versionCode
+                    || (r.versionCode == best.versionCode && STABLE.equals(r.channel))) best = r;
+        }
+        return best;
+    }
+
     public static boolean https(String value) {
         try {
             URI uri = new URI(value);

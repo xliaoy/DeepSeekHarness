@@ -171,7 +171,7 @@ public final class UpdateEngine {
                 if (selected == null) requestedVersion = null;
             }
             if (selected == null) {
-                selected = UpdatePolicy.select(options, currentComparable(), BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT, requestedChannel);
+                selected = UpdatePolicy.selectFromReleases(options, currentComparable(), BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT, requestedChannel);
             }
             if (!requestedChannel.equals(candidateChannel) || candidate == null || selected == null
                     || candidate.versionCode != selected.versionCode || !candidate.version.equals(selected.version)
@@ -426,7 +426,7 @@ public final class UpdateEngine {
             candidateChannel = UpdatePolicy.restoreCheckedChannel(doc.has("checkedChannel"),
                     doc.optString("checkedChannel", ""), r.channel);
             // 未知来源仅保留设备兼容的候选和文件，currentCandidate 会阻止使用。
-            candidate = UpdatePolicy.select(java.util.Collections.singletonList(r), currentComparable(),
+            candidate = UpdatePolicy.selectFromReleases(java.util.Collections.singletonList(r), currentComparable(),
                     BuildConfig.LOW_ANDROID ? "low" : "standard", Build.VERSION.SDK_INT,
                     candidateChannel == null ? UpdatePolicy.PREVIEW : candidateChannel);
             if (candidate == null) return;

@@ -163,53 +163,36 @@ public final class UpdateActivity extends AppCompatActivity {
         findViewById(R.id.update_runtime_check).setOnClickListener(v -> updater().check());
         findViewById(R.id.update_runtime_apply).setOnClickListener(v -> updater().update());
         updater().state().observe(this, this::renderRuntimeState);
-        // 已有检查结果就直接用，避免每次进页面都联网。
-        com.deepseekharness.app.core.DshUpdater.State current = updater().state().getValue();
-        if (current == null || current.currentVersion == null) updater().check();
-        else renderRuntimeState(current);
+        // 运行时在线更新暂时停用（用户要求）：只显示提示，不联网检查、也不可操作，
+        // 等 DeepSeek Harness 官方正式版发布后再开放。
+        findViewById(R.id.update_runtime_check).setEnabled(false);
+        findViewById(R.id.update_runtime_apply).setVisibility(android.view.View.GONE);
+        runtimeVersionChoice.setEnabled(false);
+        runtimeVersionChoice.setVisibility(android.view.View.GONE);
+        TextView runtimeStatus = findViewById(R.id.update_runtime_status);
+        if (runtimeStatus != null) runtimeStatus.setText(com.deepseekharness.app.util.UiText.text(RUNTIME_UPDATE_UNAVAILABLE));
+        TextView runtimeHint = findViewById(R.id.update_runtime_version_hint);
+        if (runtimeHint != null) runtimeHint.setVisibility(android.view.View.GONE);
     }
 
     private com.deepseekharness.app.core.DshUpdater updater() {
         return com.deepseekharness.app.core.DshUpdater.get(this);
     }
 
-    /** 运行时区块渲染：状态文案 + 版本列表（仅可升级版本）+ 更新日志入口。 */
+    /** 运行时在线更新暂时停用的提示文案（用户要求）。 */
+    private static final String RUNTIME_UPDATE_UNAVAILABLE =
+            "目前暂时不支持在线更新运行时，请等待 DeepSeek Harness 官方正式版发布后再查看";
+
+    /** 运行时区块渲染（暂时停用）：状态区固定显示提示；不展示版本列表与进度，也不可操作。 */
     private void renderRuntimeState(com.deepseekharness.app.core.DshUpdater.State state) {
-        if (state == null) return;
         TextView status = findViewById(R.id.update_runtime_status);
-        if (status != null) status.setText(com.deepseekharness.app.util.UiStateText.render(state.message));
-        java.util.ArrayList<String> versions = updater().availableVersions();
-        // 只允许升级：列表只保留高于当前已安装版本的候选。
-        if (state.currentVersion != null) {
-            java.util.ArrayList<String> upgradeOnly = new java.util.ArrayList<>();
-            for (String v : versions) if (updater().canUpgradeTo(v)) upgradeOnly.add(v);
-            versions = upgradeOnly;
-        }
-        String selected = updater().requestedVersion();
-        if (selected != null && (versions.isEmpty() || !versions.contains(selected))) selected = null;
-        if (!versions.equals(runtimeOptions)) {
-            runtimeOptions = versions;
-            java.util.ArrayList<String> labels = new java.util.ArrayList<>();
-            labels.add(com.deepseekharness.app.util.UiText.text("自动选择最新"));
-            labels.addAll(versions);
-            runtimeVersionChoice.setAdapter(new android.widget.ArrayAdapter<>(this, R.layout.item_data_choice, labels));
-            runtimeVersionChoice.setSelection(selected == null ? 0 : Math.max(0, versions.indexOf(selected) + 1));
-        }
+        if (status != null) status.setText(com.deepseekharness.app.util.UiText.text(RUNTIME_UPDATE_UNAVAILABLE));
         TextView hint = findViewById(R.id.update_runtime_version_hint);
-        if (hint != null) {
-            if (selected == null) hint.setVisibility(android.view.View.GONE);
-            else {
-                final String picked = selected;
-                hint.setVisibility(android.view.View.VISIBLE);
-                hint.setText(com.deepseekharness.app.util.UiText.text("已选择运行时版本 ") + selected
-                        + com.deepseekharness.app.util.UiText.text("（点击查看更新日志）"));
-                hint.setOnClickListener(v -> showRuntimeVersionNotes(picked));
-            }
-        }
+        if (hint != null) hint.setVisibility(android.view.View.GONE);
         android.view.View apply = findViewById(R.id.update_runtime_apply);
-        if (apply != null) apply.setVisibility(state.busy ? android.view.View.GONE : android.view.View.VISIBLE);
+        if (apply != null) apply.setVisibility(android.view.View.GONE);
         android.view.View check = findViewById(R.id.update_runtime_check);
-        if (check != null) check.setEnabled(!state.busy);
+        if (check != null) check.setEnabled(false);
     }
     private void showRuntimePlan(){
         CardPage page=new CardPage(this,getString(R.string.ui2_managed_update),com.deepseekharness.app.util.UiText.choose("查看当前环境与包内运行组件。","Review the current environment and bundled components."));
