@@ -37,5 +37,7 @@ calculator.html
 # Python 缓存
 __pycache__/
 *.pyc
-/docs/
+# /docs 下的调研/过程文档不入库，但「需求与实现细节记录」必须保留（切换会话的上下文）
+/docs/*
+!/docs/需求与实现细节记录.md
 *.bak
