@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/arch-arm64--v8a-lightgrey" alt="arch">
 </p>
 
-> 📥 **下载与使用**：请到 [Releases 页面](https://github.com/xliaoy/DeepSeekHarness/releases/) 下载安装包（标准版 / 兼容版），安装后首次启动按引导解压环境即可使用。
+> 📥 **下载与使用**：请到 [Releases 页面](https://github.com/xliaoy/DeepSeekHarness/releases/) 下载安装包（标准版 / 低配版），安装后首次启动按引导解压环境即可使用。
 
 > 本项目是 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（DeepSeek Harness 安卓启动器）的二次开发版本。
 > 在保留官方全部底层能力（proot/proroot 运行时、插件、备份、ADB 直连等）的基础上，对 UI 进行全面美化，并新增一批实用功能。
@@ -29,7 +29,7 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 本二开版在保留官方底层能力之外，做了两件事：
 
 1. **UI 全面美化**：悬浮胶囊底栏、顶栏汉堡侧边栏、沉浸式状态栏、启动页卡片化、固定常显日志区等，交互与视觉整体重做；
-2. **新增实用功能**：内置三个新插件、插件页命令行安装、在线更新官方 dsh、系统源快速切换、WebView 状态栏跟页面色、增强崩溃日志等。
+2. **新增实用功能**：内置 11 个实用插件（含免费模型通道）、插件页命令行安装、在线更新官方 dsh、系统源快速切换、WebView 状态栏跟页面色、增强崩溃日志等。
 
 ---
 
@@ -55,9 +55,9 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 
 ## 二、与官方 DSHA 的功能对比
 
-> 📌 **本版基线**：已把官方 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA) **v0.1.7-alpha2** 的新功能、内置 dsh 版本
-> （`0.1.7-alpha.2`）、设置、逻辑、插件全部移植进来，并把二开定制重新贴回新架构之上。
-> 版本号沿用二开自己的日期风格：`versionCode 145` / `versionName 20260925`（兼容版 `20260925low`），
+> 📌 **本版基线**：已把官方 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA) **v0.1.7-alpha2** 的新功能、设置、逻辑、插件全部移植进来，
+> 并把二开定制重新贴回新架构之上。**内置 dsh 运行时已升级到官方 `0.2.0-rc.2`**（127 个 `@deepseek-ai/*` 依赖同步升级，含官方 0.2.0 新功能与修复）。
+> 版本号沿用二开自己的日期风格：`versionCode 187` / `versionName 20261002-rc2`（低配版 `20261002-rc2low`），
 > 包名保持 `com.deepseek.harness`（升级覆盖安装不受影响）。
 
 ### 底层与核心能力（全部保留，零改动）
@@ -75,10 +75,14 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 
 | 功能 | 说明 |
 |---|---|
-| 🆕 **内置三个新插件** | 预装 `dsh-balance-panel`（余额面板）、`dsh-client-ui-aqua`（水色客户端界面）、`dsh-memento`（记忆系统） |
+| 🆕 **内置 11 个插件全家桶** | 随包内置：`dsh-balance-panel`（余额面板）、`dsh-client-ui-aqua`（水色客户端界面）、`dsh-status-overlay`（生成内容悬浮条）、`dsh-task-notifier`（任务通知）、`dsh-device-shell-guide`（设备命令引导）、`dsh-computer-use-android`（安卓设备操作）、`dsh-auto-review`（自动复核）、`dsh-tool-vscreen`（虚拟屏工具）、`dsh-deliverable-mobile`（交付文件手机端）、`dsh-our-free-model`（免费模型通道）、`dsh-web-mobile`（移动端适配） |
+| 🆕 **our free model 免费模型** | 内置 `dsh-our-free-model` 插件：免登录、免 API Key 的免费模型通道，**默认启用、开箱即用**（插件页可关） |
+| 🆕 **无限四代（默认关闭）** | 预装 `dsh-infinite-gen-4`：生成不中断的四代玩法，默认为关闭态，需要时插件页一键启用 |
+| 🆕 **运行时升级 dsh 0.2.0-rc.2** | 内置 dsh 运行时从 0.1.7 升级到官方 **0.2.0-rc.2**，11 个内置插件全部完成 0.2.0 兼容适配（peer 依赖 `workspace:*`、slot 改名等） |
+| 🆕 **插件页体验打磨** | 加载改内联进度条（不再弹窗错位）；开启/关闭状态持久记录，避免重复操作；设置弹窗手机端自适应 |
 | 🆕 **dsh-web-mobile 细节调整** | 针对移动端适配做定制导出与细节修正 |
 | 🆕 **插件页命令行安装** | 插件页新增命令安装：粘贴安装命令一键执行，不再只在商店在线装 |
-| 🆕 **在线更新 DeepSeek Harness 官方版** | 内置更新器直接对接 DeepSeek Harness 官方 GitHub Releases，一键升级到官方最新版 |
+| 🆕 **在线更新 DeepSeek Harness 官方版** | 内置更新器直接对接 DeepSeek Harness 官方 GitHub Releases，一键升级到官方最新版（App 本体可在线更新；**运行时在线更新暂未开放**，等待官方正式版发布后开启） |
 | 🆕 **系统源快速切换** | npm / APT（系统镜像）/ pip 一键切换，内置多套预设（官方 / 阿里云 / 腾讯 / 华为…）并支持自定义源 |
 | 🆕 **WebView 状态栏跟页面色** | 内置打开 dsh Web 时，状态栏颜色实时采样页面顶部像素色，随页面背景自动融合 |
 | 🆕 **删除不必要的关于入口按钮** | 精简顶栏 / 侧边栏，去掉多余“关于”入口，界面更干净 |
@@ -102,9 +106,9 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 
 ## 三、本版优点
 
-1. **开箱即用增强**：内置 `dsh-balance-panel`（余额随时看）、`dsh-client-ui-aqua`（更清爽的客户端界面）、`dsh-memento`（跨会话记忆）三个实用插件，dsh-web-mobile 也做了移动端细节打磨。
+1. **开箱即用增强**：内置 11 个实用插件（余额面板、水色客户端、任务通知、悬浮状态条、设备命令、交付文件、**免费模型通道**等），预装无限四代（默认关闭），dsh-web-mobile 做了移动端细节打磨。
 2. **装插件更自由**：除在线商店外，插件页支持**命令行安装**——粘贴官方安装命令一键执行，私有/自建插件一把装。
-3. **永远用官方最新**：App 内更新直接对接 DeepSeek Harness 官方 GitHub Releases，不用等打包版，官方一发版立刻在线升。
+3. **永远用官方最新**：App 内更新直接对接 DeepSeek Harness 官方 GitHub Releases，不用等打包版，官方一发版立刻在线升（App 本体在线更新；运行时更新待官方正式版开放）。
 4. **网络源不折腾**：npm / APT / pip 系统源一键切换，内置阿里、腾讯、华为等镜像预设，也支持自定义源，装包提速。
 5. **Web 体验沉浸**：内置 dsh Web 的状态栏颜色实时跟页面顶部取色，页面是什么色状态栏就是什么色，不再是一条突兀黑/白条。
 6. **导航更顺手**：底部只剩 启动 / 插件 / 终端 高频页；设置类入口收进侧边栏，拇指一滑即达；删掉多余“关于”按钮，界面更干净。
@@ -115,19 +119,28 @@ DSHA 官方版把 [deepseek-harness](https://github.com/deepseek-ai/deepseek-har
 
 ---
 
-## 🔄 官方新版移植记录（v0.1.7-alpha2）
+## 🔄 官方新版移植记录（v0.1.7-alpha2 → dsh 0.2.0-rc.2）
 
-本次以**官方新架构为底座**，把二开定制重新贴回，而不是在旧代码上打补丁。
+本次以**官方新架构为底座**，把二开定制重新贴回，而不是在旧代码上打补丁；并在 v182 起把内置 dsh 运行时
+从官方 `0.1.7-rc.2` 一路升级到 **`0.2.0-rc.2`**。
 
 ### 移植内容
 
 | 维度 | 变更 |
 |---|---|
-| 内置 dsh | `0.1.5-rc.1` → **`0.1.7-alpha.2`** |
-| 官方新功能 | 官方 v0.1.7-alpha2 全部功能、设置、逻辑、插件 |
+| 内置 dsh | `0.1.5-rc.1` → `0.1.7-alpha.2` → **`0.2.0-rc.2`** |
+| 官方新功能 | 官方 v0.1.7-alpha2 全部功能、设置、逻辑、插件；0.2.0 官方新功能随运行时升级带入 |
 | Java 主干 | 官方 494 文件结构（本版在 `com.deepseekharness.app` 包名下重建） |
 | 四大组件 | 官方 **standard / low 双 flavor** 结构（`StellarShell` 等归入 `standard/`） |
-| 二开定制 | UI 美化、内置插件、`dsh-web-mobile` **左右排列设置弹窗**等全部保留 |
+| 二开定制 | UI 美化、11 个内置插件、`dsh-web-mobile` **左右排列设置弹窗**等全部保留 |
+
+### 运行时 0.2.0 升级要点（v182–v187）
+
+- `tools/dsh-runtime` 的 127 个 `@deepseek-ai/*` 依赖全部升到 `0.2.0-rc.2`，`dsh-runtime.bin` 重新打包（13412 文件）。
+- 12 个 fork 补丁配方（persona / models / subagent / plugin-manager / messages / pdf / office / rc1 迁移等）全部适配新版锚点。
+- 11 个内置插件完成 **0.2.0 兼容审计**：peer 依赖精确锁 `0.1.7-rc.2` → `workspace:*`（跟随宿主版本）；
+  aqua 的 `settings.plugin.item` slot 改名 → `settings.plugins.tab`；移除新版已删除的 `dsh-client-runtime` 声明。
+- `dsh-our-free-model` 实体安装改白名单（修复真机 `BUILTIN_REGISTER_FAIL` 启动失败）。
 
 ### 命名统一
 
@@ -206,6 +219,12 @@ app/src/main/
 │   ├── bridge/             # 设备桥（无障碍 / Shizuku / 局域网 / Web 服务）
 │   ├── data/  util/        # 数据访问与工具（ShellQuote、SensitiveData 等）
 │   └── DeepSeekHarnessApp / HarnessService / LanProxyService / DeviceBridgeService
+├── assets/
+│   ├── builtin-plugins/     # 内置插件（dsh-our-free-model / dsh-client-ui-aqua / dsh-balance-panel … 共 11 个）
+│   ├── dsh-runtime.bin      # 内置 dsh 运行时 0.2.0-rc.2（启动时解压到 rootfs）
+│   ├── register-builtin-plugins.py / plugin-manager.py / deepseekharness-builtin.txt   # 内置插件注册与插件管理
+│   ├── *-patch.json         # fork 补丁配方（persona / models / subagent / plugin-manager / messages …）
+│   └── web-integration/     # WebView 集成脚本（页面返回 / 语言桥接等）
 ├── res/
 │   ├── layout/  menu/  drawable/  values/  values-night/   # 界面资源与主题
 │   └── mipmap-*/                  # 应用图标
@@ -247,16 +266,19 @@ app/src/main/
 LD_LIBRARY_PATH=/root/aidl-aarch64 sh gradlew :app:assembleStandardRelease \
   -Pandroid.aapt2FromMavenOverride=/root/tools/aapt2
 
-# 兼容版（Android 6+ / 内置 Gecko 备用内核）
+# 低配版（Android 7+ / 内置 Gecko 备用内核）
 LD_LIBRARY_PATH=/root/aidl-aarch64 sh gradlew :app:assembleLowRelease \
   -Pandroid.aapt2FromMavenOverride=/root/tools/aapt2
+
+# 一键构建两版（本机快捷脚本，含 aidl-shim / aapt2 覆盖）
+sh /root/tools/build-dsh.sh :app:assembleStandardRelease :app:assembleLowRelease
 
 # 产物
 # app/build/outputs/apk/standard/release/app-standard-release.apk
 # app/build/outputs/apk/low/release/app-low-release.apk
 ```
 
-> 包名 `com.deepseek.harness`；两版共享包名与数据，不能并排安装；标准版约 179 MiB。
+> 包名 `com.deepseek.harness`；两版共享包名与数据，不能并排安装；标准版约 280 MiB（含内置 11 个插件与 Ubuntu 基础环境），低配版约 355 MiB（内置 Gecko 内核）。
 
 ---
 
