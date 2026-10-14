@@ -363,23 +363,36 @@ public class PluginFragment extends Fragment {
         return value;
     }
 
-    /** Busy 与进度改由对话框承载；原布局的 pluginBusy/statusText 内联显示已随无商城版移除。 */
+    /**
+     * Busy 与进度改为**插件页内联状态行**显示（fork 定制，用户明确要求）：
+     * 首次进入插件页会触发扫描，原先弹模态进度框会拦截触摸、挡住用户切换页面/底栏；
+     * 改为页面内一块状态卡（进度条 + 文案 + 按需的取消按钮），不阻塞任何操作。
+     */
     private void syncProgressDialog(PluginRepository.State state) {
         if (state == null || root == null || isDetached()) return;
+        View box = root.findViewById(R.id.pluginInlineProgress);
+        if (box == null) return;
         if (state.busy) {
-            if (progressDialog == null) {
-                progressDialog = AppDialogs.showProgress(requireContext(),
-                        android.R.drawable.ic_popup_sync, com.deepseekharness.app.util.UiText.text("正在处理插件"),
-                        state.message, state.cancellable ? com.deepseekharness.app.util.UiText.text("取消") : null,
-                        () -> repository.cancelTask());
-            } else {
-                TextView msg = progressDialog.findViewById(R.id.app_dialog_message);
-                if (msg != null) msg.setText(state.message);
+            box.setVisibility(View.VISIBLE);
+            TextView msg = root.findViewById(R.id.statusText);
+            if (msg != null) msg.setText(state.message);
+            android.widget.ProgressBar bar = root.findViewById(R.id.pluginBusy);
+            if (bar != null) {
+                bar.setIndeterminate(state.percent < 0);
+                if (state.percent >= 0) bar.setProgress(Math.max(0, Math.min(100, state.percent)));
             }
-            AppDialogs.setProgressPercent(progressDialog, state.percent);
-        } else if (progressDialog != null) {
-            progressDialog.dismiss();
-            progressDialog = null;
+            android.widget.Button cancel = root.findViewById(R.id.btnCancelPluginTask);
+            if (cancel != null) {
+                if (state.cancellable) {
+                    cancel.setVisibility(View.VISIBLE);
+                    cancel.setOnClickListener(v -> repository.cancelTask());
+                } else {
+                    cancel.setVisibility(View.GONE);
+                    cancel.setOnClickListener(null);
+                }
+            }
+        } else {
+            box.setVisibility(View.GONE);
         }
     }
 
@@ -545,6 +558,9 @@ public class PluginFragment extends Fragment {
 
     private void toggle(PluginRepository.Item item, boolean enabled) {
         if (repository.isBusy()) { adapter.notifyDataSetChanged(); return; }
+        // 幂等：开关目标状态与插件当前状态一致时不做任何操作（只把 UI 复位），
+        // 避免用户重复开关导致重复审阅 / 重复写 bundles / 重复启停。
+        if (item.enabled == enabled) { adapter.notifyDataSetChanged(); return; }
         if (item.official && !enabled) {
             new com.deepseekharness.app.ui.DeepSeekHarnessDialogBuilder(requireContext()).setTitle(com.deepseekharness.app.util.UiText.text("禁用官方核心？"))
                     .setMessage(item.name + com.deepseekharness.app.util.UiText.text(" 是 Web 运行所需的核心，禁用后页面可能无法启动。"))

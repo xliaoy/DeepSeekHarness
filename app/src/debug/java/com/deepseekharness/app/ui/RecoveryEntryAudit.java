@@ -63,7 +63,7 @@ public final class RecoveryEntryAudit extends Instrumentation {
                 ui(() -> nav.setSelectedItemId(target));
                 until(() -> MainActivity.current.getSupportFragmentManager().findFragmentById(R.id.fragment_container) instanceof EnvironmentRecoveryFragment, "插件和终端展示恢复入口");
             }
-            ui(() -> nav.setSelectedItemId(R.id.nav_settings));
+            ui(() -> nav.setSelectedItemId(R.id.nav_launch));
             until(() -> MainActivity.current.findViewById(R.id.settings_tabs) != null, "受限状态可进入设置");
             boolean denied = false;
             try { controller.proot().requireUserRuntime(); } catch (java.io.IOException expected) { denied = true; }

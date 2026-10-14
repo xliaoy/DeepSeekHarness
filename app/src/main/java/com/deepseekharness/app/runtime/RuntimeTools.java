@@ -159,6 +159,36 @@ final class RuntimeTools {
             installBuiltinEntity(context, rootfs, "dsh-deliverable-mobile",
                     new String[]{"package.json", "cordis.patch.yml", "lib/index.js", "lib/client.js", "LICENSE", "README.md"});
             installPresetPlugin(context, rootfs);
+            // 预装第三方插件 dsh-our-free-model（用户要求内置）。
+            // 注意：这里必须用白名单 installBuiltinEntity，不能像早期版本那样用 installTree。
+            // installTree 依赖 getAssets().list() 递归，而 APK 打包后的资产目录 list() 可能返回空
+            // 或抛 IOException（被静默吞掉），导致整个实体树装不上，
+            // 真机表现为 BUILTIN_REGISTER_FAIL: 签名内置插件实体缺失：dsh-our-free-model。
+            // installBuiltinEntity 用 getAssets().open() 逐文件打开，真机验证可靠（与 aqua 等同）。
+            installBuiltinEntity(context, rootfs, "dsh-our-free-model", new String[]{
+            "LICENSE", "README.md", "adapter/dsh-llm.d.ts", "adapter/kernel.js", "client.js", 
+            "cordis.patch.yml", "icon.svg", "index.js", "locale/en.json", "locale/zh.json", "package.json", 
+            "src/adapter.js", "src/aggregate.js", "src/anthropic.js", "src/catalog.js", "src/chan-relay.js", 
+            "src/channel-visibility.js", "src/channel.js", "src/combos.js", "src/core/completion.js", 
+            "src/core/runtime.js", "src/core/stats.js", "src/eac-login.js", "src/eac-user.js", "src/eac.js", 
+            "src/effort.js", "src/egress.js", "src/feed.js", "src/forward.js", "src/http.js", 
+            "src/image-pricing.d.ts", "src/image-pricing.js", "src/kilo.js", "src/local-optimize.js", 
+            "src/messages.js", "src/probe.js", "src/providers/index.js", "src/providers/registry.json", 
+            "src/push.js", "src/recovery.js", "src/reload.js", "src/route/classify.js", "src/store.js", 
+            "src/stream.js", "src/token-saver/index.js", "src/token-saver/inject.js", 
+            "src/token-saver/prompts.js", "src/token-saver/rtk/applyFilter.js", 
+            "src/token-saver/rtk/autodetect.js", "src/token-saver/rtk/constants.js", 
+            "src/token-saver/rtk/filters/buildOutput.js", "src/token-saver/rtk/filters/dedupLog.js", 
+            "src/token-saver/rtk/filters/find.js", "src/token-saver/rtk/filters/gitDiff.js", 
+            "src/token-saver/rtk/filters/gitLog.js", "src/token-saver/rtk/filters/gitStatus.js", 
+            "src/token-saver/rtk/filters/grep.js", "src/token-saver/rtk/filters/ls.js", 
+            "src/token-saver/rtk/filters/readNumbered.js", "src/token-saver/rtk/filters/searchList.js", 
+            "src/token-saver/rtk/filters/smartTruncate.js", "src/token-saver/rtk/filters/tree.js", 
+            "src/token-saver/rtk/index.js", "src/token-saver/rtk/registry.js", "src/trust.js", 
+            "src/updater.js", "src/upstream.js", "src/vault-anchor.js", "src/vault-data.js", "src/vault.js", 
+            "vendor/channel-pack/LICENSE", "vendor/channel-pack/NOTICE.md", "vendor/channel-pack/pack.js", 
+            "vendor/channel-pack/qoder-auth-wasm.wasm",
+            });
         } catch (org.json.JSONException error) { throw new IOException("MANAGED_INPUT_MANIFEST", error); }
     }
 

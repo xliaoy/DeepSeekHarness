@@ -62,7 +62,7 @@ public final class LayoutPreviewActivity extends AppCompatActivity {
             visible(R.id.sub_back,nested);visible(R.id.app_logo,!nested);
             ((TextView)canvas.findViewById(R.id.btn_theme)).setText(com.deepseekharness.app.util.UiText.text(ThemeController.isDark(this)?"黑夜":"白天"));
             com.google.android.material.bottomnavigation.BottomNavigationView nav = canvas.findViewById(R.id.bottom_nav);
-            nav.setSelectedItemId(title.equals("插件")?R.id.nav_plugins:title.equals("终端")?R.id.nav_terminal:title.equals("启动")?R.id.nav_launch:R.id.nav_settings);
+            nav.setSelectedItemId(title.equals("插件")?R.id.nav_plugins:title.equals("终端")?R.id.nav_terminal:title.equals("启动")?R.id.nav_launch:R.id.nav_launch);
         }
         frame.addView(canvas,new FrameLayout.LayoutParams(dp(LayoutAuditInstrumentation.width),dp(LayoutAuditInstrumentation.height),Gravity.TOP|Gravity.CENTER_HORIZONTAL));
         TextView notice = new TextView(this);

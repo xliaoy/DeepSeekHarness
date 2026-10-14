@@ -5510,6 +5510,25 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     overflow: visible !important;
     pointer-events: auto !important;
   }
+  /* DEEPSEEK_HARNESS：aqua 云母（data-dsh-float）把侧边栏做成玻璃卡片
+     （margin:12px + padding + overflow:hidden + width:100%），会话树头部
+     （sectionHeader，含 视图选项/已归档会话 按钮）可能被裁剪或挤压。
+     这里针对 aqua 云母标记单独放开裁剪，并保持按钮可见可点。 */
+  [data-dsh-aqua][data-dsh-float] [class*="sidebarCol"] [class*="_sectionHeader"],
+  [data-dsh-aqua][data-dsh-float] [class*="sidebarCol"] header[class*="_sectionHeader"] {
+    overflow: visible !important;
+    min-height: 36px !important;
+    flex-wrap: nowrap !important;
+    flex: none !important;
+  }
+  [data-dsh-aqua][data-dsh-float] [class*="sidebarCol"] [class*="_sectionHeader"] [class*="_iconButton"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: none !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    pointer-events: auto !important;
+  }
   [data-mobile-nav="frame"] [data-pane="sidebar"] [class*="_sectionHeader"],
   [data-mobile-nav="frame"] [class*="sidebarCol"] [class*="_sectionHeader"] {
     min-height: 36px !important;
@@ -6450,6 +6469,145 @@ exports.LAYOUT_CSS = `/* ---------- mobile-only layout (narrow viewport AND touc
     /* DEEPSEEK_HARNESS：右侧内容区顶部留出间距（此前 padding-top 为 0，
        内容标题贴顶；改为 14px 后标题明显下移，且高于左栏导航的 8px，读起来更稳）。 */
     padding: 14px 12px 24px;
+  }
+  /* DEEPSEEK_HARNESS：dsh-our-free-model 的设置页适配（用户要求）。
+     该插件通过 slots.inject('settings.section') 把界面挂进设置弹窗，自带 ofm_* 稳定类名；
+     它的 .ofm_table 写死 min-width:760px、.ofm_field min-width:120px，在手机右侧内容区里
+     会横向撑破两栏布局（表现为"错位/溢出"）。这里收敛宽度让宽表在本区域内自行横滑。 */
+  [aria-modal="true"] [class*="ofm_panel"] {
+    padding: 12px !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+  [aria-modal="true"] [class*="ofm_table"] {
+    /* 保留列宽可读性：表格自身在容器内横向滚动，而不是把弹窗撑宽 */
+    display: block !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+  }
+  [aria-modal="true"] [class*="ofm_field"] {
+    min-width: 0 !important;
+  }
+  [aria-modal="true"] [class*="ofm_input"],
+  [aria-modal="true"] [class*="ofm_switch"],
+  [aria-modal="true"] [class*="ofm_minibtn"],
+  [aria-modal="true"] [class*="ofm_callout"],
+  [aria-modal="true"] [class*="ofm_newsbody"],
+  [aria-modal="true"] [class*="ofm_badge"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  /* DEEPSEEK_HARNESS：手机端自适应（用户要求 v187）。
+     上一轮只收敛了 table/field，仍有几个写死宽度的块把设置页撑出屏幕：
+       - .ofm_tank.xl width:264px（flex:none 不可收缩）+ .ofm_tankside min-width:236px
+         → .ofm_tankrow 最小宽度 ≈ 518px，390px 屏幕直接横向溢出；
+       - .ofm_chanwrap grid minmax(330px,1fr) → 窄内容区无法收缩；
+       - .ofm_nav grid 1fr auto + navbrand white-space:nowrap → 品牌名挤破窄栏。
+     统一原则：容器全宽、固定 min-width 归零、minmax 用 min(px,100%)、不可收缩项允许缩到 100%。 */
+  [aria-modal="true"] [class*="ofm_root"],
+  [aria-modal="true"] [class*="ofm_shell"],
+  [aria-modal="true"] [class*="ofm_page"],
+  [aria-modal="true"] [class*="ofm_sec"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  [aria-modal="true"] [class*="ofm_hero"],
+  [aria-modal="true"] [class*="ofm_glass"],
+  [aria-modal="true"] [class*="ofm_modal"] {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  [aria-modal="true"] [class*="ofm_tankrow"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  [aria-modal="true"] [class*="ofm_tank"] {
+    width: 100% !important;
+    max-width: 264px !important;
+    height: auto !important;
+    aspect-ratio: 206 / 128 !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+  }
+  [aria-modal="true"] [class*="ofm_tankside"] {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  [aria-modal="true"] [class*="ofm_chanwrap"],
+  [aria-modal="true"] [class*="ofm_grid"],
+  [aria-modal="true"] [class*="ofm_two"],
+  [aria-modal="true"] [class*="ofm_duo"],
+  [aria-modal="true"] [class*="ofm_stats"],
+  [aria-modal="true"] [class*="ofm_kpis"],
+  [aria-modal="true"] [class*="ofm_kv"] {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)) !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  [aria-modal="true"] [class*="ofm_chanwrap"] {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)) !important;
+  }
+  [aria-modal="true"] [class*="ofm_nav"] {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  [aria-modal="true"] [class*="ofm_navbrand"] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  [aria-modal="true"] [class*="ofm_pagetitle"],
+  [aria-modal="true"] [class*="ofm_pagesub"],
+  [aria-modal="true"] [class*="ofm_news"],
+  [aria-modal="true"] [class*="ofm_newsitem"],
+  [aria-modal="true"] [class*="ofm_newsmeta"],
+  [aria-modal="true"] [class*="ofm_modalbody"] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-wrap: break-word !important;
+  }
+  [aria-modal="true"] [class*="ofm_tablewrap"] {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  /* DEEPSEEK_HARNESS：手机端流畅度优化（用户要求）。
+     dsh-our-free-model 的设置页自带 12 处 backdrop-filter（blur 8~20px）+ 27 animation + 65 transition，
+     手机上多层毛玻璃叠加会让滚动/切页掉帧。这里把插件自己的玻璃降级为不透明层，
+     并把非交互性动画收敛，视觉差异很小、渲染成本明显下降。 */
+  [aria-modal="true"] [class*="ofm_panel"],
+  [aria-modal="true"] [class*="ofm_callout"],
+  [aria-modal="true"] [class*="ofm_newsbody"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  [aria-modal="true"] [class*="ofm_panel"],
+  [aria-modal="true"] [class*="ofm_callout"] {
+    background: var(--dsw-alias-bg-layer-2, #f5f5f7) !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [aria-modal="true"] [class*="ofm_"] {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
   }
   /* 0.1.6-alpha.2 宿主的插件管理页（dsh-client-ui-plugin-manager 渲染的
      section[data-plugin-panel]）。FAB 是全站恒定的左上角控件（用户明确

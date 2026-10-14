@@ -521,6 +521,9 @@ public final class PluginRepository extends AndroidViewModel {
     }
 
     public void setEnabled(Item item, boolean enable) {
+        // 幂等保护（用户要求：开启/关闭状态要记录，避免重复开启关闭导致重复性操作）：
+        // 目标状态与当前状态一致时直接返回，不再跑审阅 / 重写 bundles / 重建链接。
+        if (item.enabled == enable) return;
         if(enable&&!item.builtin&&!item.official){
             submit("正在准备插件启用审阅…",proot->receivePreview(result(runManager(proot,"review-enable "+ShellQuote.arg(item.name)))));
             return;

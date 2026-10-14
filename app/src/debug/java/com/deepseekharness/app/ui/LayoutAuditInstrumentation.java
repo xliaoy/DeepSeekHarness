@@ -192,7 +192,7 @@ public final class LayoutAuditInstrumentation extends Instrumentation {
         shell("am start -W -n com.dsh.client/com.deepseekharness.app.ui.MainActivity");
         until(()->MainActivity.current!=null && MainActivity.current.getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED),"主页面未就绪");
         ConfigStore store=new ConfigStore(getTargetContext());String port=store.getPort();
-        ui(()->((com.google.android.material.bottomnavigation.BottomNavigationView)MainActivity.current.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_settings));
+        ui(()->((com.google.android.material.bottomnavigation.BottomNavigationView)MainActivity.current.findViewById(R.id.bottom_nav)).setSelectedItemId(R.id.nav_launch));
         until(()->MainActivity.current.findViewById(R.id.settings_tabs)!=null,"设置页未打开");
         ui(()->((ViewGroup)MainActivity.current.findViewById(R.id.settings_tabs)).getChildAt(1).performClick());
         until(()->MainActivity.current.findViewById(R.id.config_save)!=null,"配置页未打开");

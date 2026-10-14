@@ -71,8 +71,8 @@ DEFAULT_BUILTINS = (
 )
 
 # 预装第三方插件：随包内置但保持第三方身份（插件页可在线更新 / 删除）。
-# 与 Java BuiltinPlugins.PRESET_PLUGIN 一致；不进 DEFAULT_BUILTINS。
-PRESET_PLUGINS = ("dsh-infinite-gen-4",)
+# 与 Java BuiltinPlugins.PRESET_PLUGINS 一致；不进 DEFAULT_BUILTINS。
+PRESET_PLUGINS = ("dsh-infinite-gen-4", "dsh-our-free-model")
 
 # 当前签名 APK 独占的系统插件；与 Java BuiltinPlugins.SIGNED_BUILTINS 一致。
 SIGNED_ONLY = ("dsh-app-integration",)

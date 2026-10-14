@@ -31,7 +31,7 @@ public final class WebPageScripts {
         try (InputStream in = context.getAssets().open("web-integration/page.js")) {
             ByteArrayOutputStream out = new ByteArrayOutputStream(); byte[] buffer = new byte[4096]; int n;
             while ((n = in.read(buffer)) != -1) out.write(buffer,0,n);
-            return "(function(){" + new String(out.toByteArray(), StandardCharsets.UTF_8) + ";return window.__dshaPageBack();})()";
+            return "(function(){" + new String(out.toByteArray(), StandardCharsets.UTF_8) + ";return window.__deepseekharnessPageBack();})()";
         } catch (IOException error) { return "false"; }
     }
 }

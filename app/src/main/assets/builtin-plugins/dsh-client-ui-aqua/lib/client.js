@@ -31,7 +31,7 @@ window.__ModuleLoader__.load({
 		//#region src/client/AquaPluginCard.tsx
 		/**
 		* Aqua card registered into the Plugins settings section's configurable tab
-		* (`settings.plugin.item`): the master on/off switch — name, description, and
+		* (`settings.plugins.tab`，dsh 0.2.0 由 settings.plugin.item 更名): the master on/off switch — name, description, and
 		* one toggle, in the section's card language. Every other knob lives in the
 		* General settings' Appearance row, so the card stays the same shape as the
 		* other plugin cards.
@@ -3921,8 +3921,8 @@ void main() {
 					}
 				};
 			};
-			ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
-				name: "settings.plugin.item",
+			ctx.slots.inject("settings.plugins.tab", () => ctx.slots.register({
+				name: "settings.plugins.tab",
 				key: "aqua",
 				id: "aqua",
 				order: 5,

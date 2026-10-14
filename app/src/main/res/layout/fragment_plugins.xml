@@ -36,6 +36,53 @@
             android:includeFontPadding="false"
             android:textStyle="bold" />
 
+        <!-- 内联任务状态（fork 定制）：扫描/安装等忙碌状态只在本行显示，
+             不再弹模态进度框 —— 弹框会拦截触摸、挡住用户切换页面/底栏。
+             形态：细进度条 + 一行状态文字（可带取消），无卡片背景，避免推挤/错位观感。 -->
+        <LinearLayout
+            android:id="@+id/pluginInlineProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="@dimen/gap_tight"
+            android:visibility="gone">
+            <ProgressBar
+                android:id="@+id/pluginBusy"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:indeterminate="true"
+                android:indeterminateTint="@color/primary" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="6dp">
+                <TextView
+                    android:id="@+id/statusText"
+                    style="@style/DeepSeekHarnessText.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false" />
+                <Button
+                    android:id="@+id/btnCancelPluginTask"
+                    style="@style/Widget.DEEPSEEK_HARNESS_TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:minHeight="32dp"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    android:text="@string/ui_m0079" />
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- 管理与筛选卡（搜索 + 筛选 + 同步/检测更新） -->
         <LinearLayout
             android:layout_width="match_parent"

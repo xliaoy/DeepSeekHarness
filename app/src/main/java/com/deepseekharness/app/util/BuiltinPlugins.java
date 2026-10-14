@@ -41,12 +41,18 @@ public final class BuiltinPlugins {
                     "dsh-computer-use-android",
                     "dsh-auto-review",
                     "dsh-tool-vscreen",
-                    "dsh-deliverable-mobile"));
+                    "dsh-deliverable-mobile",
+                    "dsh-our-free-model"));
 
     /** 预装第三方插件：随包内置但【保持第三方身份】，插件页可在线更新 / 删除。
      *  与 DEFAULT_BUILTINS 的区别不是"装不装"，而是"算不算系统组件"——
      *  放进 DEFAULT_BUILTINS 会让它变成不可卸载的内置项。 */
     public static final String PRESET_PLUGIN = "dsh-infinite-gen-4";
+
+    /** 全部预装第三方插件（与 register-builtin-plugins.py 的 PRESET_PLUGINS 逐项一致）。
+     *  dsh-our-free-model 已按要求改为真正内置（进 DEFAULT_BUILTINS + builtin.txt），不再列在这里。 */
+    public static final List<String> PRESET_PLUGINS = Collections.unmodifiableList(
+            Arrays.asList("dsh-infinite-gen-4"));
 
     /** 当前签名 APK 独占的系统插件；旧 profile/归档不得提供同名源码。 */
     public static final List<String> SIGNED_BUILTINS;
