@@ -1,0 +1,186 @@
+{
+  "_note": "v0.26.0 加厚非豁免薄域：AI 族工具链贴下限、privacy_tech 命令不足、若干域命中/别名偏少。词表是生成物，本文件为源。",
+  "alias_extra": {
+    "injection": [
+      "注入点定位"
+    ],
+    "adversarial_suffix": [
+      "后缀搜索"
+    ],
+    "output_shaping": [
+      "输出格式控制"
+    ],
+    "model_internals": [
+      "权重合并"
+    ],
+    "multimodal": [
+      "图文对齐"
+    ],
+    "model_poison": [
+      "后门检测",
+      "触发器分析"
+    ],
+    "privacy_tech": [
+      "匿名化处理",
+      "隐私计量"
+    ],
+    "rag_poison": [
+      "知识库污染",
+      "检索污染",
+      "向量库投毒",
+      "召回劫持",
+      "知识库毒化",
+      "召回污染"
+    ],
+    "dos": [
+      "可用性压测",
+      "带宽占满"
+    ],
+    "deanon": [
+      "身份关联",
+      "轨迹关联",
+      "关联还原"
+    ],
+    "forensics": [
+      "日志取证",
+      "取证时间线"
+    ],
+    "evasion": [
+      "流量伪装",
+      "静态特征改写"
+    ],
+    "privesc": [
+      "suid 提权",
+      "提权路径"
+    ],
+    "phishing": [
+      "邮件伪造"
+    ],
+    "pki": [
+      "ocsp 校验",
+      "证书吊销检查"
+    ],
+    "qa_test": [
+      "测试用例设计"
+    ],
+    "agent": [
+      "工具滥用",
+      "工具越权"
+    ],
+    "protocol_re": [
+      "协议指纹"
+    ],
+    "sidechannel": [
+      "计时侧信道"
+    ],
+    "rat_c2": [
+      "回连验证"
+    ],
+    "drm": [
+      "内容解密"
+    ],
+    "db_design": [
+      "表结构设计"
+    ],
+    "frontend": [
+      "样式实现",
+      "组件拆分"
+    ],
+    "data_pipeline": [
+      "批次调度"
+    ]
+  },
+  "marker_extra": {
+    "injection": [
+      "上下文越狱",
+      "工具返回投毒"
+    ],
+    "adversarial_suffix": [
+      "后缀搜索",
+      "嵌入扰动"
+    ],
+    "output_shaping": [
+      "格式约束",
+      "解码约束"
+    ],
+    "model_internals": [
+      "量化损失",
+      "蒸馏损失"
+    ],
+    "multimodal": [
+      "跨模态对齐",
+      "图像提示注入"
+    ],
+    "model_poison": [
+      "投毒检测",
+      "后门触发"
+    ],
+    "privacy_tech": [
+      "隐私损失",
+      "重识别风险"
+    ],
+    "dos": [
+      "连接耗尽",
+      "慢速攻击",
+      "流量清洗"
+    ],
+    "protocol_re": [
+      "报文还原"
+    ],
+    "sidechannel": [
+      "缓存计时"
+    ],
+    "rat_c2": [
+      "命令控制信道",
+      "心跳回连"
+    ],
+    "drm": [
+      "授权绕过"
+    ],
+    "db_design": [
+      "范式设计"
+    ],
+    "frontend": [
+      "组件状态",
+      "样式隔离"
+    ],
+    "data_pipeline": [
+      "增量抽取"
+    ]
+  },
+  "command_vocab": {
+    "privacy_tech": [
+      "python3 dp_budget.py --queries 100 --epsilon 0.1 — 组合查询下的隐私预算消耗核算",
+      "python3 federated_sim.py --clients 5 --rounds 10 — 联邦聚合过程与泄露面模拟"
+    ]
+  },
+  "toolchain_extra": {
+    "llm": [
+      "garak — LLM 越狱与泄露探针扫描（--model_type、--probes） | 装: pipx install garak| 验: garak --version",
+      "LiteLLM — 多模型统一代理与请求日志（--model、--api_base） | 装: pipx install 'litellm[proxy]'| 验: litellm --version"
+    ],
+    "injection": [
+      "NeMo Guardrails — 输入输出护栏与注入检测（--config） | 装: pipx install nemoguardrails| 验: nemoguardrails --version",
+      "Rebuff — 提示注入检测器（detect、confidence） | 装: python3 -m pip install rebuff| 验: python3 -c 'import rebuff; print(\"ok\")'"
+    ],
+    "agent": [
+      "AgentDojo — Agent 注入与越权评测环境（--suite） | 装: pipx install agentdojo| 验: python3 -c 'import agentdojo; print(\"ok\")'",
+      "OpenTelemetry — Agent 调用链与工具参数追踪（span、attributes） | 装: pipx install opentelemetry-distro| 验: opentelemetry-bootstrap --help"
+    ],
+    "adversarial_suffix": [
+      "nanogcg — 对抗后缀梯度优化（run、--num-steps） | 装: pipx install nanogcg| 验: python3 -c 'import nanogcg; print(\"ok\")'",
+      "llm-attacks — GCG 参考实现（gcg.py、--num_steps） | 装: git clone https://github.com/llm-attacks/llm-attacks| 验: python3 -c 'import llm_attacks; print(\"ok\")'"
+    ],
+    "output_shaping": [
+      "outlines — 结构化输出与约束解码（generate、JSON schema） | 装: pipx install outlines| 验: python3 -c 'import outlines; print(outlines.__version__)'",
+      "Guardrails AI — 输出校验与自动重试（validate、RAIL） | 装: pipx install guardrails-ai| 验: guardrails --version"
+    ],
+    "model_internals": [
+      "bitsandbytes — 4/8bit 量化加载与推理（load_in_4bit、nf4） | 装: pipx install bitsandbytes| 验: python3 -c 'import bitsandbytes; print(bitsandbytes.__version__)'",
+      "lm-evaluation-harness — 量化/蒸馏前后基准评测（lm_eval --model hf） | 装: pipx install lm-eval| 验: lm_eval --help"
+    ],
+    "privacy_tech": [
+      "OpenDP — 差分隐私机制与预算管理（make_laplace、privacy budget） | 装: python3 -m pip install opendp| 验: python3 -c 'import opendp; print(\"ok\")'"
+    ]
+  }
+}

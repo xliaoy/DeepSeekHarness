@@ -265,6 +265,13 @@ public class WebPreviewActivity extends PictureInPictureActivity implements WebF
             settings.setSupportMultipleWindows(false);
             settings.setLoadWithOverviewMode(true);
             settings.setUseWideViewPort(true);
+            // DEEPSEEK_HARNESS 性能（用户要求 CPU/GPU 并行提速）：显式请求 GPU 渲染、
+            // 过渡动画开启硬件加速，减少滚动/切页锯齿与掉帧。
+            if (android.os.Build.VERSION.SDK_INT >= 21) {
+                view.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
+                settings.setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH);
+            }
+            try { settings.setOffscreenPreRaster(true); } catch (Throwable ignored) { }
             if (getSharedPreferences(Constants.PREFS, MODE_PRIVATE)
                     .getBoolean(Constants.KEY_DESKTOP_MODE, false)) {
                 settings.setUserAgentString(WebPreviewPolicy.desktopUserAgent(settings.getUserAgentString()));

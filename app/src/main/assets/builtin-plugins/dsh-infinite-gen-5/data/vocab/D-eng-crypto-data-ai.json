@@ -1,0 +1,994 @@
+{
+  "alias_extra": {
+    "code_eng": [
+      "重构",
+      "代码质量",
+      "单测",
+      "单元测试",
+      "帮我改这段代码",
+      "写测试",
+      "代码审查",
+      "类型标注",
+      "重复代码",
+      "加错误处理",
+      "refactor",
+      "unit test",
+      "code review"
+    ],
+    "system_design": [
+      "架构设计",
+      "高可用",
+      "容量规划",
+      "压测接口",
+      "限流降级",
+      "分库分表",
+      "缓存穿透",
+      "消息队列",
+      "幂等设计",
+      "单点故障",
+      "system design",
+      "capacity plan",
+      "load test"
+    ],
+    "ops": [
+      "运维",
+      "上线",
+      "灰度发布",
+      "回滚",
+      "排障",
+      "告警处理",
+      "日志排查",
+      "容器编排",
+      "服务挂了",
+      "重启服务",
+      "oncall",
+      "rollback",
+      "k8s"
+    ],
+    "analytics": [
+      "数据分析",
+      "报表",
+      "看板",
+      "留存",
+      "漏斗",
+      "归因",
+      "指标口径",
+      "慢查询",
+      "同环比",
+      "抽样",
+      "ab实验",
+      "dashboard",
+      "cohort"
+    ],
+    "product": [
+      "产品需求",
+      "需求文档",
+      "埋点",
+      "用户故事",
+      "竞品分析",
+      "验收标准",
+      "优先级",
+      "路线图",
+      "用户旅程",
+      "增长实验",
+      "prototype",
+      "roadmap",
+      "mvp"
+    ],
+    "game_design": [
+      "游戏设计",
+      "数值策划",
+      "关卡设计",
+      "战斗平衡",
+      "掉落表",
+      "经济系统",
+      "核心循环",
+      "成长曲线",
+      "手感调优",
+      "数值平衡",
+      "gameplay",
+      "level design",
+      "balancing"
+    ],
+    "programming": [
+      "写代码",
+      "这段代码写个单测",
+      "用什么库",
+      "语言选择",
+      "报错排查",
+      "编译不过",
+      "依赖冲突",
+      "类型系统",
+      "协程",
+      "内存泄漏",
+      "代码生成",
+      "sdk选型"
+    ],
+    "automation": [
+      "脚本自动化",
+      "定时任务",
+      "批量处理",
+      "定时跑",
+      "自动部署",
+      "ci流水线",
+      "shell脚本",
+      "工作流编排",
+      "webhook",
+      "crontab",
+      "makefile",
+      "批处理"
+    ],
+    "protocol_re": [
+      "协议逆向",
+      "算法还原",
+      "抓包分析",
+      "私有协议",
+      "签名算法",
+      "加密算法",
+      "报文结构",
+      "协议复刻",
+      "tls解密",
+      "逆向app通信",
+      "grpc逆向",
+      "wire format"
+    ],
+    "crypto_impl": [
+      "加密缺陷",
+      "弱随机",
+      "ecb模式",
+      "padding oracle",
+      "密钥管理",
+      "口令哈希",
+      "nonce重用",
+      "kdf派生",
+      "cbc比特翻转",
+      "hmac校验",
+      "随机数预测",
+      "证书校验"
+    ],
+    "chain": [
+      "智能合约",
+      "合约审计",
+      "合约重入",
+      "solidity",
+      "预言机",
+      "defi",
+      "空投",
+      "私钥",
+      "助记词",
+      "链上分析",
+      "mempool",
+      "闪电贷"
+    ],
+    "sidechannel": [
+      "侧信道",
+      "功耗分析",
+      "故障注入",
+      "时序攻击",
+      "电压毛刺",
+      "电磁泄漏",
+      "芯片破解",
+      "示波器采集",
+      "掩码实现",
+      "功耗轨迹",
+      "glitch",
+      "dpa分析"
+    ],
+    "decrypt": [
+      "解密",
+      "口令恢复",
+      "密码破解",
+      "忘记密码",
+      "字典攻击",
+      "暴力破解",
+      "算号注册",
+      "加密压缩包",
+      "rar密码",
+      "zip密码",
+      "office密码",
+      "解密工具"
+    ],
+    "stego": [
+      "隐写",
+      "图片藏数据",
+      "最低有效位",
+      "lsb隐写",
+      "音频隐写",
+      "盲水印",
+      "数字水印",
+      "藏文件",
+      "隐写分析",
+      "盲水印提取",
+      "zsteg",
+      "stegsolve"
+    ],
+    "scraping": [
+      "爬虫",
+      "抓取",
+      "数据采集",
+      "反爬",
+      "遇到验证码",
+      "翻页",
+      "解析html",
+      "并发抓取",
+      "爬一次",
+      "scrapy",
+      "playwright",
+      "接口分页"
+    ],
+    "deanon": [
+      "去匿名",
+      "身份关联",
+      "关联分析",
+      "数据碰撞",
+      "图分析",
+      "写作风格识别",
+      "账号关联",
+      "多源对齐",
+      "画像拼图",
+      "置信度评估",
+      "语料比对",
+      "用户名搜索"
+    ],
+    "forensics": [
+      "取证",
+      "应急响应",
+      "入侵排查",
+      "时间线",
+      "内存取证",
+      "硬盘镜像",
+      "日志分析",
+      "溯源",
+      "证据固定",
+      "volatility",
+      "artifacts",
+      "ioc清单"
+    ],
+    "compliance": [
+      "合规",
+      "监管",
+      "隐私政策",
+      "等保",
+      "gdpr",
+      "评估报告",
+      "数据处理协议",
+      "个人敏感信息",
+      "跨境传输",
+      "告知同意",
+      "整改清单",
+      "条款对照"
+    ],
+    "llm": [
+      "提示词提取",
+      "提取提示词",
+      "系统提示词",
+      "越狱",
+      "破甲",
+      "角色扮演绕过",
+      "对齐绕过",
+      "llm逆向",
+      "模型越狱",
+      "system prompt",
+      "jailbreak",
+      "绕过来看看"
+    ],
+    "injection": [
+      "提示注入",
+      "prompt注入",
+      "间接注入",
+      "检索污染",
+      "工具调用滥用",
+      "跨会话污染",
+      "记忆投毒",
+      "rag投毒",
+      "网页藏指令",
+      "越权工具调用",
+      "指令覆盖",
+      "上下文污染"
+    ],
+    "adversarial_suffix": [
+      "对抗后缀",
+      "对抗样本",
+      "越狱后缀",
+      "梯度攻击",
+      "嵌入空间扰动",
+      "gcq",
+      "token优化",
+      "白盒攻击",
+      "迁移攻击",
+      "后缀优化",
+      "对抗prompt",
+      "优化后缀"
+    ],
+    "output_shaping": [
+      "输出塑形",
+      "绕过检测",
+      "规避审核",
+      "内容伪装",
+      "分片输出",
+      "编码输出",
+      "同义改写",
+      "格式变换",
+      "检测器评估",
+      "通过率对比",
+      "base64分片",
+      "皮套写作"
+    ],
+    "model_internals": [
+      "量化",
+      "蒸馏",
+      "权重",
+      "微调",
+      "lora",
+      "gguf",
+      "模型格式",
+      "推理加速",
+      "上下文窗口",
+      "显存不够",
+      "模型合并",
+      "跑不动大模型"
+    ],
+    "agent": [
+      "agent",
+      "智能体",
+      "工具滥用",
+      "mcp",
+      "记忆投毒",
+      "编排安全",
+      "多智能体",
+      "函数调用",
+      "工具权限",
+      "越权调用",
+      "agent编排",
+      "工作流智能体"
+    ]
+  },
+  "marker_extra": {
+    "code_eng": [
+      "重构",
+      "单测",
+      "代码审查",
+      "坏味道",
+      "纯函数",
+      "圈复杂度",
+      "可测试性",
+      "jest",
+      "vitest",
+      "pytest",
+      "eslint",
+      "ruff",
+      "mypy",
+      "prettier",
+      "npm run build",
+      "git bisect"
+    ],
+    "system_design": [
+      "高可用",
+      "容量规划",
+      "限流",
+      "降级",
+      "分库分表",
+      "缓存穿透",
+      "消息队列",
+      "幂等",
+      "单点故障",
+      "locust",
+      "vegeta",
+      "prometheus",
+      "redis",
+      "吞吐量",
+      "索引设计",
+      "explain analyze"
+    ],
+    "ops": [
+      "灰度发布",
+      "回滚",
+      "排障",
+      "告警",
+      "可观测性",
+      "日志级别",
+      "systemctl restart",
+      "kubectl rollout",
+      "kubectl describe",
+      "docker compose up",
+      "ansible-playbook",
+      "terraform apply",
+      "argocd",
+      "journalctl -u"
+    ],
+    "analytics": [
+      "留存",
+      "漏斗",
+      "归因",
+      "指标口径",
+      "同环比",
+      "抽样",
+      "看板",
+      "clickhouse",
+      "duckdb",
+      "pandas",
+      "polars",
+      "grafana",
+      "dbt run",
+      "jupyter"
+    ],
+    "product": [
+      "需求文档",
+      "埋点",
+      "用户故事",
+      "竞品分析",
+      "验收标准",
+      "优先级",
+      "路线图",
+      "用户旅程",
+      "jira",
+      "confluence",
+      "figma",
+      "draw.io",
+      "abtest"
+    ],
+    "game_design": [
+      "数值策划",
+      "关卡设计",
+      "战斗平衡",
+      "掉落表",
+      "经济系统",
+      "核心循环",
+      "成长曲线",
+      "godot",
+      "unreal",
+      "balance",
+      "progression",
+      "数值崩溃"
+    ],
+    "programming": [
+      "内存泄漏",
+      "依赖冲突",
+      "编译错误",
+      "类型系统",
+      "协程",
+      "泛型",
+      "闭包",
+      "cargo build",
+      "go mod tidy",
+      "npm install",
+      "pip install",
+      "cmake --build",
+      "编译警告"
+    ],
+    "automation": [
+      "定时任务",
+      "crontab",
+      "systemd timer",
+      "批处理",
+      "shell脚本",
+      "流水线",
+      "工作流编排",
+      "webhook",
+      "makefile",
+      "github actions",
+      "gitlab ci",
+      "airflow",
+      "n8n workflow",
+      "watch -n"
+    ],
+    "protocol_re": [
+      "协议逆向",
+      "算法还原",
+      "私有协议",
+      "报文结构",
+      "签名算法",
+      "tls解密",
+      "tshark -r",
+      "wireshark",
+      "protobuf",
+      "grpc",
+      "mitmproxy",
+      "jadx"
+    ],
+    "crypto_impl": [
+      "加密缺陷",
+      "弱随机",
+      "ecb模式",
+      "padding oracle",
+      "密钥管理",
+      "口令哈希",
+      "nonce重用",
+      "比特翻转",
+      "hmac",
+      "bcrypt",
+      "argon2",
+      "openssl enc",
+      "iv重用"
+    ],
+    "chain": [
+      "智能合约",
+      "合约审计",
+      "重入",
+      "预言机",
+      "闪电贷",
+      "助记词",
+      "私钥",
+      "链上分析",
+      "solidity",
+      "foundry",
+      "forge test",
+      "slither",
+      "echidna",
+      "mempool"
+    ],
+    "sidechannel": [
+      "侧信道",
+      "功耗分析",
+      "故障注入",
+      "时序攻击",
+      "电压毛刺",
+      "电磁泄漏",
+      "功耗轨迹",
+      "示波器采集",
+      "掩码实现",
+      "chipwhisperer",
+      "glitch",
+      "fault injection"
+    ],
+    "decrypt": [
+      "口令恢复",
+      "字典攻击",
+      "暴力破解",
+      "加密压缩包",
+      "rar密码",
+      "zip密码",
+      "office密码",
+      "证书密码",
+      "hashcat",
+      "zip2john",
+      "rar2john",
+      "john the ripper"
+    ],
+    "stego": [
+      "隐写",
+      "最低有效位",
+      "盲水印",
+      "数字水印",
+      "隐写分析",
+      "lsb隐写",
+      "zsteg",
+      "stegsolve",
+      "steghide",
+      "binwalk",
+      "outguess",
+      "exiftool",
+      "pngcheck"
+    ],
+    "scraping": [
+      "爬虫",
+      "反爬",
+      "翻页",
+      "验证码",
+      "解析html",
+      "并发抓取",
+      "scrapy",
+      "playwright",
+      "selenium",
+      "beautifulsoup",
+      "lxml",
+      "xpath",
+      "css选择器"
+    ],
+    "deanon": [
+      "去匿名",
+      "身份关联",
+      "数据碰撞",
+      "图分析",
+      "写作风格",
+      "账号关联",
+      "多源对齐",
+      "置信度",
+      "语料比对",
+      "关系图谱",
+      "gephi",
+      "neo4j",
+      "stylometry"
+    ],
+    "forensics": [
+      "取证",
+      "应急响应",
+      "入侵排查",
+      "时间线",
+      "内存取证",
+      "硬盘镜像",
+      "证据固定",
+      "volatility",
+      "autopsy",
+      "sleuthkit",
+      "evtx",
+      "hayabusa",
+      "ioc清单"
+    ],
+    "compliance": [
+      "合规",
+      "监管",
+      "隐私政策",
+      "等保",
+      "gdpr",
+      "评估报告",
+      "数据处理协议",
+      "敏感信息",
+      "跨境传输",
+      "告知同意",
+      "整改清单",
+      "条款对照",
+      "iso27001",
+      "dsar"
+    ],
+    "llm": [
+      "提示词提取",
+      "系统提示词",
+      "越狱",
+      "破甲",
+      "对齐绕过",
+      "角色扮演绕过",
+      "llm逆向",
+      "system prompt",
+      "jailbreak",
+      "越狱提示",
+      "敏感词绕过",
+      "对齐机制"
+    ],
+    "injection": [
+      "提示注入",
+      "间接注入",
+      "检索污染",
+      "工具调用",
+      "跨会话",
+      "记忆投毒",
+      "指令覆盖",
+      "上下文污染",
+      "rag 投毒",
+      "文档注入",
+      "prompt injection",
+      "过度授权"
+    ],
+    "adversarial_suffix": [
+      "对抗后缀",
+      "对抗样本",
+      "越狱后缀",
+      "梯度攻击",
+      "嵌入空间",
+      "token优化",
+      "白盒攻击",
+      "迁移攻击",
+      "后缀优化",
+      "对抗prompt",
+      "autoprompt",
+      "梯度下降"
+    ],
+    "output_shaping": [
+      "输出塑形",
+      "绕过检测",
+      "规避审核",
+      "内容伪装",
+      "分片输出",
+      "编码输出",
+      "同义改写",
+      "检测器",
+      "通过率",
+      "文本改写",
+      "编码变换",
+      "base64分片"
+    ],
+    "model_internals": [
+      "量化",
+      "蒸馏",
+      "微调",
+      "lora",
+      "gguf",
+      "safetensors",
+      "推理加速",
+      "上下文窗口",
+      "显存不足",
+      "模型合并",
+      "vllm",
+      "deepspeed",
+      "llama.cpp"
+    ],
+    "agent": [
+      "智能体",
+      "工具滥用",
+      "编排安全",
+      "多智能体",
+      "函数调用",
+      "工具权限",
+      "越权调用",
+      "mcp工具",
+      "langchain",
+      "autogen",
+      "crewai",
+      "function call",
+      "tool call"
+    ]
+  },
+  "command_vocab": {
+    "code_eng": [
+      "pytest -k TARGET -x -vv --cov=FILE",
+      "npx vitest run --coverage FILE",
+      "ruff check FILE --fix",
+      "mypy FILE --strict",
+      "git bisect start && git bisect bad HEAD",
+      "npm run build && npm test"
+    ],
+    "system_design": [
+      "k6 run --vus 50 --duration 30s FILE",
+      "docker compose up -d && docker compose ps",
+      "psql -c \"EXPLAIN ANALYZE SELECT * FROM DB WHERE id=1\"",
+      "redis-cli --latency -h HOST",
+      "autocannon -c 100 -d 20 URL"
+    ],
+    "ops": [
+      "systemctl status PKG --no-pager -l",
+      "journalctl -u PKG --since '1 hour ago' -p err",
+      "kubectl rollout restart deploy/PKG -n default",
+      "kubectl describe pod PKG | tail -40",
+      "docker compose logs --tail=200 -f PKG",
+      "terraform plan -out=/tmp/tfplan"
+    ],
+    "analytics": [
+      "duckdb DB -c \"SELECT date_trunc('day',ts) d, count(*) FROM t GROUP BY 1\"",
+      "python3 -c \"import pandas as pd; print(pd.read_csv('FILE').describe())\"",
+      "clickhouse-client -q \"SELECT count() FROM DB WHERE ts > now() - INTERVAL 7 DAY\"",
+      "jq -s 'group_by(.uid) | map({uid:.[0].uid,n:length})' FILE",
+      "mlr --icsv --opprint stats1 -a mean,p95 -f dur FILE"
+    ],
+    "product": [
+      "jq '.events[] | select(.name==\"TARGET\") | .props' FILE",
+      "python3 -c \"from scipy.stats import ttest_ind; print(ttest_ind(A,B).pvalue)\"",
+      "pandoc FILE.md -o /tmp/prd.docx --toc",
+      "sqlite3 DB \"select name,count(*) from events group by 1\""
+    ],
+    "game_design": [
+      "godot --headless --export-release 'Linux/X11' /tmp/BIN",
+      "python3 -c \"import numpy as np; print(np.polyfit(x,y,2))\"",
+      "mlr --icsv --opprint sort -nr avg_dps FILE",
+      "jq -r '.levels[] | \"\\(.id) \\(.xp_curve)\"' FILE"
+    ],
+    "programming": [
+      "cargo build --release --locked",
+      "go mod tidy && go test ./... -race",
+      "cmake -S . -B build -G Ninja && cmake --build build -j8",
+      "gcc -Wall -Wextra -g -O2 FILE -o BIN",
+      "npm install --frozen-lockfile && npm run build",
+      "pip install -e '.[dev]' && pip check"
+    ],
+    "automation": [
+      "echo '0 3 * * * /opt/BIN' | crontab -",
+      "systemd-run --on-calendar='*-*-* 03:00' /opt/BIN",
+      "timeout 60 bash FILE.sh || echo FAIL",
+      "ansible-playbook -i HOST, FILE.yml --check",
+      "gh workflow run FILE.yml && gh run watch",
+      "watch -n 5 'curl -s URL | jq .status'"
+    ],
+    "protocol_re": [
+      "tshark -r FILE.pcap -Y 'tcp.port==443' -T fields -e tls.handshake",
+      "mitmdump -r FILE.flow -w /tmp/out.flow -s script.py",
+      "protoc --decode_raw < FILE.bin",
+      "openssl s_client -connect HOST:443 -tls1_2 -brief",
+      "frida -U -f PKG -l hook.js --no-pause"
+    ],
+    "crypto_impl": [
+      "openssl enc -aes-256-cbc -in FILE -K 00112233 -iv 0 -nopad",
+      "python3 -c \"from Crypto.Cipher import AES; print(AES.new(k,AES.MODE_ECB))\"",
+      "hashcat -m 3200 -a 0 FILE.hash wordlist.txt",
+      "openssl s_client -connect HOST:443 </dev/null | openssl x509 -noout -text"
+    ],
+    "chain": [
+      "forge test -vvv --match-test testReentrancy",
+      "slither . --detect reentrancy-eth --json /tmp/slither.json",
+      "echidna-test . --contract TARGET --config /tmp/echidna.yaml",
+      "cast call ADDRESS 'balanceOf(address)(uint256)' 0x0 --rpc-url URL",
+      "cast tx 0xTX --rpc-url URL"
+    ],
+    "sidechannel": [
+      "chipwhisperer -c capture.py --scope --samples 2000",
+      "python3 -c \"import numpy as np; print(np.corrcoef(tr,pt)[0,1])\"",
+      "sigrok-cli -d fx2lafw --samples 100000 -o /tmp/FILE.sr",
+      "openocd -f interface/ftdi/FT232H.cfg -f target/stm32f4.cfg"
+    ],
+    "decrypt": [
+      "zip2john FILE.zip > /tmp/h.txt && john /tmp/h.txt --wordlist=FILE.txt",
+      "hashcat -m 22000 FILE.hc22000 wordlist.txt -O -w 3",
+      "openssl rsa -in FILE.key -passin pass:PASSWORD -check",
+      "gpg --batch --passphrase PASSWORD -d FILE.gpg"
+    ],
+    "stego": [
+      "steghide extract -sf FILE.jpg -p PASSWORD",
+      "binwalk -e FILE.bin",
+      "zsteg -a FILE.png",
+      "exiftool FILE.jpg | head -40",
+      "pngcheck -v FILE.png"
+    ],
+    "scraping": [
+      "scrapy crawl TARGET -O /tmp/FILE.jsonl -s CONCURRENT_REQUESTS=8",
+      "playwright screenshot --wait-for-timeout=3000 URL /tmp/FILE.png",
+      "curl -s 'URL?page=1' -H 'Accept: application/json' | jq '.items[].id'",
+      "wget -q --wait=1 --limit-rate=200k -r -l2 URL"
+    ],
+    "deanon": [
+      "python3 -c \"import networkx as nx; print(nx.pagerank(nx.Graph([(1,2)])))\"",
+      "neo4j-admin import --nodes /tmp/nodes.csv --relationships /tmp/edges.csv",
+      "python3 -c \"from difflib import SequenceMatcher as S; print(S(None,a,b).ratio())\"",
+      "jq -s 'group_by(.handle) | map(select(length>1)) | length' FILE",
+      "sqlite3 DB \"select a.uid,b.uid,count(*) from ev a join ev b using(sig) group by 1,2\""
+    ],
+    "forensics": [
+      "sha256sum FILE.img > /tmp/hash.txt",
+      "mount -o ro,loop,offset=OFFSET FILE.img /mnt",
+      "vol.py -f FILE.mem windows.pslist --output=json",
+      "fls -r -o 2048 FILE.img | grep -i deleted",
+      "jq -r 'select(.EventID==4624) | .TargetUserName' FILE.json"
+    ],
+    "compliance": [
+      "pandoc FILE.md -o /tmp/report.pdf --pdf-engine=xelatex",
+      "grep -rniE '身份证|手机号|银行卡' FILE | wc -l",
+      "python3 FILE.py --scan DIR --rules /tmp/rules.yaml",
+      "jq '.[] | select(.law==\"gdpr\") | {article, gap}' FILE.json"
+    ],
+    "llm": [
+      "curl -s URL -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"PROMPT\"}]}'",
+      "ollama run MODEL 'PROMPT' --format json",
+      "python3 -c \"import tiktoken as t; print(len(t.encoding_for_model('gpt-4o').encode('PROMPT')))\"",
+      "jq -r '.choices[0].message.content' FILE.json"
+    ],
+    "injection": [
+      "python3 FILE.py --inject /tmp/payload.txt --target URL",
+      "curl -s URL -d @FILE.json -H 'Content-Type: application/json' | jq .response",
+      "jq -r '.documents[] | select(.text|test(\"忽略以上\")) | .id' FILE.json",
+      "sqlite3 DB \"select content from memory where role='system' limit 5\""
+    ],
+    "adversarial_suffix": [
+      "python3 -c \"import torch; print(torch.cuda.is_available())\"",
+      "python3 FILE.py --model PATH --steps 500 --lr 0.01 --suffix-len 20",
+      "nvidia-smi --query-gpu=memory.used --format=csv",
+      "python3 -c \"from transformers import AutoTokenizer as T; print(T.from_pretrained('MODEL'))\""
+    ],
+    "output_shaping": [
+      "python3 -c \"import base64; print(base64.b64encode(open('FILE','rb').read()).decode())\"",
+      "python3 FILE.py --detector KEY --input /tmp/FILE.txt --report /tmp/out.json",
+      "curl -s URL -d '{\"input\":\"PROMPT\"}' -H 'Content-Type: application/json' | jq .flagged",
+      "jq -r '.results[] | \"\\(.variant) \\(.pass_rate)\"' FILE.json"
+    ],
+    "model_internals": [
+      "python3 convert_hf_to_gguf.py MODEL --outfile /tmp/FILE.gguf --outtype q4_k_m",
+      "llama-quantize /tmp/FILE.gguf /tmp/FILE.q4_k_m.gguf Q4_K_M",
+      "vllm serve MODEL --max-model-len 8192 --gpu-memory-utilization 0.9",
+      "python3 -c \"from peft import LoraConfig; print(LoraConfig(r=8, lora_alpha=16))\""
+    ],
+    "agent": [
+      "python3 FILE.py --agent FILE.yaml --tools /tmp/tools.json",
+      "jq -r '.[] | .name, .permissions' /tmp/tools.json",
+      "curl -s URL | jq '.[] | select(.scope==\"admin\")'",
+      "sqlite3 DB \"select * from memory order by rowid desc limit 5\""
+    ]
+  },
+  "toolchain_extra": {
+    "code_eng": [
+      "ruff — Python 静态检查与自动修复（ruff check --fix、ruff format） | 装: pipx install ruff | 验: ruff --version",
+      "vitest — TS/JS 单测与覆盖率（vitest run --coverage、vitest watch） | 装: npm i -g vitest | 验: vitest --version",
+      "py-spy — 运行中 Python 进程剖析（py-spy top、py-spy record） | 装: pipx install py-spy | 验: py-spy --version"
+    ],
+    "system_design": [
+      "k6 — 容量与压力验证（k6 run --vus、--duration） | 装: 官方 release（或 snap install k6） | 验: k6 version",
+      "prometheus + grafana — 指标采集与看板（promtool check config、grafana-server） | 装: docker run --rm -p 9090:9090 prom/prometheus | 验: 打开 127.0.0.1:9090",
+      "autocannon — HTTP 基准与并发（autocannon -c 100 -d 20） | 装: npm i -g autocannon | 验: autocannon --version"
+    ],
+    "ops": [
+      "kubectl — 集群排障与发布（kubectl get pods、kubectl rollout、kubectl describe） | 装: 官方 release（或 snap install kubectl --classic） | 验: kubectl version --client",
+      "ansible — 批量配置与巡检（ansible-playbook --check、ansible -m ping） | 装: pipx install ansible | 验: ansible --version",
+      "argocd — GitOps 发布与回滚（argocd app sync、argocd app rollback） | 装: 官方 release | 验: argocd version --client"
+    ],
+    "analytics": [
+      "duckdb — 单文件 OLAP 直查（duckdb -c、read_csv_auto） | 装: pipx install duckdb | 验: duckdb --version",
+      "dbt — 数仓建模与数据测试（dbt run、dbt test、dbt docs generate） | 装: pipx install dbt-core | 验: dbt --version",
+      "clickhouse-client — 明细聚合查询（clickhouse-client -q、--format PrettyCompact） | 装: 官方 apt 源 | 验: clickhouse-client --version"
+    ],
+    "product": [
+      "pandoc — 文档多格式转换（pandoc -o、--toc） | 装: apt install pandoc | 验: pandoc --version",
+      "scipy/statsmodels — 实验显著性与样本量（ttest_ind、power_ttest） | 装: pipx install scipy statsmodels | 验: python3 -c 'import scipy,statsmodels'",
+      "draw.io desktop — 流程图与原型（导出 png 与源文件） | 装: 官方安装包 | 验: 能导出 PNG 与源文件"
+    ],
+    "game_design": [
+      "Godot — 原型引擎与无头导出（godot --headless --export-release） | 装: apt install godot（或官方 release） | 验: godot --version",
+      "numpy/pandas — 曲线拟合与平衡表（polyfit、pivot_table） | 装: pipx install numpy pandas | 验: python3 -c 'import numpy,pandas'",
+      "Tiled — 关卡地图编辑（导出 CSV/JSON 图层） | 装: 官方 release | 验: tiled --version"
+    ],
+    "programming": [
+      "cargo — Rust 构建与测试（cargo build --release、cargo test、cargo clippy） | 装: 官方 rustup 脚本 | 验: cargo --version",
+      "go — Go 构建与竞态检测（go test -race、go mod tidy） | 装: apt install golang-go（或官方 tarball） | 验: go version",
+      "cmake/ninja — C/C++ 构建（cmake -B build -G Ninja、ninja -C build） | 装: apt install cmake ninja-build | 验: cmake --version"
+    ],
+    "automation": [
+      "shellcheck — Shell 脚本静态检查（shellcheck -S warning） | 装: apt install shellcheck | 验: shellcheck --version",
+      "GitHub CLI — 流水线触发与跟踪（gh workflow run、gh run watch） | 装: apt install gh | 验: gh --version",
+      "pre-commit — 提交前钩子与自动修（pre-commit run --all-files、pre-commit install） | 装: pipx install pre-commit | 验: pre-commit --version"
+    ],
+    "protocol_re": [
+      "tshark — 报文解析与字段导出（tshark -r、-Y 过滤、-T fields） | 装: apt install tshark | 验: tshark --version",
+      "protoc — 未知二进制协议还原（protoc --decode_raw、--decode） | 装: apt install protobuf-compiler | 验: protoc --version",
+      "mitmproxy — 流量抓改与脚本化（mitmdump -s、mitmweb） | 装: pipx install mitmproxy | 验: mitmproxy --version"
+    ],
+    "crypto_impl": [
+      "hashcat — 口令哈希强度验证（hashcat -m、-a 0、--show） | 装: apt install hashcat | 验: hashcat --version",
+      "pycryptodome — 算法行为复现（Crypto.Cipher、Crypto.Hash） | 装: pipx install pycryptodome | 验: python3 -c 'import Crypto; print(Crypto.__version__)'",
+      "openssl — 加解密与证书检查（openssl enc、s_client、x509） | 装: 系统自带 | 验: openssl version"
+    ],
+    "chain": [
+      "Foundry — 合约编译测试与链上交互（forge test -vvv、cast call、anvil） | 装: 官方 foundryup 脚本（curl 下载后 bash 执行） | 验: forge --version",
+      "slither — Solidity 静态审计（slither .、--detect、--print） | 装: pipx install slither-analyzer | 验: slither --version",
+      "echidna — 合约属性模糊测试（echidna-test、--contract、--config） | 装: 官方 release | 验: echidna-test --version"
+    ],
+    "sidechannel": [
+      "ChipWhisperer — 功耗与毛刺采集分析（chipwhisperer、--scope、--samples） | 装: pipx install chipwhisperer | 验: python3 -c 'import chipwhisperer; print(chipwhisperer.__version__)'",
+      "sigrok-cli — 逻辑分析仪采集（sigrok-cli -d、--samples） | 装: apt install sigrok-cli pulseview | 验: sigrok-cli --version",
+      "openocd — JTAG/SWD 调试与注入触发（openocd -f interface、-f target） | 装: apt install openocd | 验: openocd --version"
+    ],
+    "decrypt": [
+      "hashcat — GPU 口令恢复（hashcat -m、-a 0、-O -w 3） | 装: apt install hashcat | 验: hashcat --version",
+      "John the Ripper — 归档哈希提取与恢复（zip2john、rar2john、john --wordlist） | 装: apt install john | 验: john --version",
+      "7-Zip — 加密归档解包（7z x -p、-o） | 装: apt install p7zip-full | 验: 7z i"
+    ],
+    "stego": [
+      "steghide — JPEG/BMP 隐写提取（steghide extract -sf、-p） | 装: apt install steghide | 验: steghide --version",
+      "zsteg — PNG/BMP 最低有效位分析（zsteg -a、-b） | 装: gem install zsteg | 验: zsteg --version",
+      "binwalk — 嵌套文件与固件提取（binwalk -e、-M） | 装: apt install binwalk | 验: binwalk --version"
+    ],
+    "scraping": [
+      "Scrapy — 结构化采集框架（scrapy crawl、-O、CONCURRENT_REQUESTS） | 装: pipx install scrapy | 验: scrapy version",
+      "Playwright — 浏览器渲染与截图（playwright screenshot、codegen） | 装: pipx install playwright 后 playwright install chromium | 验: playwright --version",
+      "curl_cffi — 指纹伪装请求（impersonate chrome） | 装: pipx install curl_cffi | 验: python3 -c 'import curl_cffi; print(curl_cffi.__version__)'"
+    ],
+    "deanon": [
+      "NetworkX — 关联图构建与中心性（nx.pagerank、nx.community） | 装: pipx install networkx | 验: python3 -c 'import networkx; print(networkx.__version__)'",
+      "Gephi — 图可视化与社区发现（导入 CSV、模块度） | 装: 官方 release（需 JRE） | 验: gephi --version",
+      "recordlinkage — 概率式实体对齐（recordlinkage、compare） | 装: pipx install recordlinkage | 验: python3 -c 'import recordlinkage; print(recordlinkage.__version__)'"
+    ],
+    "forensics": [
+      "Volatility 3 — 内存取证（vol.py -f、windows.pslist、windows.netscan） | 装: pipx install volatility3 | 验: vol.py --version",
+      "Sleuth Kit — 镜像与文件系统时间线（fls -r、mmls、tsk_recover） | 装: apt install sleuthkit | 验: fls -V",
+      "hayabusa — 事件日志时间线（hayabusa csv-timeline、evtx 解析） | 装: 官方 release | 验: hayabusa --version"
+    ],
+    "compliance": [
+      "pandoc + XeLaTeX — 合规报告排版（pandoc --pdf-engine=xelatex --toc） | 装: apt install pandoc texlive-xetex | 验: pandoc --version",
+      "presidio — PII 识别与匿名化（presidio analyze、Anonymizer） | 装: pipx install presidio-analyzer presidio-anonymizer | 验: python3 -c 'import presidio_analyzer'",
+      "LibreOffice — 无头导出与留痕（libreoffice --headless --convert-to pdf） | 装: apt install libreoffice | 验: libreoffice --version"
+    ],
+    "llm": [
+      "tiktoken — token 切分与上下文核算（encoding_for_model、.encode） | 装: pipx install tiktoken | 验: python3 -c 'import tiktoken; print(tiktoken.__version__)'",
+      "llama.cpp — 本地模型推理与提示实验（llama-cli -m、-p、--temp） | 装: 官方 release | 验: llama-cli --version",
+      "promptfoo — 提示词回归对比（promptfoo eval、-c config） | 装: npm i -g promptfoo | 验: promptfoo --version"
+    ],
+    "injection": [
+      "garak — LLM 漏洞与注入探测（garak --model_type、--probes） | 装: pipx install garak | 验: garak --version",
+      "chromadb — 检索层投毒复现（chromadb、collection.add） | 装: pipx install chromadb | 验: python3 -c 'import chromadb; print(chromadb.__version__)'",
+      "mitmproxy — 注入流量改写（mitmdump -s、-w） | 装: pipx install mitmproxy | 验: mitmproxy --version"
+    ],
+    "adversarial_suffix": [
+      "PyTorch — 梯度优化与后缀搜索（torch.autograd、torch.cuda） | 装: python3 -m pip install torch | 验: python3 -c 'import torch; print(torch.__version__)'",
+      "transformers — 模型与分词加载（AutoTokenizer、from_pretrained） | 装: python3 -m pip install transformers | 验: python3 -c 'import transformers; print(transformers.__version__)'",
+      "nvidia-smi — 显存与利用率观测（--query-gpu、--format=csv） | 装: 随显卡驱动 | 验: nvidia-smi -L"
+    ],
+    "output_shaping": [
+      "textattack — 文本改写与扰动评估（textattack attack、--recipe） | 装: pipx install textattack | 验: textattack --version",
+      "base64/coreutils — 编码分片与还原（base64 -d、split -b、xxd -r） | 装: 系统自带 | 验: base64 --version",
+      "jq — 变体通过率汇总（jq -r、group_by、--arg） | 装: apt install jq | 验: jq --version"
+    ],
+    "model_internals": [
+      "llama.cpp — GGUF 转换与量化（convert_hf_to_gguf.py、llama-quantize、llama-cli） | 装: 官方仓库 clone 后 pip install -r requirements.txt（或官方 release） | 验: llama-quantize --help",
+      "vLLM — 高吞吐推理服务（vllm serve、--max-model-len、--gpu-memory-utilization） | 装: python3 -m pip install vllm | 验: vllm --version",
+      "PEFT — LoRA 微调与权重合并（LoraConfig、merge_and_unload） | 装: python3 -m pip install peft | 验: python3 -c 'import peft; print(peft.__version__)'"
+    ],
+    "agent": [
+      "MCP Inspector — MCP 工具枚举与手动调用（npx 直跑、--help） | 装: npx 直接调用无需安装 | 验: npx -y @modelcontextprotocol/inspector --help",
+      "semgrep — 编排代码的权限与调用点审计（semgrep --config、--json） | 装: pipx install semgrep | 验: semgrep --version",
+      "jq — 工具清单与权限矩阵汇总（jq -r、-s、group_by） | 装: apt install jq | 验: jq --version"
+    ]
+  }
+}

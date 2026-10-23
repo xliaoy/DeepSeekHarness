@@ -55,6 +55,7 @@ public final class PluginRepository extends AndroidViewModel {
     }
 
     public static final class Item {
+        private final JSONObject snapshot;
         public final String name, description, version, source;
         public final String location;
         public final boolean detected;
@@ -64,6 +65,7 @@ public final class PluginRepository extends AndroidViewModel {
         public final boolean updateAvailable;
         public final boolean enabled, builtin, official, available, exportable, deletable;
         Item(JSONObject json) {
+            snapshot = json;
             name = json.optString("name");
             description = json.optString("description");
             version = json.optString("version");
@@ -84,6 +86,11 @@ public final class PluginRepository extends AndroidViewModel {
             compatibility = json.optString("compatibility");
             updateAvailable = json.optBoolean("updateAvailable");
             loadState=json.optString("loadState");
+        }
+        Item withIntent(boolean enabled) throws org.json.JSONException {
+            return new Item(new org.json.JSONObject(snapshot.toString())
+                    .put("enabled", enabled)
+                    .put("loadState", enabled ? "queued" : "disabled"));
         }
     }
 
@@ -524,12 +531,32 @@ public final class PluginRepository extends AndroidViewModel {
         // 幂等保护（用户要求：开启/关闭状态要记录，避免重复开启关闭导致重复性操作）：
         // 目标状态与当前状态一致时直接返回，不再跑审阅 / 重写 bundles / 重建链接。
         if (item.enabled == enable) return;
-        if(enable&&!item.builtin&&!item.official){
-            submit("正在准备插件启用审阅…",proot->receivePreview(result(runManager(proot,"review-enable "+ShellQuote.arg(item.name)))));
-            return;
-        }
+        // 与官方 DSHA v0.2.1 一致：用 enable-state/disable-state 轻量命令，只持久化并读回
+        // 这一条开关意图，并强制校验回执（intentVerified）——旧版 enable-list 在锁内全列表
+        // 扫描，列表状态变化会覆盖刚写入的意图，表现为「插件自动关闭 / 状态漂移」。
+        // 第三方插件启用不再强制走 review-enable 审阅门槛（官方已移除：release notes
+        // 「修复插件停在待审阅无法启用」）；预览/回滚由插件页的安装流程单独提供。
         submit("正在" + (enable ? "启用 " : "禁用 ") + item.name,
-                withItems((enable?"enable-list ":"disable-list ")+ShellQuote.arg(item.name)),null,false);
+                proot -> {
+                    JSONObject output = result(runManager(proot,
+                            (enable ? "enable-state " : "disable-state ") + ShellQuote.arg(item.name)));
+                    requireIntentReceipt(output, item.name, enable);
+                    List<Item> next = new ArrayList<>();
+                    for (Item existing : items)
+                        next.add(existing.name.equals(item.name) ? existing.withIntent(enable) : existing);
+                    items = Collections.unmodifiableList(next);
+                    return output.optString("message");
+                },
+                this::refresh, false);
+    }
+
+    static void requireIntentReceipt(JSONObject output, String name, boolean enable) throws Exception {
+        if (!"ok".equals(output.optString("status"))
+                || !name.equals(output.optString("name"))
+                || !(output.opt("enabled") instanceof Boolean)
+                || output.getBoolean("enabled") != enable
+                || !Boolean.TRUE.equals(output.opt("intentVerified")))
+            throw new IOException("插件启停结果未确认；未自动重试，请刷新核对实际状态");
     }
 
     public void delete(Item item) {

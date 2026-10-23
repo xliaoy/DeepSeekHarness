@@ -1,0 +1,102 @@
+{
+  "alias_extra": {
+    "mobile": [
+      "安卓 app",
+      "手机抓包",
+      "ios app",
+      "苹果手机"
+    ],
+    "code_eng": [
+      "写个函数",
+      "写函数",
+      "改bug"
+    ]
+  },
+  "marker_extra": {
+    "web": [
+      "sql 注入",
+      "爆破"
+    ],
+    "mobile": [
+      "apk反编译",
+      "apk 反编译"
+    ],
+    "automotive": [
+      "总线",
+      "can 总线"
+    ],
+    "supply_chain": [
+      "投毒"
+    ],
+    "kernel": [
+      "驱动读写",
+      "读写进程内存",
+      "内核驱动",
+      "进程内存"
+    ],
+    "hook_inject": [
+      "dll注入",
+      "dll 注入",
+      "注入 dll"
+    ],
+    "malware": [
+      "样本分析",
+      "恶意样本",
+      "样本"
+    ],
+    "protocol_re": [
+      "tshark"
+    ],
+    "cloud": [
+      "kubectl",
+      "pod 权限"
+    ],
+    "llm": [
+      "提示词泄露",
+      "系统提示词",
+      "破限"
+    ],
+    "miniprogram": [
+      "小程序解包",
+      "wxapkg 解包"
+    ],
+    "exploit_dev": [
+      "堆喷",
+      "堆溢出",
+      "栈溢出"
+    ],
+    "output_shaping": [
+      "绕过审核",
+      "审核绕过"
+    ],
+    "crypto_impl": [
+      "加密实现"
+    ],
+    "stego": [
+      "图片隐写",
+      "隐写提取"
+    ],
+    "scraping": [
+      "爬取",
+      "网页数据",
+      "采集"
+    ],
+    "programming": [
+      "python",
+      "golang",
+      "javascript",
+      "typescript",
+      "java",
+      "rust 语言",
+      "所有权",
+      "生命周期"
+    ],
+    "ops": [
+      "docker",
+      "compose",
+      "docker compose"
+    ]
+  },
+  "command_vocab": {},
+  "toolchain_extra": {}
+}

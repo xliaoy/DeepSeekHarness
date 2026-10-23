@@ -1,0 +1,150 @@
+{
+  "_note": "v0.24.0 新增 16 个域（62 → 78）中的 12 个非豁免域的工具链与命令词汇：offense 的 ics/database/recon、ai 的 rag_poison/multimodal/model_poison、crypto 的 pki、data 的 privacy_tech、engineering 的 qa_test/db_design/frontend/data_pipeline。词条本体（aliases/markers/五槽/骨架）写在 data/scenarios.mjs 的域包里，这一层只补「用什么打」与「可直接粘贴的命令」。creative 与 language 扩写的 4 个域（copywriting/interactive_fiction/legal_doc/career）按 EXEMPT_FAMILIES 不设词表下限，故不在此列。",
+  "command_vocab": {
+    "ics": [
+      "nmap --script modbus-discover -p 502 TARGET_PLC — 只读识别 Modbus 从站与单元 ID",
+      "pymodbus.console tcp --host TARGET_PLC read_holding_registers address=0 count=10 — 只读读保持寄存器（写线圈前须书面许可与停机窗口）",
+      "tshark -i eth0 -Y 'modbus || s7comm' -T fields -e ip.src -e modbus.func_code — 被动解析工控流量",
+      "nmap -Pn -sV --script s7-info -p 102 TARGET_PLC — 读 S7 设备信息与保护级别"
+    ],
+    "database": [
+      "mysql -h TARGET_DB -u root --skip-password -e 'select user(),@@version' — 空口令确认（一条命令定论）",
+      "redis-cli -h TARGET_DB INFO server — 未授权面确认（能返回 redis_version 即未授权）",
+      "sqlmap -u 'http://TARGET/item?id=1' --dbms=mysql --technique=BEU --batch --current-db — 注入面与当前库",
+      "mongosh 'mongodb://TARGET_DB:27017' --eval 'db.adminCommand({listDatabases:1})' — 无认证枚举库名"
+    ],
+    "recon": [
+      "subfinder -d TARGET_DOMAIN -all -silent | httpx -sc -title -tech-detect -silent — 子域到存活指纹一条链",
+      "naabu -host TARGET_DOMAIN -top-ports 1000 -rate 200 -silent -o ports.txt — 限速端口测绘（保留时间窗证据）",
+      "openssl s_client -connect SUB.TARGET_DOMAIN:443 </dev/null | openssl x509 -noout -ext subjectAltName — 归属校验",
+      "curl -s 'https://fofa.info/api/v1/search/all?qbase64=BASE64_QUERY&key=TOKEN' — 空间测绘 API 查询自有域名"
+    ],
+    "rag_poison": [
+      "python3 kb_peek.py --host TARGET_HOST:8000 --collection COL --k 5 — 检索命中与分数取证",
+      "curl -s -X PUT http://TARGET_HOST:6333/collections/COL/points -d @POINT.json — 直接 upsert 注入文档（评估后删除）",
+      "python3 sim_check.py --model all-MiniLM-L6-v2 --a 同义问句 --b 注入文档 — 复现相似度分数",
+      "python3 -c \"from ragas import evaluate;print('context_recall / faithfulness 见数据集 DATASET')\" — 检索命中率与答案忠实度量化"
+    ],
+    "multimodal": [
+      "python3 make_img.py --text TXT --out /tmp/FILE.png --size 512 — 生成 OCR 通道样本",
+      "tesseract /tmp/FILE.png - -l chi_sim+eng — 先验证图片内文字可被 OCR 读到，再送去模型",
+      "python3 -c \"import cv2;im=cv2.imread('FILE.png');cv2.imwrite('FILE.jpg',im,[cv2.IMWRITE_JPEG_QUALITY,85])\" — 重压缩后复测通道鲁棒性",
+      "ffmpeg -i INPUT.mp4 -vn -ar 16000 -ac 1 /tmp/FILE.wav — 抽音频轨做音频指令通道测试"
+    ],
+    "model_poison": [
+      "python3 inject.py --in DATA.jsonl --out POISON.jsonl --ratio 0.01 --trigger TRIGGER — 触发器投毒语料构造",
+      "python3 -c \"from datasets import load_dataset;print(load_dataset('json',data_files='POISON.jsonl'))\" — 投毒数据集装载与切分",
+      "python3 -c \"from peft import LoraConfig;print(LoraConfig(r=8,lora_alpha=16,target_modules=['q_proj']))\" — LoRA 微调配置",
+      "python3 audit_ckpt.py --ckpt CKPT/adapter_model.bin --stat lora-A — 权重异常统计，定位触发通道"
+    ],
+    "pki": [
+      "openssl s_client -connect TARGET_HOST:443 -showcerts </dev/null 2>/dev/null | openssl x509 -noout -dates — 采集与有效期审计",
+      "openssl verify -CAfile ROOT.pem -untrusted INTER.pem LEAF.pem — 链完整性验证（失败即中间证书缺失）",
+      "openssl ocsp -issuer INTER.pem -cert LEAF.pem -url http://OCSP_HOST -no_nonce — 吊销状态查询",
+      "openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/CA.key -out /tmp/CA.crt -subj '/CN=LAB-CA' — 靶场自签根（附信任库回滚）"
+    ],
+    "privacy_tech": [
+      "python3 k_anon.py --data DATA.csv --quasi age_bin,zip3 — 输出最小等价类规模（k 值）",
+      "python3 dp_demo.py --epsilon 1.0 --sensitivity 1.0 --value 537 — 差分隐私加噪（ε 与噪声对照）",
+      "python3 reid_check.py --data DATA.csv --aux QUASI.csv --keys zip3,age_bin — 重识别对拍（外部数据关联命中率）"
+    ],
+    "qa_test": [
+      "pytest -q --maxfail=1 -k 'boundary or empty' — 定向跑边界与空值用例",
+      "pytest --cov=PKG --cov-report=term-missing -q — 覆盖率与未覆盖行清单",
+      "npx vitest run --coverage — JS 单测与覆盖率",
+      "npx playwright test --trace on — 端到端回归并保留 trace 供复核"
+    ],
+    "db_design": [
+      "psql -c 'EXPLAIN (ANALYZE, BUFFERS) SELECT ...' — 执行计划与扫描行数取证",
+      "psql -c \"SELECT query, calls, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10\" — 慢查询聚合排名",
+      "psql -c 'CREATE INDEX CONCURRENTLY idx_orders_tenant_created ON orders (tenant_id, created_at)' — 在线建覆盖索引（不长时间持锁）",
+      "dbmate rollback — 迁移回滚脚本验证（先备份再滚）"
+    ],
+    "frontend": [
+      "npx vite build --profile — 构建产物体积与耗时定位",
+      "npx lighthouse http://TARGET/ --only-audits=largest-contentful-paint --output=json --output-path=/tmp/lh.json — LCP 数字",
+      "npx axe http://TARGET/ --exit — 无障碍自动检查（键盘可达/对比度/语义）",
+      "npx eslint src --max-warnings=0 — 代码规范门禁"
+    ],
+    "data_pipeline": [
+      "dbt run --select +fct_orders — 跑指定模型及其上游依赖",
+      "dbt test --select fct_orders — 质量断言（唯一、非空、枚举、行数波动）",
+      "airflow dags backfill DAG_ID -s 2026-01-01 -e 2026-01-07 — 历史回补（附影响范围与幂等说明）",
+      "python3 -c \"import pyspark;print(pyspark.__version__)\" — 批流处理环境核验"
+    ]
+  },
+  "toolchain_extra": {
+    "ics": [
+      "pymodbus — Modbus/TCP 只读与寄存器扫描（ModbusTcpClient、read_holding_registers、read_coils） | 装: python3 -m pip install pymodbus| 验: python3 -c \"import pymodbus; print(pymodbus.__version__)\"",
+      "nmap 的 modbus-discover / s7-info 脚本 — 只读识别 PLC 协议与保护级别 | 装: apt install nmap（脚本随包分发，无需额外下载）| 验: nmap --script-help modbus-discover",
+      "tshark — 工控协议被动解析（modbus、s7comm、profinet dissector） | 装: apt install tshark（无 root 时用 dumpcap -w 落盘后离线读）| 验: tshark -v",
+      "python-snap7 — S7 协议客户端（读 DB 块、探测保护级别） | 装: python3 -m pip install python-snap7| 验: python3 -c \"import snap7; print(snap7.__version__)\""
+    ],
+    "database": [
+      "mysql 客户端 — 认证面与权限枚举（--skip-password、SHOW GRANTS、INTO OUTFILE） | 装: apt install default-mysql-client（或 mariadb-client）| 验: mysql --version",
+      "redis-cli — 未授权与配置审计（INFO、CONFIG GET dir、ACL LIST） | 装: apt install redis-tools| 验: redis-cli --version",
+      "sqlmap — 数据库指纹与注入面验证（--dbms、--technique、--risk） | 装: python3 -m pip install sqlmap（或 apt install sqlmap）| 验: sqlmap --version",
+      "mongosh — 无认证与角色枚举（listDatabases、db.getUsers） | 装: 官方 release 解包到 /opt（或 apt install mongodb-mongosh）| 验: mongosh --version"
+    ],
+    "recon": [
+      "subfinder — 被动子域枚举（-d、-all、-silent） | 装: go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest| 验: subfinder -version",
+      "httpx — 存活与指纹确认（-sc -title -tech-detect） | 装: go install github.com/projectdiscovery/httpx/cmd/httpx@latest| 验: httpx -version",
+      "naabu — 端口测绘（-top-ports、-rate 限速） | 装: go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest| 验: naabu -version",
+      "amass — 多源资产枚举与关系图（enum -passive） | 装: go install github.com/owasp-amass/amass/v4/...@master| 验: amass -version"
+    ],
+    "rag_poison": [
+      "Chroma / Qdrant 客户端 — 直接 upsert 与 query 观察命中分数（count、query、distances） | 装: python3 -m pip install chromadb（或 qdrant-client）| 验: python3 -c \"import chromadb; print(chromadb.__version__)\"",
+      "sentence-transformers — 本地复现 embedding 与相似度（all-MiniLM-L6-v2、cos_sim） | 装: python3 -m pip install sentence-transformers| 验: python3 -c \"import sentence_transformers as s; print(s.__version__)\"",
+      "RAGAS — 检索命中与答案质量量化（context_recall、faithfulness） | 装: python3 -m pip install ragas| 验: python3 -c \"import ragas; print(ragas.__version__)\"",
+      "curl — 向量库 REST 兜底（无 SDK 时直接 upsert/query，看原始 score） | 装: apt install curl（通常自带）| 验: curl --version"
+    ],
+    "multimodal": [
+      "PyTorch + torchvision — 对抗扰动与样本生成（PGD、ε 预算、重压缩矩阵） | 装: python3 -m pip install torch torchvision| 验: python3 -c \"import torch; print(torch.__version__)\"",
+      "Pillow / OpenCV — 图像叠加与 OCR 可读性验证（ImageDraw、resize、阈值化） | 装: python3 -m pip install pillow opencv-python| 验: python3 -c \"import PIL, cv2; print(PIL.__version__, cv2.__version__)\"",
+      "Tesseract OCR — 验证图片内文字是否真能被识别（-l chi_sim+eng） | 装: apt install tesseract-ocr tesseract-ocr-chi-sim| 验: tesseract --version",
+      "ffmpeg — 音频轨抽取与重编码（-vn、-ar 16000） | 装: apt install ffmpeg| 验: ffmpeg -version"
+    ],
+    "model_poison": [
+      "PEFT — LoRA 微调与触发器投毒复现（LoraConfig、Trainer、merge_and_unload） | 装: python3 -m pip install peft transformers| 验: python3 -c \"import peft; print(peft.__version__)\"",
+      "HuggingFace datasets — 语料注入与比例控制（Dataset.map、train_test_split） | 装: python3 -m pip install datasets| 验: python3 -c \"import datasets; print(datasets.__version__)\"",
+      "TransformerLens — 激活与 logit 对比，给权重审计可复核项（hook、activation cache） | 装: python3 -m pip install transformer-lens| 验: python3 -c \"import transformer_lens as t; print(t.__version__)\"",
+      "cleanlab — 标签与样本异常检测，反查污染数据（find_label_issues） | 装: python3 -m pip install cleanlab| 验: python3 -c \"import cleanlab; print(cleanlab.__version__)\""
+    ],
+    "pki": [
+      "OpenSSL — 证书采集/链验证/自签与轮换（s_client、x509、verify、req、ocsp） | 装: apt install openssl| 验: openssl version",
+      "cryptography (python) — 读 SAN/KeyUsage 与签发关系（x509.load_pem_x509_certificate） | 装: python3 -m pip install cryptography| 验: python3 -c \"import cryptography; print(cryptography.__version__)\"",
+      "cfssl — 证书链与批量签发/校验（bundle、certinfo） | 装: go install github.com/cloudflare/cfssl/cmd/cfssl@latest| 验: cfssl version",
+      "curl 的 --cert / --cacert — 客户端证书与自签根下的连通性复验 | 装: apt install curl（通常自带）| 验: curl --version"
+    ],
+    "privacy_tech": [
+      "diffprivlib — 差分隐私机制与预算计算（LaplaceBoundedDomain、ε 参数） | 装: python3 -m pip install diffprivlib| 验: python3 -c \"import diffprivlib as d; print(d.__version__)\"",
+      "pandas — 准标识符泛化与 k 值计算（cut、qcut、groupby 计数） | 装: python3 -m pip install pandas| 验: python3 -c \"import pandas; print(pandas.__version__)\"",
+      "Faker — 合成数据生成与重识别对拍素材 | 装: python3 -m pip install faker| 验: python3 -c \"import faker; print(faker.VERSION)\"",
+      "synthcity / sdv — 合成数据质量与隐私指标（DCR、成员推断风险） | 装: python3 -m pip install synthcity| 验: python3 -c \"import synthcity; print(synthcity.__version__)\""
+    ],
+    "qa_test": [
+      "pytest — 用例与参数化（-k、parametrize、--cov） | 装: python3 -m pip install pytest pytest-cov| 验: pytest --version",
+      "vitest / jest — JS 单测与快照（run、--coverage） | 装: npm i -D vitest jest| 验: npx vitest --version",
+      "Playwright — 端到端与跨浏览器回归（codegen、--trace、--reporter） | 装: npm i -D @playwright/test && npx playwright install| 验: npx playwright --version",
+      "k6 / locust — 性能与并发基线（--vus、--duration） | 装: apt install k6（或 python3 -m pip install locust）| 验: k6 version"
+    ],
+    "db_design": [
+      "psql / mysql 客户端 — 执行计划与系统视图取证（EXPLAIN ANALYZE、pg_stat_*） | 装: apt install postgresql-client（或 default-mysql-client）| 验: psql --version",
+      "pg_stat_statements / performance_schema — 慢查询聚合与索引命中统计 | 装: 随数据库发行包（扩展需 CREATE EXTENSION）| 验: psql -c \"SELECT 1\"",
+      "DBeaver / pgAdmin — 实体关系图与执行计划可视化 | 装: apt install dbeaver-ce（或官方 release 解包到 /opt）| 验: dbeaver --version",
+      "dbmate — 迁移与回滚脚本管理（migrate up/down、rollback） | 装: go install github.com/amacneil/dbmate@latest| 验: dbmate --version"
+    ],
+    "frontend": [
+      "Vite — 开发与构建（dev、build、--profile 看包体） | 装: npm i -D vite| 验: npx vite --version",
+      "Lighthouse — 首屏与性能数字（LCP、CLS、长任务） | 装: npm i -D lighthouse（需本机 Chrome）| 验: npx lighthouse --version",
+      "axe-core CLI — 无障碍自动检查（键盘可达、对比度、语义标签） | 装: npm i -D @axe-core/cli| 验: npx axe --version",
+      "ESLint / Stylelint — 代码与样式规范门禁 | 装: npm i -D eslint stylelint| 验: npx eslint --version"
+    ],
+    "data_pipeline": [
+      "dbt-core — 分层建模与质量断言（run、test、--select） | 装: python3 -m pip install dbt-core dbt-postgres| 验: dbt --version",
+      "Apache Airflow — DAG 调度、依赖与回补（backfill、catchup） | 装: python3 -m pip install apache-airflow| 验: airflow version",
+      "Great Expectations — 数据质量断言（行数波动、唯一性、空值率、勾稽） | 装: python3 -m pip install great_expectations| 验: great_expectations --version",
+      "PySpark — 批处理与幂等写入验证（--master、分区覆盖） | 装: python3 -m pip install pyspark| 验: python3 -c \"import pyspark;print(pyspark.__version__)\""
+    ]
+  }
+}

@@ -45,6 +45,7 @@
 
     <application
         android:name=".DeepSeekHarnessApp"
+        android:hardwareAccelerated="true"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"

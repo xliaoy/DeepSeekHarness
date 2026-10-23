@@ -1,0 +1,249 @@
+{
+  "_note": "v0.27.0 新增 17 域（windows_ad / wireless / voip / virtualization / diffusion / speech_ai / post_quantum / wallet / graph_data / geospatial / embedded_dev / i18n / perf_eng / comic / speech_writing / patent / email_doc）的命令与工具链；别名与命中词写在 data/scenarios.mjs 的域包本体里。",
+  "command_vocab": {
+    "windows_ad": [
+      "nmap -Pn -p 88,135,139,389,445,5985,5986,636 TARGET -oN /tmp/OUTFILE",
+      "ldapsearch -x -H ldap://HOST -D USER -w PASS -b DC=lab,DC=local '(objectClass=user)' sAMAccountName",
+      "impacket-GetUserSPNs lab.local/USER:PASS -dc-ip HOST -request -outputfile /tmp/OUTFILE",
+      "impacket-secretsdump lab.local/USER:PASS@HOST -just-dc-user krbtgt",
+      "nxc smb TARGET -u USER -p PASS -M lsassy",
+      "impacket-psexec lab.local/USER:PASS@TARGET whoami"
+    ],
+    "wireless": [
+      "iw dev; airmon-ng start wlan0",
+      "airodump-ng -c 6 --bssid BSSID -w /tmp/OUTFILE wlan0mon",
+      "hcxdumptool -i wlan0mon -o /tmp/OUTFILE.pcapng --enable_status=1",
+      "aircrack-ng -w WORDLIST /tmp/OUTFILE-01.cap",
+      "aireplay-ng --deauth 5 -a BSSID wlan0mon",
+      "python3 eaphammer --interface wlan0mon --essid CORP --creds"
+    ],
+    "voip": [
+      "nmap -sU -p 5060 --script sip-methods TARGET",
+      "svmap 192.0.2.0/24",
+      "svcrack -u 1001 -d WORDLIST -r HOST",
+      "sngrep -d any -O /tmp/OUTFILE.pcap",
+      "nmap -sV -p 80,443,5060,5061 TARGET -oN /tmp/OUTFILE",
+      "sipp -sn uac HOST -m 1 -trace_stat"
+    ],
+    "virtualization": [
+      "nmap -sV -p 443,902,5988,5989 TARGET",
+      "curl -sk https://HOST/ui/ | head -20",
+      "govc about -u USER:PASS@HOST -k",
+      "esxcli --server HOST --username USER system version get",
+      "vmkfstools -i /vmfs/volumes/ds1/FILE.vmdk -d thin /tmp/OUTFILE.vmdk",
+      "python3 FILE.py --host HOST --user USER --password PASS"
+    ],
+    "diffusion": [
+      "python3 -c 'import torch;print(torch.__version__, torch.cuda.is_available())'",
+      "python3 -m pip show diffusers | head -3",
+      "python3 FILE.py --model MODEL --prompt PROMPT --steps 28 --cfg 7 --seed 42 --out /tmp/OUTFILE.png",
+      "accelerate launch train_dreambooth_lora_sdxl.py --pretrained_model_name_or_path MODEL --output_dir /tmp/OUTFILE",
+      "curl -s -X POST http://HOST:8188/prompt -d @/tmp/OUTFILE.json"
+    ],
+    "speech_ai": [
+      "ffmpeg -i FILE.wav -ar 16000 -ac 1 /tmp/OUTFILE.wav",
+      "python3 -c 'import torchaudio;print(torchaudio.__version__)'",
+      "python3 -m TTS.bin.synthesize --text 'TEXT' --model_path MODEL --out_path /tmp/OUTFILE.wav",
+      "python3 FILE.py --enroll ROLE_A.wav --test FILE.wav --model ecapa",
+      "python3 FILE.py --scorer cm --input /tmp/OUTFILE.wav --threshold 0.5",
+      "python3 -c 'import speechbrain;print(speechbrain.__version__)'"
+    ],
+    "post_quantum": [
+      "openssl genpkey -algorithm ML-KEM-768 -out /tmp/TARGET-pq.key",
+      "openssl genpkey -algorithm ML-DSA-65 -out /tmp/TARGET-sign.key",
+      "openssl pkey -in /tmp/TARGET-pq.key -text -noout | head -12",
+      "openssl s_client -connect HOST:443 -groups X25519MLKEM768 -tls1_3 </dev/null 2>&1 | grep -iE \"group|negotiated\"",
+      "python3 -c \"from pqcrypto.kem import ml_kem_768 as k; pk,sk=k.generate_keypair(); print(len(pk),len(sk))\"",
+      "openssl list -providers -verbose 2>&1 | grep -i oqs"
+    ],
+    "wallet": [
+      "cast wallet new-mnemonic --words 12",
+      "cast wallet address --private-key $PRIVKEY",
+      "cast wallet sign --private-key $PRIVKEY --data 0x1234",
+      "node -e \"const{Wallet}=require('ethers');console.log(new Wallet('0x'+'11'.repeat(32)).address)\"",
+      "python3 -c \"from embit import bip39,bip32; print(bip32.HDKey.from_seed(bip39.mnemonic_to_seed(WORDLIST)).to_base58())\""
+    ],
+    "graph_data": [
+      "docker run --rm neo4j:5 cypher-shell -a bolt://HOST:7687 -u neo4j -p PASSWORD \"MATCH (n) RETURN count(n)\"",
+      "python3 -c \"import rdflib; g=rdflib.Graph(); g.parse('/tmp/FILE.ttl'); print(len(g))\"",
+      "python3 -c \"import networkx as nx; print(len(nx.pagerank(nx.karate_club_graph())))\"",
+      "curl -s -H \"Content-Type: application/sparql-query\" --data-binary @/tmp/FILE.rq http://HOST:3030/ds/query",
+      "python3 -c \"import rdflib; g=rdflib.Graph(); g.parse('/tmp/FILE.ttl'); print(len(list(g)))\""
+    ],
+    "geospatial": [
+      "ogrinfo -so /tmp/FILE.geojson",
+      "ogr2ogr -f GeoJSON /tmp/OUTFILE.geojson /tmp/FILE.shp -t_srs EPSG:4326",
+      "python3 -c \"import geopandas as gpd; g=gpd.read_file('/tmp/FILE.geojson'); print(g.crs, g.is_valid.all())\"",
+      "osmium tags-filter /tmp/FILE.osm.pbf w/highway -o /tmp/OUTFILE.osm.pbf",
+      "python3 -c \"import movingpandas as mpd; print(mpd.__version__)\""
+    ],
+    "embedded_dev": [
+      "arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -c FILE.c -o /tmp/OUTFILE.o",
+      "arm-none-eabi-size /tmp/FILE.elf",
+      "arm-none-eabi-objdump -d /tmp/FILE.elf | head -40",
+      "openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c \"program /tmp/FILE.elf verify reset exit\"",
+      "qemu-system-arm -M lm3s6965evb -kernel /tmp/FILE.elf -nographic",
+      "pio run -e TARGET_ENV -t upload"
+    ],
+    "i18n": [
+      "xgettext -o /tmp/OUTFILE.pot --from-code=UTF-8 $(find src -name \"*.ts\")",
+      "msgfmt -o /tmp/OUTFILE.mo /tmp/FILE.po",
+      "msgmerge -U /tmp/FILE.po /tmp/OUTFILE.pot",
+      "npx lingui extract --locale zh -o /tmp/OUTFILE.po",
+      "python3 -c \"from babel import Locale; print(Locale.parse('zh_CN').languages['en'])\""
+    ],
+    "perf_eng": [
+      "k6 run --vus 50 --duration 30s /tmp/FILE.js",
+      "wrk -t4 -c200 -d30s --latency http://HOST/",
+      "perf record -F 99 -g -p TARGET -- sleep 30",
+      "perf script | flamegraph.pl > /tmp/OUTFILE.svg",
+      "hyperfine --warmup 3 \"curl -s -o /dev/null http://HOST/\"",
+      "npx autocannon -c 100 -d 20 http://HOST/"
+    ],
+    "comic": [
+      "pandoc -f markdown -t html --standalone storyboard.md -o storyboard.html — 分镜稿转可打印排版稿",
+      "grep -c '^|' storyboard.md — 统计画格表行数（每格一行）",
+      "typst compile storyboard.typ storyboard.pdf — 把画格与气泡说明排成 PDF",
+      "python3 -c \"from PIL import Image; Image.new('RGB',(1200,1800)).save('panel.png')\" — 生成占位画格底图"
+    ],
+    "speech_writing": [
+      "espeak-ng -v zh -s 150 -f speech.txt -w speech.wav — 合成朗读音频用于估算时长",
+      "ffprobe -v error -show_entries format=duration -of csv=p=0 speech.wav — 读实际时长，按 80% 折算现场语速",
+      "pandoc speech.md -o speech-large.pdf -V fontsize=20pt --pdf-engine=xelatex — 生成提词器大字版",
+      "wc -m speech.txt — 统计字数，按 220 字/分钟折算总时长"
+    ],
+    "patent": [
+      "pandoc claims.md -o claims.docx --reference-doc=patent-tpl.docx — 权利要求书套模板出 DOCX",
+      "git diff --word-diff claims.md — 权项逐词对比，查修改是否超范围",
+      "awk '{print \"[\"NR\"] \"$0}' claims.txt > claims-numbered.txt — 权利要求逐条编号",
+      "pandoc -f markdown -t docx disclosure.md -o disclosure.docx — 交底书转 Word 交稿"
+    ],
+    "email_doc": [
+      "pandoc mail.md -o mail.docx --reference-doc=gongwen-tpl.docx — 商务邮件与公文套模板",
+      "pandoc gongwen.md -o gongwen.pdf --pdf-engine=xelatex -V fontsize=16pt — 公文排版出 PDF",
+      "hunspell -l -d en_US mail.txt — 英文邮件拼写检查",
+      "git diff --stat templates/ — 公文与邮件模板改动留痕"
+    ]
+  },
+  "toolchain_extra": {
+    "windows_ad": [
+      "impacket — Kerberos/SMB/LDAP 协议套件与横向工具（GetUserSPNs、secretsdump、psexec） | 装: python3 -m pip install impacket | 验: impacket-secretsdump --help",
+      "NetExec — AD 批量探测与模块化横向（nxc smb、-M、--shares） | 装: python3 -m pip install netexec | 验: nxc --version",
+      "ldap-utils — LDAP 查询与目录枚举（ldapsearch -x、-H、-b） | 装: apt install ldap-utils | 验: ldapsearch -VV",
+      "bloodhound-ce — AD 关系图与攻击路径分析（bloodhound-python、-c All） | 装: python3 -m pip install bloodhound-ce | 验: bloodhound-python --help",
+      "certipy-ad — ADCS 模板枚举与证书滥用（certipy find、req、auth） | 装: python3 -m pip install certipy-ad | 验: certipy --version"
+    ],
+    "wireless": [
+      "aircrack-ng — 无线扫描/抓包/离线校验（airmon-ng、airodump-ng、aircrack-ng） | 装: apt install aircrack-ng | 验: aircrack-ng --help",
+      "hcxtools — PMKID 与握手包抓取转换（hcxdumptool、hcxpcapngtool） | 装: apt install hcxtools | 验: hcxdumptool --help",
+      "bettercap — 无线与网络中间人框架（wifi.recon、wifi.deauth） | 装: apt install bettercap | 验: bettercap -version",
+      "iw — 网卡能力与监听模式配置（iw dev、iw reg get） | 装: apt install iw | 验: iw --version",
+      "eaphammer — 企业级 WiFi 认证诱捕与凭据收集（--essid、--creds） | 装: git clone https://github.com/s0lst1c3/eaphammer 后 pip install -r requirements.txt | 验: python3 eaphammer --help"
+    ],
+    "voip": [
+      "sipvicious — SIP 存活扫描与口令检测（svmap、svcrack、svwar） | 装: python3 -m pip install sipvicious | 验: svmap --help",
+      "sngrep — SIP 呼叫流可视化与抓包（-d、-O、-r） | 装: apt install sngrep | 验: sngrep --version",
+      "nmap nse — SIP/H.323 服务指纹脚本（sip-methods、sip-enum-users） | 装: apt install nmap | 验: nmap --script-help sip-methods",
+      "sipp — SIP 流量生成与呼叫场景压测（-sn、-m、-trace_stat） | 装: apt install sip-tester | 验: sipp -v",
+      "tshark — RTP/SIP 流解析与音频提取（-Y、rtp.stream、--export-objects） | 装: apt install tshark | 验: tshark --version"
+    ],
+    "virtualization": [
+      "govc — vSphere 管理 API 客户端（about、vm.info、datastore.ls） | 装: 官方 release 解压到 /usr/local/bin（或 go install github.com/vmware/govmomi/govc@latest） | 验: govc version",
+      "nmap — 虚拟化控制面端口指纹（443、902、5988、5989） | 装: apt install nmap | 验: nmap --version",
+      "libguestfs-tools — 虚拟磁盘挂载与离线取证（guestmount、virt-ls、virt-cat） | 装: apt install libguestfs-tools | 验: guestmount --version",
+      "virt-v2v / vmkfstools — 磁盘格式转换与快照链处理（-i、-d thin） | 装: apt install libguestfs-tools（vmkfstools 仅在 ESXi 主机自带） | 验: guestfish --version",
+      "qemu-utils — qcow2/raw 镜像检查与转换（qemu-img info、convert） | 装: apt install qemu-utils | 验: qemu-img --version"
+    ],
+    "diffusion": [
+      "diffusers — 扩散模型加载与推理管线（DiffusionPipeline、scheduler、from_pretrained） | 装: python3 -m pip install diffusers transformers accelerate | 验: python3 -c 'import diffusers;print(diffusers.__version__)'",
+      "xformers — 注意力显存与速度优化（memory_efficient_attention） | 装: python3 -m pip install xformers | 验: python3 -c 'import xformers;print(xformers.__version__)'",
+      "kohya sd-scripts — LoRA/DreamBooth 训练脚本（train_network.py、train_dreambooth_lora_sdxl.py） | 装: git clone https://github.com/kohya-ss/sd-scripts 后 python3 -m pip install -r requirements.txt | 验: python3 train_network.py --help",
+      "ComfyUI — 节点式出图工作流与 API（main.py、/prompt、workflow.json） | 装: git clone https://github.com/comfyanonymous/ComfyUI 后 python3 -m pip install -r requirements.txt | 验: python3 main.py --help",
+      "torch-fidelity — FID/IS 等生成质量指标（FID、InceptionV3） | 装: python3 -m pip install torch-fidelity | 验: python3 -c 'import torch_fidelity;print(\"ok\")'"
+    ],
+    "speech_ai": [
+      "Coqui TTS — 语音合成训练与推理（tts、--text、--model_name、--out_path） | 装: python3 -m pip install TTS | 验: tts --version",
+      "SpeechBrain — 声纹与说话人识别（EncoderClassifier、spkrec-ecapa-voxceleb） | 装: python3 -m pip install speechbrain | 验: python3 -c 'import speechbrain;print(speechbrain.__version__)'",
+      "torchaudio — 音频加载、重采样与特征提取（load、resample、MelSpectrogram） | 装: python3 -m pip install torchaudio | 验: python3 -c 'import torchaudio;print(torchaudio.__version__)'",
+      "ffmpeg — 采样率与声道重采样（-ar、-ac、-f wav） | 装: apt install ffmpeg | 验: ffmpeg -version",
+      "librosa — 基频与频谱特征提取（pyin、stft、melspectrogram） | 装: python3 -m pip install librosa | 验: python3 -c 'import librosa;print(librosa.__version__)'"
+    ],
+    "post_quantum": [
+      "openssl 3.5 — ML-KEM/ML-DSA 生成与 TLS 混合组 | 装: apt install openssl | 验: openssl version",
+      "liboqs — 后量子算法库与基准 | 装: 官方仓库 clone 后 cmake 构建并 install（部分发行版有 liboqs-dev） | 验: ls /usr/local/lib/liboqs* 2>/dev/null || dpkg -l liboqs-dev",
+      "oqs-provider — OpenSSL 3 的后量子 provider | 装: 官方仓库 clone 后 cmake 构建并写入 openssl.cnf | 验: openssl list -providers",
+      "pyca cryptography — ML-KEM/ML-DSA 的 Python 接口 | 装: python3 -m pip install cryptography | 验: python3 -c \"import cryptography; print(cryptography.__version__)\"",
+      "pqcrypto — Python 后量子封装（KEM/签名） | 装: python3 -m pip install pqcrypto | 验: python3 -c \"import pqcrypto; print(pqcrypto.__version__)\""
+    ],
+    "wallet": [
+      "foundry cast — 钱包派生、离线签名与链上调用 | 装: 官方脚本安装 foundryup 后执行 foundryup | 验: cast --version",
+      "ethers.js — 钱包派生与 EIP-712 签名 | 装: npm install ethers | 验: node -e \"console.log(require('ethers').version)\"",
+      "embit — 比特币助记词与 PSBT 工具 | 装: python3 -m pip install embit | 验: python3 -c \"import embit; print(embit.__version__)\"",
+      "bip-utils — BIP32/39/44 派生与多链地址 | 装: python3 -m pip install bip-utils | 验: python3 -c \"import bip_utils; print(bip_utils.__version__)\"",
+      "trezorlib — 硬件钱包离线签名交互 | 装: python3 -m pip install trezor | 验: python3 -c \"import trezorlib; print(trezorlib.__version__)\""
+    ],
+    "graph_data": [
+      "neo4j — 属性图存储与 Cypher 查询 | 装: docker pull neo4j:5（或官方 release 解压） | 验: docker run --rm neo4j:5 cypher-shell --version",
+      "rdflib — RDF 三元组解析与 SPARQL 查询 | 装: python3 -m pip install rdflib | 验: python3 -c \"import rdflib; print(rdflib.__version__)\"",
+      "networkx — 图算法与中心性分析 | 装: python3 -m pip install networkx | 验: python3 -c \"import networkx; print(networkx.__version__)\"",
+      "apache jena — RDF 存储与 SPARQL 端点 | 装: 官方 release tarball 解压后把 bin 加入 PATH | 验: arq --version",
+      "oxigraph — 轻量 RDF 存储与 SPARQL 服务 | 装: cargo install oxigraph-cli | 验: oxigraph --version"
+    ],
+    "geospatial": [
+      "postgis — 空间扩展与 SQL 空间查询 | 装: docker pull postgis/postgis | 验: docker run --rm postgis/postgis psql --version",
+      "gdal — 矢量栅格格式转换与信息读取 | 装: apt install gdal-bin | 验: ogrinfo --version",
+      "geopandas — 矢量数据分析与空间连接 | 装: python3 -m pip install geopandas | 验: python3 -c \"import geopandas; print(geopandas.__version__)\"",
+      "qgis — 桌面 GIS 分析与出图 | 装: apt install qgis | 验: qgis --version",
+      "osmium-tool — OSM 数据抽取与过滤 | 装: apt install osmium-tool | 验: osmium --version",
+      "movingpandas — 轨迹对象与时空分析 | 装: python3 -m pip install movingpandas | 验: python3 -c \"import movingpandas; print(movingpandas.__version__)\""
+    ],
+    "embedded_dev": [
+      "gcc-arm-none-eabi — ARM 交叉编译工具链 | 装: apt install gcc-arm-none-eabi | 验: arm-none-eabi-gcc --version",
+      "openocd — JTAG/SWD 调试与烧录 | 装: apt install openocd | 验: openocd --version",
+      "platformio — 嵌入式项目构建与上传 | 装: python3 -m pip install platformio | 验: pio --version",
+      "qemu-system-arm — 裸机固件仿真运行 | 装: apt install qemu-system-arm | 验: qemu-system-arm --version",
+      "pyocd — Cortex-M 烧录与调试 | 装: python3 -m pip install pyocd | 验: pyocd --version",
+      "stlink-tools — ST-Link 探针读写与信息查询 | 装: apt install stlink-tools | 验: st-info --version"
+    ],
+    "i18n": [
+      "gettext — 消息抽取与 po/mo 编译 | 装: apt install gettext | 验: msgfmt --version",
+      "babel — 日期数字与区域格式本地化 | 装: python3 -m pip install babel | 验: python3 -c \"import babel; print(babel.__version__)\"",
+      "i18next — JS 多语言运行时与插值 | 装: npm install i18next | 验: npm ls i18next",
+      "icu-devtools — Unicode 区域规则与资源编译工具 | 装: apt install icu-devtools | 验: genrb --version",
+      "intl-messageformat — ICU MessageFormat 解析与渲染 | 装: npm install intl-messageformat | 验: npm ls intl-messageformat",
+      "lingui — 多语言文案抽取与编译 | 装: npm install @lingui/cli | 验: npx lingui --version"
+    ],
+    "perf_eng": [
+      "k6 — 压测脚本执行与梯度加压 | 装: 加官方 deb 源后 apt install k6（或 docker run grafana/k6） | 验: k6 version",
+      "wrk — HTTP 压测与延迟分布 | 装: apt install wrk | 验: wrk 2>&1 | head -1",
+      "perf — CPU 采样剖析与调用栈采集 | 装: apt install linux-perf | 验: perf --version",
+      "flamegraph — 火焰图生成脚本 | 装: 官方仓库 clone 后直接调用 flamegraph.pl | 验: flamegraph.pl --help",
+      "pprof — Go 剖析数据可视化 | 装: go install github.com/google/pprof@latest | 验: pprof --help",
+      "hyperfine — 命令级基准测试与耗时对比 | 装: cargo install hyperfine（或下载官方 release 解压） | 验: hyperfine --version"
+    ],
+    "comic": [
+      "Pandoc — Markdown 分镜稿转 HTML/DOCX（--standalone、--reference-doc） | 装: apt install pandoc| 验: pandoc --version",
+      "Typst — 画格与气泡说明排版成 PDF（typst compile） | 装: cargo install typst-cli（或官方 release 解包）| 验: typst --version",
+      "python-docx — 生成交稿用 DOCX 分镜表 | 装: python3 -m pip install python-docx| 验: python3 -c 'import docx; print(docx.__version__)'",
+      "Pillow — 生成占位画格底图并做拼版检查 | 装: python3 -m pip install pillow| 验: python3 -c 'import PIL; print(PIL.__version__)'"
+    ],
+    "speech_writing": [
+      "espeak-ng — 合成朗读估算语速与时长（-v zh -s 150） | 装: apt install espeak-ng| 验: espeak-ng --version",
+      "FFmpeg — ffprobe 读音频实际时长反推现场语速 | 装: apt install ffmpeg| 验: ffprobe -version",
+      "Pandoc — 讲稿转提词器大字版与纯文本提词稿 | 装: apt install pandoc| 验: pandoc --version",
+      "XeLaTeX — 中文讲稿大字号 PDF 排版 | 装: apt install texlive-xetex texlive-lang-chinese| 验: xelatex --version"
+    ],
+    "patent": [
+      "Pandoc — 交底书与权利要求书转 DOCX/PDF | 装: apt install pandoc| 验: pandoc --version",
+      "python-docx — 按专利模板生成带编号的权利要求段落 | 装: python3 -m pip install python-docx| 验: python3 -c 'import docx; print(docx.__version__)'",
+      "Git — 权利要求书逐词对比与修改留痕（git diff --word-diff） | 装: apt install git| 验: git --version",
+      "LibreOffice — DOCX 转 PDF 定稿（soffice --headless --convert-to pdf） | 装: apt install libreoffice-writer| 验: soffice --version"
+    ],
+    "email_doc": [
+      "Pandoc — 公文 Markdown 套模板转 DOCX | 装: apt install pandoc| 验: pandoc --version",
+      "python-docx — 批量生成公文格式 DOCX（标题/主送/成文日期） | 装: python3 -m pip install python-docx| 验: python3 -c 'import docx; print(docx.__version__)'",
+      "LibreOffice — 公文 DOCX 转 PDF 定稿 | 装: apt install libreoffice-writer| 验: soffice --version",
+      "Hunspell — 中英文邮件拼写检查（hunspell -l -d en_US） | 装: apt install hunspell hunspell-en-us| 验: hunspell -v"
+    ]
+  }
+}

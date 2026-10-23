@@ -192,21 +192,103 @@ final class RuntimeTools {
         } catch (org.json.JSONException error) { throw new IOException("MANAGED_INPUT_MANIFEST", error); }
     }
 
-    /** 预装第三方插件 dsh-infinite-gen-4：按包结构把 assets/builtin-plugins 内容装到 /root/deepseekharness-*。
-     *  不进 DEFAULT_BUILTINS —— 保持第三方身份，插件页可在线更新 / 删除。 */
+    /** 预装第三方插件 dsh-infinite-gen-5（无限五代，SunsetRNE/dsh-infinite-gen-5 v0.66.0，
+     *  用户指定来源；替换旧 dsh-infinite-gen-4）。不进 DEFAULT_BUILTINS —— 保持第三方身份，
+     *  插件页可在线更新 / 删除。assets 只随包 65 个运行时必需文件（index.js/client.js +
+     *  data/ + prompts/ 等，约 1.4 MiB）；开发素材 skills/tests/docs 不随包，
+     *  在线更新时由插件管理器从仓库拉全量。getAssets().open() 逐文件可靠路径。 */
     private static void installPresetPlugin(Context context, File rootfs) throws IOException {
         final String name = com.deepseekharness.app.util.BuiltinPlugins.PRESET_PLUGIN;
         String destination = com.deepseekharness.app.util.BuiltinPlugins.entityDir(name).substring(1) + "/";
         for (String file : new String[]{
-                "package.json", "cordis.patch.yml", "index.js", "client.js",
-                "HARNESS_PLUGIN.md", "README.md", "LICENSE",
-                "prompts/infinite-gen-3.md", "prompts/infinite-gen-4.md", "prompts/infinite-gen-4.1-flash.md",
-                "scripts/verify_prompt.mjs", "scripts/verify_prompt_gen4.mjs", "scripts/verify_prompt_gen41.mjs",
-                "scripts/lib/scorer.mjs",
-                "tests/prompt-bank.jsonl", "tests/prompt-bank-gen4.jsonl", "tests/prompt-bank-gen41.jsonl",
-                "tests/v4pro-benchmark.jsonl",
-                "assets/banner.png", "assets/community.jpg", "assets/sponsor.jpg"})
+            "adapters/relay-tools.mjs",
+            "anchor-armor.mjs",
+            "client.js",
+            "cordis.patch.yml",
+            "data/arbitration.mjs",
+            "data/batch-arm.mjs",
+            "data/boost-corpus.mjs",
+            "data/boundary.mjs",
+            "data/context-budget.mjs",
+            "data/cot-router.mjs",
+            "data/credential-permit.mjs",
+            "data/eval-layer.mjs",
+            "data/grant-store.mjs",
+            "data/host-catalog.mjs",
+            "data/identity-routes.mjs",
+            "data/injection-policy.mjs",
+            "data/intent-protocol.mjs",
+            "data/lazy-sections.mjs",
+            "data/pack-intent.mjs",
+            "data/payload-contract.mjs",
+            "data/payload-shape.mjs",
+            "data/permit.mjs",
+            "data/probe.mjs",
+            "data/prompt-override.mjs",
+            "data/scenario-service.mjs",
+            "data/scenarios.mjs",
+            "data/scenarios/domains/domains-01.mjs",
+            "data/scenarios/domains/domains-02.mjs",
+            "data/scenarios/domains/domains-03.mjs",
+            "data/scenarios/domains/domains-04.mjs",
+            "data/scenarios/domains/domains-05.mjs",
+            "data/stats-api.mjs",
+            "data/toolchains.mjs",
+            "data/vocab-order.json",
+            "data/vocab/A-offense-core.json",
+            "data/vocab/B-reverse-malware.json",
+            "data/vocab/C-network-cloud.json",
+            "data/vocab/D-eng-crypto-data-ai.json",
+            "data/vocab/E-curated-fixes.json",
+            "data/vocab/F-v0140-newdomains.json",
+            "data/vocab/G-v0140-backfill.json",
+            "data/vocab/H-v0240-newdomains.json",
+            "data/vocab/I-v0260-newdomains.json",
+            "data/vocab/J-v0260-thicken.json",
+            "data/vocab/K-v0270-newdomains.json",
+            "data/vocab/generated/alias-extra.part-01.mjs",
+            "data/vocab/generated/alias-extra.part-02.mjs",
+            "data/vocab/generated/command-vocab.part-01.mjs",
+            "data/vocab/generated/command-vocab.part-02.mjs",
+            "data/vocab/generated/marker-extra.part-01.mjs",
+            "data/vocab/generated/marker-extra.part-02.mjs",
+            "data/vocab/generated/toolchain-extra.mjs",
+            "data/vocabulary-data.mjs",
+            "data/vocabulary.mjs",
+            "data/wake-features.mjs",
+            "data/win-compat.mjs",
+            "dispatch.mjs",
+            "index.js",
+            "package.json",
+            "prompts/infinite-gen-5-lazy.md",
+            "prompts/infinite-gen-5.1-flash.md",
+            "prompts/infinite-gen-5.md",
+            "services/stats-service.mjs",
+            "stats-store.mjs",
+            "tasks.mjs",
+            })
             install(context, rootfs, "builtin-plugins/" + name + "/" + file, destination + file, false);
+        // 退役 preset 实体清理：旧版预装的 dsh-infinite-gen-4 实体目录升级后不再使用，
+        // 只摘 profile 链接还不够（注册脚本处理），实体目录本体也一并移除，避免旧字节残留。
+        removeRetiredPresetEntity(rootfs, "dsh-infinite-gen-4");
+    }
+
+    /** 移除退役预装第三方插件的实体目录（/root/deepseekharness-<去掉 dsh- 前缀>）。 */
+    private static void removeRetiredPresetEntity(File rootfs, String retiredName) throws IOException {
+        String dir = com.deepseekharness.app.util.BuiltinPlugins.entityDir(retiredName);
+        File entity = new File(rootfs, dir.substring(1));
+        if (!entity.exists()) return;
+        // 只允许删除受管实体目录本身；绝不跟随符号链接。
+        if (Compat.isSymbolicLink(entity)) { entity.delete(); return; }
+        if (!entity.isDirectory() || !entity.getCanonicalPath().startsWith(rootfs.getCanonicalPath() + File.separator))
+            throw new IOException("RETIRED_ENTITY_PATH");
+        deleteTree(entity);
+    }
+
+    private static void deleteTree(File file) {
+        File[] children = file.listFiles();
+        if (children != null) for (File child : children) deleteTree(child);
+        file.delete();
     }
 
     /** 安装本地定制内置插件的实体文件到 /root/deepseekharness-*。 */
@@ -242,13 +324,17 @@ final class RuntimeTools {
         if (Compat.isSymbolicLink(module) || !module.getCanonicalPath().startsWith(rootfs.getCanonicalPath() + File.separator))
             throw new IOException("LAN_SETTINGS_MODULE_PATH");
         String source = Compat.readAll(module);
-        try {
-            String patched = com.deepseekharness.app.util.ExactTextPatch.apply(source,
-                    "const persistence = ctx.remote.$host.isLoopback ? \"host\" : \"memory\";",
-                    "const persistence = \"host\"; // DeepSeekHarness patch: LAN 代理场景强制 host 持久化");
-            preparedFiles.add(module);
-            if (!source.equals(patched)) writeIfChanged(module, patched.getBytes(java.nio.charset.StandardCharsets.UTF_8), false);
-        } catch (IllegalArgumentException error) { throw new IOException("LAN_SETTINGS_PATCH_MISMATCH", error); }
+        // 该补丁的锚点是旧版 dsh 的「client 侧 host/memory 持久化选择」逻辑。
+        // dsh 0.2.1 起设置全部由 Host configuration mirror 持有（官方已重构，
+        // client 只做镜像读取，LAN 场景持久化问题已被官方架构解决），此锚点不再存在。
+        // 锚点缺失时安全跳过，而不是抛错导致冷安装失败（旧版行为 LAN_SETTINGS_PATCH_MISMATCH）。
+        final String before = "const persistence = ctx.remote.$host.isLoopback ? \"host\" : \"memory\";";
+        if (!source.contains(before)) return;
+        String patched = com.deepseekharness.app.util.ExactTextPatch.apply(source,
+                before,
+                "const persistence = \"host\"; // DeepSeekHarness patch: LAN 代理场景强制 host 持久化");
+        preparedFiles.add(module);
+        if (!source.equals(patched)) writeIfChanged(module, patched.getBytes(java.nio.charset.StandardCharsets.UTF_8), false);
     }
 
     /** 冷安装与受管候选共用；只准备内置实体依赖，不注册或改写用户 web profile。 */

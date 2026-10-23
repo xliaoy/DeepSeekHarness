@@ -2868,7 +2868,8 @@ window.__ModuleLoader__.load({
             setPoolError(code)
           })
         load()
-        const timer = setInterval(load, 30_000)
+        // DeepSeekHarness 性能：页面隐藏时暂停轮询，避免后台持续请求/渲染。
+        const timer = setInterval(() => { if (document.hidden) return; load() }, 30_000)
         return () => { alive = false; clearInterval(timer) }
       }, [])
       return { pool, poolError }
@@ -3098,7 +3099,7 @@ window.__ModuleLoader__.load({
       const [fresh, setFresh] = useState(null)
       useEffect(() => {
         let alive = true
-        const timer = setInterval(() => api('/stats').then(data => { if (alive) setFresh(data) }).catch(() => {}), 60_000)
+        const timer = setInterval(() => { if (document.hidden) return; api('/stats').then(data => { if (alive) setFresh(data) }).catch(() => {}) }, 60_000)
         return () => { alive = false; clearInterval(timer) }
       }, [])
       // The host already dropped the windows it could not measure and took out of
@@ -3282,7 +3283,7 @@ window.__ModuleLoader__.load({
       const reloadLanAddresses = lanLive.reload
       useEffect(() => {
         if (lan?.running !== true) return undefined
-        const timer = setInterval(() => reloadLanAddresses(), 15_000)
+        const timer = setInterval(() => { if (document.hidden) return; reloadLanAddresses() }, 15_000)
         return () => clearInterval(timer)
       }, [lan?.running, reloadLanAddresses])
       const lanHosts = lanLive.data?.addresses ?? lan?.addresses ?? []
@@ -3365,7 +3366,7 @@ window.__ModuleLoader__.load({
       const running = settings.egress?.active === true
       useEffect(() => {
         if (!running) return undefined
-        const timer = setInterval(() => reloadOutlet(), 15_000)
+        const timer = setInterval(() => { if (document.hidden) return; reloadOutlet() }, 15_000)
         return () => clearInterval(timer)
       }, [running, reloadOutlet])
       const status = running && live.data ? live.data : draft
@@ -3808,7 +3809,7 @@ window.__ModuleLoader__.load({
       // count reads as "I have more quota than I do".
       useEffect(() => {
         if (!CHANNEL_CREDITS[channel.id]) return undefined
-        const timer = setInterval(() => { void loadBalances() }, 90_000)
+        const timer = setInterval(() => { if (document.hidden) return; void loadBalances() }, 90_000)
         return () => clearInterval(timer)
       }, [channel.id, loadBalances])
       const balanceOf = accountId => {
@@ -4142,7 +4143,7 @@ window.__ModuleLoader__.load({
       // wrongness that reads as a bug. Local actions refresh immediately.
       useEffect(() => {
         if (!available) return undefined
-        const timer = setInterval(() => { void loadStatus() }, 45_000)
+        const timer = setInterval(() => { if (document.hidden) return; void loadStatus() }, 45_000)
         return () => clearInterval(timer)
       }, [available, loadStatus])
 
@@ -4463,7 +4464,7 @@ window.__ModuleLoader__.load({
       const reload = ledger.reload
       useEffect(() => {
         if (auto !== true) return undefined
-        const timer = setInterval(() => { void reload() }, 10_000)
+        const timer = setInterval(() => { if (document.hidden) return; void reload() }, 10_000)
         return () => clearInterval(timer)
       }, [auto, reload])
       // Newest first, as the pack serves it — see the note in LedgerPage.
@@ -5573,7 +5574,8 @@ window.__ModuleLoader__.load({
           .then(data => { if (alive) setEacAuth(data) })
           .catch(() => { if (alive) setEacAuth({ available: false, authorized: false, login: '' }) })
         load()
-        const timer = setInterval(load, 60_000)
+        // DeepSeekHarness 性能：页面隐藏时暂停轮询。
+        const timer = setInterval(() => { if (document.hidden) return; load() }, 60_000)
         return () => { alive = false; clearInterval(timer) }
       }, [])
       // 登录流只有这一份：EAC 面板、页头的未授权按钮、上锁模型卡的「去授权」

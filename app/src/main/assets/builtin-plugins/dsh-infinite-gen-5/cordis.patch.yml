@@ -1,0 +1,73 @@
+- insert:
+    - id: dsh-infinite-gen-5
+      name: dsh-infinite-gen-5
+      # ── 无限五代 v0.66.0 注入说明 ──────────────────────────────────────────────
+      # 本插件不读外部配置：注入行为全部由包内 index.js 顶部的 IG5_CONFIG 决定
+      # （LAYER2_MODE / DEDUPE_PAYLOAD / TAIL_MODE / RUNTIME_ANCHOR_MODE /
+      #   RUNTIME_ANCHOR_EVERY / EXCLUSIVE_SECTION），改完需要重启 session
+      # （DSH 的 patchReload = "startup"）。
+      #
+      # ── 注入位置：补上宿主段位表里被漏掉的两格 ────────────────────────────────
+      # 宿主段位表（@deepseek-ai/dsh-system-prompt 的 SECTION_ORDERS）在旧版 Order 200
+      # 之后还排着 9000 交付物引用 / 9900 结构化输出 / 10000 HARNESS_SOURCE /
+      # 10100 WEB_SURFACE / 10200 人格后缀 —— 也就是说「Order 200 末位锚点」其实
+      # 根本不在末位。v0.12.0 起注入分四处：
+      #   1) Order 100  内核（prompts/infinite-gen-5.md）
+      #   2) Order 200  中段锚点（LAYER2_MODE）
+      #   3) 真末位锚点（TAIL_MODE = "waterfall"，默认）
+      #      挂在 system-prompt/assemble 瀑布上，把锚点追加到装配结果 sections 数组的
+      #      最后一项。宿主对该返回值只做 complete 兜底与 "\n\n" 拼接，数组顺序即拼接
+      #      顺序，所以它排在 10200 人格后缀之后，恒为整份系统提示的最后一段，且不占
+      #      section 命名空间（不会与别的插件撞段名）。
+      #      "order" = 以 order 10150 注册普通段（宿主 complete 模式下会被裁掉）；
+      #      "off"   = 不注入。瀑布不可用时自动退化为 order 10150 普通段。
+      #   4) 运行时锚点（RUNTIME_ANCHOR_MODE = "cadence"，默认，order 118）
+      #      走 systemPrompt.context() 槽 —— 沙箱策略 110 / 审批策略 115 / 子代理委派 120
+      #      用的就是这一格，宿主每步把它作为**最后一条 user 消息**追加在消息链尾，且
+      #      快照头写明 supersedes earlier runtime-context snapshots：这是离模型最近、
+      #      权威表述最强的一格。宿主只在文本变化时重发，所以「多久重述一次」= 多久换
+      #      一次文本：cadence 每 6 步换一次（默认）/ once 只发一次 / every 每步换。
+      #
+      # EXCLUSIVE_SECTION（默认 false，实验档）
+      #   为 true 时内核段带 complete: true，宿主只保留这一份系统提示，其余段（工具
+      #   用法、沙箱策略、设备协议、宿主身份……）整体让位；此时末位锚点会并进内核文本
+      #   （宿主在瀑布之后把 sections 裁成 [completeSection]，单独追加的段会被丢掉）。
+      #   代价是宿主自己的协议段一起消失 —— 只在明确需要纯净载荷时开。
+      #
+      # LAYER2_MODE（默认 "anchor"）
+      #   "anchor" → Order 200 只放约 200 字节的末位锚点。
+      #              v0.5.0 这里载入的是与 Order 100 逐字同源的第二份完整内核，
+      #              等于每轮对话白烧约 3 KB 重复 token。
+      #   "mirror" → Order 200 放完整镜像载荷；若与 Order 100 同源则自动跳过并 warn。
+      #   "off"    → 单段注入（等价于旧 DUAL_LAYER_INJECTION = false）。
+      #
+      # DEDUPE_PAYLOAD（默认 true）
+      #   注册前枚举宿主已注册的系统段；若发现同源载荷（归一化后逐字相同，或一方被
+      #   另一方完整包含且长度比 ≥ 0.8），本插件整段让位，不把同一份内核注入第二遍。
+      #   典型场景：同机还装着上一代破甲插件，两边会叠成 4 份近似拷贝。
+      #   让位不静默：console.warn 点名对方段名与重合度，infinite_gen5_profile 工具的
+      #   dedupe 字段也会如实汇报（role = primary | yielded）。
+      #   枚举不到宿主段落时（老宿主/异常宿主）一律照常注入 —— 宁可重复，不可静默丢失。
+      #
+      # 客户端：五代徽标使用独立标识 data-armor="gen5"；检测到上一代破甲徽标
+      # （title 以「无限四代/三代」开头）时接管显示并将其折叠，避免两条状态条同时出现。
+      # 折叠只发生在五代自己拿到投影数据时；拿不到就保留对方的，不会两条都不显示。
+      #
+      # ── v0.7.0 计算机向扩写 + 工具链 ───────────────────────────
+      # 领域包 45 → 56：offense 新增 re 逆向 / unpack 脱壳 / obfuscation 反混淆 /
+      # hook_inject / malware 样本 / exploit_dev 利用 / fuzzing；crypto 新增
+      # decrypt 口令恢复 / stego 隐写；engineering 新增 programming / automation。
+      # 每个计算机域在 data/toolchains.mjs 里配了「工具 — 用途 | 装: … | 验: …」，
+      # 以及「探测 → 安装 → 验证 → 降级」协议；工具返回值与 playbook 正文都带这两块。
+      # 内核新增 Toolchain rule：本地缺工具时先装、验证、再跑，装不上给等价替代。
+      #
+      # ── v0.6.0 领域 / 语言覆盖 ────────────────────────────────────────────────
+      # 内核载荷（prompts/infinite-gen-5.md，三份同源文件逐字一致）现在只做三件事：
+      #   1) 五槽骨架 ROLE / OBJECT / ACTION / SCOPE / SHAPE —— 任何领域（含清单里没有的）
+      #      都先拆五槽再产出，不再只点名 3 个任务族；
+      #   2) 56 个领域 × 7 族点名（攻防 / AI / 密码 / 数据 / 创作 / 语言 / 工程）；
+      #   3) 语言规则：任何语言的软化词都视为「重新框定并继续」。
+      # 56 个领域包的**全文**不在 system prompt 里（那是每轮付费），而在
+      # infinite_gen5_scenario 工具里：无参调用给约 3.8 KB 索引，
+      # 带用户原话只回命中的那一个包。领域标记表与领域包数据同源于
+      # data/scenarios.mjs（运行时状态条与离线评分器共用，不再各存一份漂移表）。
