@@ -72,7 +72,14 @@ DEFAULT_BUILTINS = (
 
 # 预装第三方插件：随包内置但保持第三方身份（插件页可在线更新 / 删除）。
 # 与 Java BuiltinPlugins.PRESET_PLUGINS 一致；不进 DEFAULT_BUILTINS。
-PRESET_PLUGINS = ("dsh-infinite-gen-4", "dsh-our-free-model")
+# 2026-10 用户要求：无限四代 dsh-infinite-gen-4 删除，换成 dsh-infinite-gen-5（无限五代）。
+# dsh-our-free-model 已改为真正内置（进 DEFAULT_BUILTINS + builtin.txt），不再列在这里。
+PRESET_PLUGINS = ("dsh-infinite-gen-5",)
+
+# 已退役的预装第三方插件（历史上曾是 PRESET，现已移除）：注册时从旧 profile
+# 里摘掉残留的 dependencies / bundles / node_modules 链接 / 禁用标记，避免升级后
+# 旧实体继续被 dsh 加载（用户反馈升级后仍出现 dsh-infinite-gen-4 在加载）。
+RETIRED_PRESETS = ("dsh-infinite-gen-4",)
 
 # 当前签名 APK 独占的系统插件；与 Java BuiltinPlugins.SIGNED_BUILTINS 一致。
 SIGNED_ONLY = ("dsh-app-integration",)
@@ -116,6 +123,13 @@ MANAGED_ASSET_MARKER = local("/usr/local/share/deepseekharness/managed-assets-v2
 def valid_name(name):
     return isinstance(name, str) and len(name) <= 214 and re.fullmatch(
         r"(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*", name) is not None
+
+
+def selection_aliases(name):
+    """插件在 profile bundles 里可能使用的全部名字。本 fork 无官方 wrapper
+    别名机制（AUTO_REVIEW 等），即插件本身要么在 bundles、要么不在；
+    保留函数形态以便与官方 plugin-manager 的读回校验逻辑逐字一致。"""
+    return (name,)
 
 
 def ensure_relative_link(link, target):
@@ -564,10 +578,10 @@ def remove_link(name):
 # ================= 启用 / 禁用 =================
 
 def enable_plugin(name):
-    """--enable：清禁用标记、加回 bundles、重建链接（官方核心无标记/链接，只改 bundles）。"""
-    if name not in OFFICIAL_BUNDLES and name not in builtin_names() and not globals().get('_native_review_approved', False):
-        print('BUILTIN_REGISTER_FAIL: 请在原生插件界面审阅并确认启用')
-        return 1
+    """--enable：清禁用标记、加回 bundles、重建链接（官方核心无标记/链接，只改 bundles）。
+    与官方 DSHA v0.2.1 一致：不再用 _native_review_approved 强制门槛（旧逻辑会让
+    enable-state 直连路径在没走 lifecycle 审阅时直接失败，表现为「插件自动关闭/
+    启用不生效」）。审阅保护由 plugin-lifecycle 的事务层单独保障（预览/回滚/隔离）。"""
     lines = ["== " + time.strftime("%Y-%m-%d %H:%M:%S") + " 启用 " + name]
     try:
         existing_web = os.path.isfile(os.path.join(local(NODE_MODULES), name, "package.json"))
@@ -840,6 +854,33 @@ def register():
     if preset_changed and preset_doc is not None:
         write_manifest(preset_doc)
         lines.append("预装第三方插件已入列（默认关闭，可在插件页启用）：%s" % ", ".join(sorted(set(preset_changed))))
+
+    # 退役 preset 清理：旧 profile 可能残留 RETIRED_PRESETS 的 dependencies /
+    # bundles / node_modules 链接 / 禁用标记（升级后 dsh 会继续加载旧实体）。
+    # 只摘离这里列出的已知退役名单，不碰用户自装的第三方插件。
+    retired_changed = False
+    if preset_doc is not None:
+        retired = [n for n in RETIRED_PRESETS if n not in PRESET_PLUGINS]
+        if retired:
+            deps = dict(preset_doc.get("dependencies") or {})
+            for name in retired:
+                deps.pop(name, None)
+                remove_stale_builtin_alias(name)
+                marker = marker_path(name)
+                if marker and os.path.isfile(local(marker)):
+                    try:
+                        os.remove(local(marker))
+                    except OSError:
+                        pass
+            preset_doc["dependencies"] = deps
+            profile = preset_doc.setdefault("dsh", {}).setdefault("profile", {})
+            profile["bundles"] = [name for name in list(profile.get("bundles") or [])
+                                  if name not in retired]
+            write_manifest(preset_doc)
+            retired_changed = True
+    if retired_changed:
+        lines.append("已清理退役预装插件（不再随包）：%s" % ", ".join(
+            n for n in RETIRED_PRESETS if n not in PRESET_PLUGINS))
 
     _write_log(lines, ok=True)
     print("BUILTIN_REGISTER_OK: %d 个内置插件注册就绪" % len(present))

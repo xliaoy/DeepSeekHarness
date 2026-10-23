@@ -695,6 +695,31 @@ def cmd_release(owner, repo, tag, *, consume=None):
     return cmd_download(archives[0]["browser_download_url"], **({"consume": consume} if consume else {}))
 
 
+def set_plugin_state(name, enable):
+    """与官方 DSHA v0.2.1 一致：持久化并读回这一条开关意图，不做全列表扫描。
+    读回不一致立即抛错（不静默更新本地状态），避免「插件自动关闭」——
+    旧实现 enable-list 在锁内扫描全列表，若期间列表状态变化（HMR/外部刷新），
+    扫描结果会覆盖刚写入的开关意图，界面显示已启用/禁用而实际是旧状态。"""
+    if not builtin.valid_name(name):
+        raise ValueError('无效的插件名称')
+    with builtin.operation_lock(check_cancel):
+        progress('configure', '正在更新插件状态…', cancellable=False)
+        if (builtin.enable_plugin(name) if enable else builtin.disable_plugin(name)) != 0:
+            raise ValueError('插件状态更新失败，请检查配置和安装文件')
+        doc = builtin.read_manifest()
+        if doc is None:
+            raise ValueError('无法读回插件配置，未确认操作结果')
+        bundles = doc.get('dsh', {}).get('profile', {}).get('bundles', [])
+        aliases = builtin.selection_aliases(name)
+        selected = any(alias in bundles for alias in aliases)
+        disabled = any(os.path.isfile(builtin.marker_path(alias)) for alias in aliases)
+        actual = selected and not disabled
+        if actual != enable or (not enable and selected):
+            raise ValueError('插件启停意图读回不一致，未确认操作结果；请检查原配置')
+    return dict(name=name, enabled=actual, intentVerified=True,
+                message='已' + ('启用 ' if actual else '禁用 ') + name + '；重启 Web 后生效')
+
+
 def cmd_list(message="插件状态已同步"):
     doc = builtin.read_manifest() or {}
     bundles = doc.get("dsh", {}).get("profile", {}).get("bundles", [])
@@ -783,16 +808,16 @@ def main():
                 if builtin.register() != 0:
                     raise ValueError('部分内置插件待修复，请检查环境')
                 return cmd_list('插件检测完成；变更后重启 Web 生效')
-        if len(args) == 2 and args[0] in ('enable-list', 'disable-list'):
-            name = args[1]
-            if not builtin.valid_name(name):
-                raise ValueError('无效的插件名称')
-            with builtin.operation_lock(check_cancel):
-                enable = args[0] == 'enable-list'
-                progress('configure', '正在更新插件状态…', cancellable=False)
-                if (builtin.enable_plugin(name) if enable else builtin.disable_plugin(name)) != 0:
-                    raise ValueError('插件状态更新失败，请检查配置或审阅状态')
-                return cmd_list('已' + ('启用 ' if enable else '禁用 ') + name + '；重启 Web 后生效')
+        if len(args) == 2 and args[0] in ('enable-state', 'disable-state', 'enable-list', 'disable-list'):
+            # 与官方 DSHA v0.2.1 一致的启停逻辑：只持久化并读回这一条开关意图，
+            # 不做全列表扫描（旧版 enable-list 在列表读取期间状态变化会静默丢状态，
+            # 表现为「插件自动关闭」）。enable-state 返回轻量回执（带 intentVerified），
+            # enable-list 保留旧调用方的列表形态，但扫描严格在变更锁关闭之后执行。
+            state = set_plugin_state(args[1], args[0].startswith('enable-'))
+            if args[0].endswith('-state'):
+                result('ok', **state)
+                return 0
+            return cmd_list(state['message'])
         if len(args) == 2 and args[0] == 'delete-list':
             if cmd_delete(args[1]) != 0:
                 return 1
