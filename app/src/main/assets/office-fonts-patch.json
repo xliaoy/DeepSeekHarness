@@ -1,10 +1,1 @@
-{
-  "dshVersion": "0.2.0-rc.2",
-  "module": "@deepseek-ai/libreoffice-kit/lib/index.js",
-  "patches": [
-    {
-      "before": "...shared.map((path) => posix.join(path, \"fonts\")),",
-      "after": "...shared.map((path) => posix.join(path, \"fonts\")),\n        // DeepSeekHarness_ANDROID_FONTS_V1: 使用已有的只读 Android 字体，不复制一份字体库。\n        ...(env.DeepSeekHarness_ANDROID_RUNTIME === \"1\" ? [\"/system/fonts\"] : []),"
-    }
-  ]
-}
+{"dshVersion": "0.2.1-rc.2", "module": "@deepseek-ai/libreoffice-kit/lib/index.js", "patches": [{"before": "...shared.map((path) => posix.join(path, \"fonts\")),", "after": "...shared.map((path) => posix.join(path, \"fonts\")),\n        // DeepSeekHarness_ANDROID_FONTS_V1: 使用已有的只读 Android 字体，不复制一份字体库。\n        ...(env.DeepSeekHarness_ANDROID_RUNTIME === \"1\" ? [\"/system/fonts\"] : []),"}]}

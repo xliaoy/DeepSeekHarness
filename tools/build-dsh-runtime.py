@@ -397,10 +397,9 @@ var DeepSeekHarnessRecordHints = class {
         if text.count(create_anchor) != 1:
             raise ValueError('会话 create 结构变化，必须重新检查')
         text = text.replace(create_anchor, create_replacement)
-        field_anchor = '''\tprivate readonly tracker;\n\t/**\n\t * Bounded LRU'''
         # The emitted JS has no private field declarations. Add the field next
         # to the tracker declaration in the class body instead.
-        class_anchor = '''\ttracker = new JsonlBackendTracker(this.name);\n\tgenerationFormat;'''
+        class_anchor = '''\ttracker;\n\t/** Backend label for diagnostics and effects; shadows `Service.name` without changing the service key. */'''
         class_replacement = '''\ttracker;\n\t/** DeepSeekHarness_SESSION_DIRECT_HINTS_V1: cwd hints for durable sessions published here. */\n\tdeepseekharnessSessionHints = new DeepSeekHarnessSessionHints();\n\t/**\n\t * Bounded LRU'''
         if text.count(class_anchor) != 1:
             raise ValueError('会话后端 tracker 结构变化，必须重新检查')
@@ -420,7 +419,7 @@ var DeepSeekHarnessRecordHints = class {
         if text.count(release_anchor) != 1:
             raise ValueError('会话 releaseHandle 结构变化，必须重新检查')
         text = text.replace(release_anchor, release_replacement)
-        hints_anchor = '''/**\n* The JSONL persistence backend.'''
+        hints_anchor = '''/**\n* The JSONL backend registered as `ctx.sessionPersistence` by the plugin.'''
         hints_code = '''/* DeepSeekHarness_SESSION_DIRECT_HINTS_V1 */\nclass DeepSeekHarnessSessionHints {\n\tentries = new Map();\n\tremember(header) {\n\t\tif (header && typeof header.id === "string") this.entries.set(header.id, { id: header.id, cwd: header.cwd });\n\t}\n\tget(id) { return this.entries.get(id); }\n\tforget(id) { this.entries.delete(id); }\n}\n'''
         if text.count(hints_anchor) != 1:
             raise ValueError('会话后端类锚点变化，必须重新检查')

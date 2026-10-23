@@ -93,6 +93,14 @@ def main():
     if source == output or source in output.parents:
         raise ValueError("生成目录不能放在原始资产目录内")
     output.mkdir(parents=True, exist_ok=True)
+    # 生成目录必须与输入同步：先清空 output，再整体重建，否则 src 里已删除/裁剪的
+    # 文件（如退役的 dsh-infinite-gen-4 实体、被裁剪的 gen-5 素材）会残留在旧 output，
+    # 被打进 APK（真机表现为旧插件实体仍在加载、APK 体积异常）。
+    for item in output.iterdir():
+        if item.is_dir() and not item.is_symlink():
+            shutil.rmtree(item, ignore_errors=True)
+        else:
+            item.unlink(missing_ok=True)
     rootfs = source / "offline-rootfs.bin"
     runtime = source / "dsh-runtime.bin"
     excluded = {"offline-rootfs.bin", "runtime-python/python-runtime.tgz",
